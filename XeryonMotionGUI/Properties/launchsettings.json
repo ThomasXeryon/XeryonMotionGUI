@@ -1,0 +1,10 @@
+﻿{
+    "profiles": {
+      "XeryonMotionGUI (Package)": {
+        "commandName": "MsixPackage"
+      },
+      "XeryonMotionGUI (Unpackaged)": {
+        "commandName": "Project"
+      }
+    }
+}
