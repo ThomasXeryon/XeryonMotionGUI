@@ -1,0 +1,14 @@
+﻿<ResourceDictionary 
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- You can define additional colors for other UI elements -->
+    <Color x:Key="SystemAccentColorLight1">#27b62d</Color>
+    <Color x:Key="SystemAccentColorDark1">#27b62d</Color>
+    <Color x:Key="SystemAccentColorLight2">#27b62d</Color>
+    <Color x:Key="SystemAccentColorDark2">#27b62d</Color>
+    <Color x:Key="SystemAccentColorLight3">#27b62d</Color>
+    <Color x:Key="SystemAccentColorDark3">#27b62d</Color>
+
+
+</ResourceDictionary>

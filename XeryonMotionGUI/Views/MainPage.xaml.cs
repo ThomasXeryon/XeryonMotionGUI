@@ -1,4 +1,6 @@
-﻿using Microsoft.UI.Xaml.Controls;
+﻿using Microsoft.UI.Xaml;
+using System.Diagnostics;
+using Microsoft.UI.Xaml.Controls;
 
 using XeryonMotionGUI.ViewModels;
 
@@ -15,5 +17,22 @@ public sealed partial class MainPage : Page
     {
         ViewModel = App.GetService<MainViewModel>();
         InitializeComponent();
+    }
+
+    private void OpenDeviceManager_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "devmgmt.msc",
+                UseShellExecute = true
+            });
+
+        }
+        catch (Exception ex)
+        {
+
+        }
     }
 }
