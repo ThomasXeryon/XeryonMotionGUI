@@ -24,7 +24,7 @@
         <TextBlock Text="Available Controllers" FontWeight="Bold" Margin="10" FontSize="24" HorizontalAlignment="Center" Grid.Row="0"/>
 
         <!-- Available Controllers List -->
-        <ListBox x:Name="AvailableControllersList" Height="750" ScrollViewer.VerticalScrollBarVisibility="Visible" ItemsSource="{Binding FoundControllers}" HorizontalAlignment="Left" Background="Transparent" Grid.Row="1">
+        <ListBox x:Name="AvailableControllersList" Height="750" ScrollViewer.VerticalScrollBarVisibility="Visible" ItemsSource="{Binding FoundControllers}"  HorizontalAlignment="Left" Background="Transparent" Grid.Row="1">
             <ListBox.Resources>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="Background" Value="Transparent"/>

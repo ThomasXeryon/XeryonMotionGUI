@@ -15,6 +15,7 @@ namespace XeryonMotionGUI.Classes
     public class Controller : INotifyPropertyChanged
     {
         public static ObservableCollection<Controller> FoundControllers { get; set; } = new ObservableCollection<Controller>();
+        public static ObservableCollection<Controller> RunningControllers { get; set; } = new ObservableCollection<Controller>();
 
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -110,8 +111,8 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        private Axis[] _Axes;
-        public Axis[] Axes
+        private ObservableCollection<Axis> _Axes;
+        public ObservableCollection<Axis> Axes
         {
             get => _Axes;
             set
@@ -240,12 +241,14 @@ namespace XeryonMotionGUI.Classes
                 Initialize();
                 Running = true;
                 Status = "Disconnect";
+                UpdateRunningControllers();
             }
             else
             {
                 Port.Close();
                 Running = false;
                 Status = "Connect";
+                UpdateRunningControllers();
             }
         }
         public ICommand OpenPortCommand
@@ -254,6 +257,21 @@ namespace XeryonMotionGUI.Classes
             {
                 _OpenPortCommand ??= new RelayCommand(OpenPort);
                 return _OpenPortCommand;
+            }
+        }
+
+        public static void UpdateRunningControllers()
+        {
+            var controllersToRemove = RunningControllers.Where(c => !c.Running).ToList();
+            foreach (var controller in controllersToRemove)
+            {
+                RunningControllers.Remove(controller);
+            }
+
+            var controllersToAdd = FoundControllers.Where(c => c.Running && !RunningControllers.Contains(c)).ToList();
+            foreach (var controller in controllersToAdd)
+            {
+                RunningControllers.Add(controller);
             }
         }
     }

@@ -2,37 +2,45 @@
     x:Class="XeryonMotionGUI.Views.MotionPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d">
+    xmlns:local="using:XeryonMotionGUI.Views"
+    xmlns:viewmodels="using:XeryonMotionGUI.ViewModels">
 
-    <Grid x:Name="ContentArea">
+    <Page.DataContext>
+        <viewmodels:MotionViewModel />
+    </Page.DataContext>
+
+    <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
 
-        <ListView
-            x:Name="FoundControllerList"
-            ItemsSource="{Binding FoundControllers}"
-            SelectedItem="{Binding SelectedController, Mode=TwoWay}"
-            DisplayMemberPath="Name"
-            BorderThickness="1"
-            BorderBrush="{ThemeResource SystemControlForegroundBaseMediumLowBrush}"
-            Width="350"
-            Height="400"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"/>
+        <!-- ListView for controllers -->
+        <ListView 
+            ItemsSource="{Binding RunningControllers}" 
+            SelectedItem="{Binding SelectedController, Mode=TwoWay}">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Name}" />
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
 
-        <StackPanel Grid.Column="1" Margin="10">
-            <TextBlock Text="Controller Details" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
-            <TextBlock Text="Name:" FontWeight="Bold"/>
-            <TextBlock Text="{Binding SelectedController.Name}" Margin="0,0,0,10"/>
-            <TextBlock Text="Type:" FontWeight="Bold"/>
-            <TextBlock Text="{Binding SelectedController.Type}" Margin="0,0,0,10"/>
-            <TextBlock Text="Status:" FontWeight="Bold"/>
-            <TextBlock Text="{Binding SelectedController.Status}" Margin="0,0,0,10"/>
-            <!-- Add more fields as necessary -->
+        <!-- Axis Details -->
+        <StackPanel Grid.Column="1">
+            <TextBlock Text="Axis Values:" FontWeight="Bold" Margin="10"/>
+            <ItemsControl ItemsSource="{Binding SelectedController.Axes}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <TextBlock Text="Axis Name:" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding Name}" />
+                            <TextBlock Text="Resolution:" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding Resolution}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
     </Grid>
 </Page>

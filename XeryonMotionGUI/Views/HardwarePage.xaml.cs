@@ -17,7 +17,7 @@ namespace XeryonMotionGUI.Views;
 
 public sealed partial class HardwarePage : Page
 {
-    public ObservableCollection<Controller> FoundControllers { get; set; } = new ObservableCollection<Controller>();
+    public ObservableCollection<Controller> FoundControllers => Controller.FoundControllers;
 
     public HardwarePage()
     {
@@ -37,11 +37,11 @@ public sealed partial class HardwarePage : Page
         await Task.Delay(200);
         Debug.WriteLine("Searching for controllers");
         string[] ports = System.IO.Ports.SerialPort.GetPortNames();
-        for (int i = FoundControllers.Count - 1; i >= 0; i--)
+        for (int i = Controller.FoundControllers.Count - 1; i >= 0; i--)
         {
-            if (!FoundControllers[i].Running)
+            if (!Controller.FoundControllers[i].Running)
             {
-                FoundControllers.RemoveAt(i);
+                Controller.FoundControllers.RemoveAt(i);
             }
         }
         foreach (var port in ports)
@@ -55,8 +55,10 @@ public sealed partial class HardwarePage : Page
                 serialPort.ReadTimeout = 200;
                 serialPort.Open();
                 var controller = new Controller();
-                controller.Axes = new Axis[1];
-                controller.Axes[0] = new Axis();
+                controller.Axes = new ObservableCollection<Axis>
+                {
+                    new Axis()
+                };
                 controller.Port = serialPort;
                 serialPort.Write("INFO=0");
                 await Task.Delay(100);
@@ -127,7 +129,7 @@ public sealed partial class HardwarePage : Page
                 }
                 controller.FriendlyPort = port;
                 controller.Status = "Connect";
-                FoundControllers.Add(controller);
+                Controller.FoundControllers.Add(controller);
             }
             else
             {
