@@ -1,111 +1,259 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
 
-namespace XeryonMotionGUI.Classes;
-public class Controller
+namespace XeryonMotionGUI.Classes
 {
-    public bool Running
+    public class Controller : INotifyPropertyChanged
     {
-        get; set;
-    }
-    public string Status
-    {
-        get; set;
-    }
-    public SerialPort Port
-    {
-        get; set;
-    }
-    public string Name
-    {
-        get; set;
-    }
-    public string FriendlyPort
-    {
-        get; set;
-    }
-    public int AxisCount
-    {
-        get; set;
-    }
-    public Axis[] Axes
-    {
-        get; set;
-    }
-    public string Type
-    {
-        get; set;
-    }
-    public string Serial
-    {
-        get; set;
-    }
-    public string Soft
-    {
-        get; set;
-    }
-    public string Fgpa
-    {
-        get; set;
-    }
-    public string ControllerTitle
-    {
-        get
-        {
-            return "Controller " + FriendlyPort;
-        }
-    }
+        public static ObservableCollection<Controller> FoundControllers { get; set; } = new ObservableCollection<Controller>();
 
-    public void Initialize()
-    {
-        if (Running)
-        {
-            Port.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
-        }
-    }
 
-    private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
-    {
-        SerialPort sp = (SerialPort)sender;
-        string inData = sp.ReadExisting();
-        string[] dataParts = inData.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (string part in dataParts)
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private ICommand _OpenPortCommand;
+
+        protected virtual void OnPropertyChanged(string propertyName)
         {
-            if (part.StartsWith("STAT="))
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private string _Status;
+        public string Status
+        {
+            get => _Status;
+            set
             {
-                if (int.TryParse(part.Substring(5), out int statValue))
+                if (_Status != value)
                 {
-                    foreach (var axis in Axes)
+                    _Status = value;
+                    OnPropertyChanged(nameof(Status));
+                }
+            }
+        }
+
+        private bool _Running;
+        public bool Running
+        {
+            get => _Running;
+            set
+            {
+                if (_Running != value)
+                {
+                    _Running = value;
+                    OnPropertyChanged(nameof(Running));
+                }
+            }
+        }
+
+        private SerialPort _Port;
+        public SerialPort Port
+        {
+            get => _Port;
+            set
+            {
+                if (_Port != value)
+                {
+                    _Port = value;
+                    OnPropertyChanged(nameof(Port));
+                }
+            }
+        }
+
+        private string _Name;
+        public string Name
+        {
+            get => _Name;
+            set
+            {
+                if (_Name != value)
+                {
+                    _Name = value;
+                    OnPropertyChanged(nameof(Name));
+                }
+            }
+        }
+
+        private string _FriendlyPort;
+        public string FriendlyPort
+        {
+            get => _FriendlyPort;
+            set
+            {
+                if (_FriendlyPort != value)
+                {
+                    _FriendlyPort = value;
+                    OnPropertyChanged(nameof(FriendlyPort));
+                }
+            }
+        }
+
+        private int _AxisCount;
+        public int AxisCount
+        {
+            get => _AxisCount;
+            set
+            {
+                if (_AxisCount != value)
+                {
+                    _AxisCount = value;
+                    OnPropertyChanged(nameof(AxisCount));
+                }
+            }
+        }
+
+        private Axis[] _Axes;
+        public Axis[] Axes
+        {
+            get => _Axes;
+            set
+            {
+                if (_Axes != value)
+                {
+                    _Axes = value;
+                    OnPropertyChanged(nameof(Axes));
+                }
+            }
+        }
+
+        private string _Type;
+        public string Type
+        {
+            get => _Type;
+            set
+            {
+                if (_Type != value)
+                {
+                    _Type = value;
+                    OnPropertyChanged(nameof(Type));
+                }
+            }
+        }
+
+        private string _Serial;
+        public string Serial
+        {
+            get => _Serial;
+            set
+            {
+                if (_Serial != value)
+                {
+                    _Serial = value;
+                    OnPropertyChanged(nameof(Serial));
+                }
+            }
+        }
+
+        private string _Soft;
+        public string Soft
+        {
+            get => _Soft;
+            set
+            {
+                if (_Soft != value)
+                {
+                    _Soft = value;
+                    OnPropertyChanged(nameof(Soft));
+                }
+            }
+        }
+
+        private string _Fgpa;
+        public string Fgpa
+        {
+            get => _Fgpa;
+            set
+            {
+                if (_Fgpa != value)
+                {
+                    _Fgpa = value;
+                    OnPropertyChanged(nameof(Fgpa));
+                }
+            }
+        }
+
+        public string ControllerTitle => $"Controller {_FriendlyPort}";
+
+        public void Initialize()
+        {
+            if (Running)
+            {
+                Port.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
+            }
+        }
+
+        private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
+        {
+            SerialPort sp = (SerialPort)sender;
+            string inData = sp.ReadExisting();
+            string[] dataParts = inData.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string part in dataParts)
+            {
+                if (part.StartsWith("STAT="))
+                {
+                    if (int.TryParse(part.Substring(5), out int statValue))
                     {
-                        axis.STAT = statValue;
+                        foreach (var axis in Axes)
+                        {
+                            axis.STAT = statValue;
+                        }
+                    }
+                }
+
+                if (part.StartsWith("EPOS="))
+                {
+                    if (int.TryParse(part.Substring(5), out int statValue))
+                    {
+                        foreach (var axis in Axes)
+                        {
+                            axis.EPOS = statValue;
+                        }
+                    }
+                }
+
+                if (part.StartsWith("TIME="))
+                {
+                    if (int.TryParse(part.Substring(5), out int statValue))
+                    {
+                        foreach (var axis in Axes)
+                        {
+                            axis.TIME = statValue;
+                        }
                     }
                 }
             }
+        }
 
-            if (part.StartsWith("EPOS="))
+        public void OpenPort()
+        {
+            if (!Running)
             {
-                if (int.TryParse(part.Substring(5), out int statValue))
-                {
-                    foreach (var axis in Axes)
-                    {
-                        axis.EPOS = statValue;
-                    }
-                }
+                Port.Open();
+                Initialize();
+                Running = true;
+                Status = "Disconnect";
             }
-
-            if (part.StartsWith("TIME="))
+            else
             {
-                if (int.TryParse(part.Substring(5), out int statValue))
-                {
-                    foreach (var axis in Axes)
-                    {
-                        axis.TIME = statValue;
-                    }
-                }
+                Port.Close();
+                Running = false;
+                Status = "Connect";
+            }
+        }
+        public ICommand OpenPortCommand
+        {
+            get
+            {
+                _OpenPortCommand ??= new RelayCommand(OpenPort);
+                return _OpenPortCommand;
             }
         }
     }

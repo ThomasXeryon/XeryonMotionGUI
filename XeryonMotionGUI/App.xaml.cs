@@ -53,16 +53,16 @@ public partial class App : Application
         ConfigureServices((context, services) =>
         {
             // Default Activation Handler
-            services.AddTransient<ActivationHandler<LaunchActivatedEventArgs>, DefaultActivationHandler>();
+            services.AddSingleton<ActivationHandler<LaunchActivatedEventArgs>, DefaultActivationHandler>();
 
             // Other Activation Handlers
-            services.AddTransient<IActivationHandler, AppNotificationActivationHandler>();
+            services.AddSingleton<IActivationHandler, AppNotificationActivationHandler>();
 
             // Services
             services.AddSingleton<IAppNotificationService, AppNotificationService>();
             services.AddSingleton<ILocalSettingsService, LocalSettingsService>();
             services.AddSingleton<IThemeSelectorService, ThemeSelectorService>();
-            services.AddTransient<INavigationViewService, NavigationViewService>();
+            services.AddSingleton<INavigationViewService, NavigationViewService>();
 
             services.AddSingleton<IActivationService, ActivationService>();
             services.AddSingleton<IPageService, PageService>();
@@ -72,18 +72,18 @@ public partial class App : Application
             services.AddSingleton<IFileService, FileService>();
 
             // Views and ViewModels
-            services.AddTransient<SettingsViewModel>();
-            services.AddTransient<SettingsPage>();
-            services.AddTransient<MotionViewModel>();
-            services.AddTransient<MotionPage>();
-            services.AddTransient<ParametersViewModel>();
-            services.AddTransient<ParametersPage>();
-            services.AddTransient<HardwareViewModel>();
-            services.AddTransient<HardwarePage>();
-            services.AddTransient<MainViewModel>();
-            services.AddTransient<MainPage>();
-            services.AddTransient<ShellPage>();
-            services.AddTransient<ShellViewModel>();
+            services.AddSingleton<SettingsViewModel>();
+            services.AddSingleton<SettingsPage>();
+            services.AddSingleton<MotionViewModel>();
+            services.AddSingleton<MotionPage>();
+            services.AddSingleton<ParametersViewModel>();
+            services.AddSingleton<ParametersPage>();
+            services.AddSingleton<HardwareViewModel>();
+            services.AddSingleton<HardwarePage>();
+            services.AddSingleton<MainViewModel>();
+            services.AddSingleton<MainPage>();
+            services.AddSingleton<ShellPage>();
+            services.AddSingleton<ShellViewModel>();
 
             // Configuration
             services.Configure<LocalSettingsOptions>(context.Configuration.GetSection(nameof(LocalSettingsOptions)));

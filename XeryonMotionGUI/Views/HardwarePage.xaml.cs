@@ -2,7 +2,6 @@
 using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml.Controls;
 using XeryonMotionGUI.Models;
-
 using XeryonMotionGUI.ViewModels;
 using Microsoft.UI.Xaml.Media;
 using XeryonMotionGUI.Classes;
@@ -11,12 +10,13 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Data;
+using WinUIEx.Messaging;
 
 namespace XeryonMotionGUI.Views;
 
 public sealed partial class HardwarePage : Page
 {
-    public ObservableCollection<COMPortModel> COMPorts { get; set; } = new ObservableCollection<COMPortModel>();
     public ObservableCollection<Controller> FoundControllers { get; set; } = new ObservableCollection<Controller>();
 
     public HardwarePage()
@@ -37,8 +37,13 @@ public sealed partial class HardwarePage : Page
         await Task.Delay(200);
         Debug.WriteLine("Searching for controllers");
         string[] ports = System.IO.Ports.SerialPort.GetPortNames();
-        COMPorts.Clear();
-        FoundControllers.Clear();
+        for (int i = FoundControllers.Count - 1; i >= 0; i--)
+        {
+            if (!FoundControllers[i].Running)
+            {
+                FoundControllers.RemoveAt(i);
+            }
+        }
         foreach (var port in ports)
         {
             var (isXeryon, response) = CheckIfXeryon(port);
@@ -88,7 +93,7 @@ public sealed partial class HardwarePage : Page
                     if (ser.Success)
                     {
                         controller.Serial = ser.Groups[1].Value;
-                        controller.Status = "Available";
+                        controller.Status = "Connect";
                     }
                     if (soft.Success)
                     {
@@ -165,6 +170,11 @@ public sealed partial class HardwarePage : Page
         }
     }
 
+    private void ConnectCToController(Controller controller)
+    {
+
+    }
+
     private async Task ShowMessage(string title, string message)
     {
         var dialog = new ContentDialog
@@ -176,23 +186,5 @@ public sealed partial class HardwarePage : Page
         };
 
         await dialog.ShowAsync();
-    }
-
-    private void ToggleConnection(COMPortModel comPort)
-    {
-        if (comPort.IsConnected)
-        {
-            // Logic to disconnect from the port
-            comPort.ButtonText = "Connect";
-            comPort.BackgroundColor = new SolidColorBrush(Colors.Green);
-            comPort.IsConnected = false;
-        }
-        else
-        {
-            // Logic to connect to the port
-            comPort.ButtonText = "Disconnect";
-            comPort.BackgroundColor = new SolidColorBrush(Colors.Red);
-            comPort.IsConnected = true;
-        }
     }
 }

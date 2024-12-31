@@ -7,6 +7,32 @@
     mc:Ignorable="d">
 
     <Grid x:Name="ContentArea">
-        
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+
+        <ListView
+            x:Name="FoundControllerList"
+            ItemsSource="{Binding FoundControllers}"
+            SelectedItem="{Binding SelectedController, Mode=TwoWay}"
+            DisplayMemberPath="Name"
+            BorderThickness="1"
+            BorderBrush="{ThemeResource SystemControlForegroundBaseMediumLowBrush}"
+            Width="350"
+            Height="400"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"/>
+
+        <StackPanel Grid.Column="1" Margin="10">
+            <TextBlock Text="Controller Details" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+            <TextBlock Text="Name:" FontWeight="Bold"/>
+            <TextBlock Text="{Binding SelectedController.Name}" Margin="0,0,0,10"/>
+            <TextBlock Text="Type:" FontWeight="Bold"/>
+            <TextBlock Text="{Binding SelectedController.Type}" Margin="0,0,0,10"/>
+            <TextBlock Text="Status:" FontWeight="Bold"/>
+            <TextBlock Text="{Binding SelectedController.Status}" Margin="0,0,0,10"/>
+            <!-- Add more fields as necessary -->
+        </StackPanel>
     </Grid>
 </Page>

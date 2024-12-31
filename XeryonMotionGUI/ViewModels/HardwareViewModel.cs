@@ -1,4 +1,6 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI.ViewModels;
 
