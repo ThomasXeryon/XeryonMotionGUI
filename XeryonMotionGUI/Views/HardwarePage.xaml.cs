@@ -57,6 +57,9 @@ public sealed partial class HardwarePage : Page
                 var controller = new Controller();
                 controller.Axes = new ObservableCollection<Axis>
                 {
+                    new Axis(),
+                    new Axis(),
+                    new Axis(),
                     new Axis()
                 };
                 controller.Port = serialPort;
