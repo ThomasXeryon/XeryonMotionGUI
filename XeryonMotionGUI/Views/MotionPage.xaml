@@ -11,36 +11,53 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250" />
+            <!-- Narrow column for the ListView -->
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="2*" />
+            <!-- Wider column for details -->
         </Grid.ColumnDefinitions>
 
-        <!-- ListView for controllers -->
+        <!-- ListView for controllers on the left -->
         <ListView 
             ItemsSource="{Binding RunningControllers}" 
-            SelectedItem="{Binding SelectedController, Mode=TwoWay}">
+            SelectedItem="{Binding SelectedController, Mode=TwoWay}"
+            Margin="10">
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <TextBlock Text="{Binding Name}" />
+                    <StackPanel Margin="10">
+                        <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding Type}" FontSize="14" Foreground="Gray"/>
+                    </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
 
-        <!-- Axis Details -->
-        <StackPanel Grid.Column="1">
-            <TextBlock Text="Axis Values:" FontWeight="Bold" Margin="10"/>
-            <ItemsControl ItemsSource="{Binding SelectedController.Axes}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel>
-                            <TextBlock Text="Axis Name:" FontWeight="Bold"/>
-                            <TextBlock Text="{Binding Name}" />
-                            <TextBlock Text="Resolution:" FontWeight="Bold"/>
-                            <TextBlock Text="{Binding Resolution}" />
-                        </StackPanel>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+        <!-- Right side: Axis Details for selected controller -->
+        <StackPanel Grid.Column="1" Margin="10">
+            <TextBlock Text="Axis Details" FontSize="24" FontWeight="Bold" Margin="0,0,0,10"/>
+
+            <!-- Displaying details only if a controller is selected -->
+            <StackPanel Visibility="{Binding SelectedController, Converter={StaticResource NullToVisibilityConverter}}">
+                <TextBlock Text="Controller Name:" FontWeight="Bold" />
+                <TextBlock Text="{Binding SelectedController.Name}" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Axis Values:" FontWeight="Bold" Margin="10,0"/>
+                <ItemsControl ItemsSource="{Binding SelectedController.Axes}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Axis Name:" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Name}" />
+                                <TextBlock Text="Resolution:" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Resolution}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Placeholder for when no controller is selected -->
+            <TextBlock Visibility="{Binding SelectedController, Converter={StaticResource NullToVisibilityConverter}, FallbackValue=Collapsed}" Text="Select a controller to see details." FontSize="16" Margin="20"/>
         </StackPanel>
     </Grid>
 </Page>

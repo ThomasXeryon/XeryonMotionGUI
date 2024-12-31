@@ -12,7 +12,6 @@ public sealed partial class MotionPage : Page
     {
         InitializeComponent();
     }
-
 }
     
     
