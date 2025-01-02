@@ -24,7 +24,7 @@ namespace XeryonMotionGUI.Classes
             _errorLimit = new Parameter(0, 1000, 1, 50);
         }
         public event PropertyChangedEventHandler PropertyChanged;
-
+            
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

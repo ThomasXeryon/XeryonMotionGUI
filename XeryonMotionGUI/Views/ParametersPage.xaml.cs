@@ -12,6 +12,7 @@ namespace XeryonMotionGUI.Views
         public ParametersPage()
         {
             InitializeComponent();
+            this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
         }
 
     }
