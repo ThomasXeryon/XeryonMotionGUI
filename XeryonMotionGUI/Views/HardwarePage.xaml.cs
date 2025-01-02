@@ -34,6 +34,7 @@ public sealed partial class HardwarePage : Page
 
     private async Task CheckForControllers()
     {
+        RefreshProgressBar.Visibility = Visibility.Visible;
         await Task.Delay(200);
         Debug.WriteLine("Searching for controllers");
         string[] ports = System.IO.Ports.SerialPort.GetPortNames();
@@ -57,9 +58,6 @@ public sealed partial class HardwarePage : Page
                 var controller = new Controller();
                 controller.Axes = new ObservableCollection<Axis>
                 {
-                    new Axis(),
-                    new Axis(),
-                    new Axis(),
                     new Axis()
                 };
                 controller.Port = serialPort;
@@ -132,6 +130,13 @@ public sealed partial class HardwarePage : Page
                 }
                 controller.FriendlyPort = port;
                 controller.Status = "Connect";
+                controller.Axes = new ObservableCollection<Axis>
+                {
+                    controller.Axes[0],
+                    controller.Axes[0],
+                    controller.Axes[0],
+                    controller.Axes[0]
+                };
                 Controller.FoundControllers.Add(controller);
             }
             else
@@ -139,6 +144,8 @@ public sealed partial class HardwarePage : Page
                 Debug.WriteLine(port + " Response: " + response);
             }
         }
+        await Task.Delay(2000);
+        RefreshProgressBar.Visibility = Visibility.Collapsed;
     }
 
     public (bool isXeryon, string response) CheckIfXeryon(string port)

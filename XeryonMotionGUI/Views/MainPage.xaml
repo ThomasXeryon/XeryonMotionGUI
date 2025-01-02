@@ -46,5 +46,6 @@
                 <Hyperlink Click="OpenDeviceManager_Click">Device Manager</Hyperlink>
             </TextBlock>
         </StackPanel>
+        <WebView2 x:Name="MyWebView2" Source="https://xeryon.com" HorizontalAlignment="Center"  VerticalAlignment="Center" Grid.Row="1" MinHeight="800" MinWidth="1000" Visibility="Collapsed"/>
     </Grid>
 </Page>

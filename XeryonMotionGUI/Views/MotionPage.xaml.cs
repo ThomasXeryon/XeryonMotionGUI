@@ -11,6 +11,8 @@ public sealed partial class MotionPage : Page
     public MotionPage()
     {
         InitializeComponent();
+        this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
+
     }
 }
     
