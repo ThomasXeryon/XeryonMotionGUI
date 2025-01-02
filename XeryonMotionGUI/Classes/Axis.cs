@@ -5,6 +5,24 @@ namespace XeryonMotionGUI.Classes
 {
     public class Axis : INotifyPropertyChanged
     {
+        public Axis()
+        {
+            _zone1Size = new Parameter(0, 1, 0.01, 0.01);
+            _zone2Size = new Parameter(0, 1, 0.01, 0.1);
+            _zone1Freq = new Parameter(0, 200000, 1000, 85000);
+            _zone2Freq = new Parameter(0, 200000, 1000, 83000);
+            _zone1Proportional = new Parameter(0, 200, 5, 90);
+            _zone2Proportional = new Parameter(0, 200, 5, 45);
+            _positionTolerance = new Parameter(0, 200, 2, 4);
+            _speed = new Parameter(0, 400, 5, 200);
+            _acceleration = new Parameter(0, 64400, 1000, 32000);
+            _mass = new Parameter(0, 1500, 100, 0);
+            _amplitudeControl = new Parameter(0, 1, 1, 1);
+            _leftSoftLimit = new Parameter(-200, 0, 1, -100);
+            _rightSoftLimit = new Parameter(0, 200, 1, 100);
+            _phaseCorrection = new Parameter(0, 1, 1, 1);
+            _errorLimit = new Parameter(0, 1000, 1, 50);
+        }
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
@@ -12,216 +30,217 @@ namespace XeryonMotionGUI.Classes
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        // New Parameters for adjustment
-        private double _Zone1Size;
-        public double Zone1Size
+        // Parameters using the Parameter class
+        private Parameter _zone1Size;
+        public Parameter Zone1Size
         {
-            get => _Zone1Size;
+            get => _zone1Size;
             set
             {
-                if (_Zone1Size != value)
+                if (_zone1Size != value)
                 {
-                    _Zone1Size = value;
+                    _zone1Size = value;
                     OnPropertyChanged(nameof(Zone1Size));
                 }
             }
         }
 
-        private double _Zone2Size;
-        public double Zone2Size
+        private Parameter _zone2Size;
+        public Parameter Zone2Size
         {
-            get => _Zone2Size;
+            get => _zone2Size;
             set
             {
-                if (_Zone2Size != value)
+                if (_zone2Size != value)
                 {
-                    _Zone2Size = value;
+                    _zone2Size = value;
                     OnPropertyChanged(nameof(Zone2Size));
                 }
             }
         }
 
-        private double _Zone1Freq;
-        public double Zone1Freq
+        private Parameter _zone1Freq;
+        public Parameter Zone1Freq
         {
-            get => _Zone1Freq;
+            get => _zone1Freq;
             set
             {
-                if (_Zone1Freq != value)
+                if (_zone1Freq != value)
                 {
-                    _Zone1Freq = value;
+                    _zone1Freq = value;
                     OnPropertyChanged(nameof(Zone1Freq));
                 }
             }
         }
 
-        private double _Zone2Freq;
-        public double Zone2Freq
+        private Parameter _zone2Freq;
+        public Parameter Zone2Freq
         {
-            get => _Zone2Freq;
+            get => _zone2Freq;
             set
             {
-                if (_Zone2Freq != value)
+                if (_zone2Freq != value)
                 {
-                    _Zone2Freq = value;
+                    _zone2Freq = value;
                     OnPropertyChanged(nameof(Zone2Freq));
                 }
             }
         }
 
-        private double _Zone1Proportional;
-        public double Zone1Proportional
+        private Parameter _zone1Proportional;
+        public Parameter Zone1Proportional
         {
-            get => _Zone1Proportional;
+            get => _zone1Proportional;
             set
             {
-                if (_Zone1Proportional != value)
+                if (_zone1Proportional != value)
                 {
-                    _Zone1Proportional = value;
+                    _zone1Proportional = value;
                     OnPropertyChanged(nameof(Zone1Proportional));
                 }
             }
         }
 
-        private double _Zone2Proportional;
-        public double Zone2Proportional
+        private Parameter _zone2Proportional;
+        public Parameter Zone2Proportional
         {
-            get => _Zone2Proportional;
+            get => _zone2Proportional;
             set
             {
-                if (_Zone2Proportional != value)
+                if (_zone2Proportional != value)
                 {
-                    _Zone2Proportional = value;
+                    _zone2Proportional = value;
                     OnPropertyChanged(nameof(Zone2Proportional));
                 }
             }
         }
 
-        private double _PositionTolerance;
-        public double PositionTolerance
+        private Parameter _positionTolerance;
+        public Parameter PositionTolerance
         {
-            get => _PositionTolerance;
+            get => _positionTolerance;
             set
             {
-                if (_PositionTolerance != value)
+                if (_positionTolerance != value)
                 {
-                    _PositionTolerance = value;
+                    _positionTolerance = value;
                     OnPropertyChanged(nameof(PositionTolerance));
                 }
             }
         }
 
-        private double _Speed;
-        public double Speed
+        private Parameter _speed;
+        public Parameter Speed
         {
-            get => _Speed;
+            get => _speed;
             set
             {
-                if (_Speed != value)
+                if (_speed != value)
                 {
-                    _Speed = value;
+                    _speed = value;
                     OnPropertyChanged(nameof(Speed));
                 }
             }
         }
 
-        private double _Acceleration;
-        public double Acceleration
+        private Parameter _acceleration;
+        public Parameter Acceleration
         {
-            get => _Acceleration;
+            get => _acceleration;
             set
             {
-                if (_Acceleration != value)
+                if (_acceleration != value)
                 {
-                    _Acceleration = value;
+                    _acceleration = value;
                     OnPropertyChanged(nameof(Acceleration));
                 }
             }
         }
 
-        private double _Mass;
-        public double Mass
+        private Parameter _mass;
+        public Parameter Mass
         {
-            get => _Mass;
+            get => _mass;
             set
             {
-                if (_Mass != value)
+                if (_mass != value)
                 {
-                    _Mass = value;
+                    _mass = value;
                     OnPropertyChanged(nameof(Mass));
                 }
             }
         }
 
-        private double _AmplitudeControl;
-        public double AmplitudeControl
+        private Parameter _amplitudeControl;
+        public Parameter AmplitudeControl
         {
-            get => _AmplitudeControl;
+            get => _amplitudeControl;
             set
             {
-                if (_AmplitudeControl != value)
+                if (_amplitudeControl != value)
                 {
-                    _AmplitudeControl = value;
+                    _amplitudeControl = value;
                     OnPropertyChanged(nameof(AmplitudeControl));
                 }
             }
         }
 
-        private double _LeftSoftLimit;
-        public double LeftSoftLimit
+        private Parameter _leftSoftLimit;
+        public Parameter LeftSoftLimit
         {
-            get => _LeftSoftLimit;
+            get => _leftSoftLimit;
             set
             {
-                if (_LeftSoftLimit != value)
+                if (_leftSoftLimit != value)
                 {
-                    _LeftSoftLimit = value;
+                    _leftSoftLimit = value;
                     OnPropertyChanged(nameof(LeftSoftLimit));
                 }
             }
         }
 
-        private double _RightSoftLimit;
-        public double RightSoftLimit
+        private Parameter _rightSoftLimit;
+        public Parameter RightSoftLimit
         {
-            get => _RightSoftLimit;
+            get => _rightSoftLimit;
             set
             {
-                if (_RightSoftLimit != value)
+                if (_rightSoftLimit != value)
                 {
-                    _RightSoftLimit = value;
+                    _rightSoftLimit = value;
                     OnPropertyChanged(nameof(RightSoftLimit));
                 }
             }
         }
 
-        private double _PhaseCorrection;
-        public double PhaseCorrection
+        private Parameter _phaseCorrection;
+        public Parameter PhaseCorrection
         {
-            get => _PhaseCorrection;
+            get => _phaseCorrection;
             set
             {
-                if (_PhaseCorrection != value)
+                if (_phaseCorrection != value)
                 {
-                    _PhaseCorrection = value;
+                    _phaseCorrection = value;
                     OnPropertyChanged(nameof(PhaseCorrection));
                 }
             }
         }
 
-        private double _ErrorLimit;
-        public double ErrorLimit
+        private Parameter _errorLimit;
+        public Parameter ErrorLimit
         {
-            get => _ErrorLimit;
+            get => _errorLimit;
             set
             {
-                if (_ErrorLimit != value)
+                if (_errorLimit != value)
                 {
-                    _ErrorLimit = value;
+                    _errorLimit = value;
                     OnPropertyChanged(nameof(ErrorLimit));
                 }
             }
         }
+
 
         // Method to save the Axis parameters (example, you can extend this)
         public void SaveParameters()

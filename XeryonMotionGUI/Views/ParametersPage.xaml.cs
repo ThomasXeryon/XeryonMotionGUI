@@ -1,19 +1,18 @@
-﻿using Microsoft.UI.Xaml.Controls;
-
+﻿using System.Collections.ObjectModel;
+using Microsoft.UI.Xaml.Controls;
+using XeryonMotionGUI.Classes;
 using XeryonMotionGUI.ViewModels;
 
-namespace XeryonMotionGUI.Views;
-
-public sealed partial class ParametersPage : Page
+namespace XeryonMotionGUI.Views
 {
-    public ParametersViewModel ViewModel
+    public sealed partial class ParametersPage : Page
     {
-        get;
-    }
+        public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
 
-    public ParametersPage()
-    {
-        ViewModel = App.GetService<ParametersViewModel>();
-        InitializeComponent();
+        public ParametersPage()
+        {
+            InitializeComponent();
+        }
+
     }
 }
