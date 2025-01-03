@@ -5,10 +5,10 @@ using Windows.Storage.Pickers;
 using Windows.Storage;
 using XeryonMotionGUI.Classes;
 using Microsoft.UI.Xaml.Media;
-
 using XeryonMotionGUI.ViewModels;
 using Windows.UI;
 using Microsoft.UI;
+using System.Threading.Tasks;
 
 namespace XeryonMotionGUI.Views
 {
@@ -20,6 +20,12 @@ namespace XeryonMotionGUI.Views
         {
             InitializeComponent();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
+
+            // Setting the DataContext if it's not already set
+            if (this.DataContext == null)
+            {
+                this.DataContext = new ParametersViewModel();
+            }
         }
 
         private async void OnFilePickerButtonClick(object sender, RoutedEventArgs e)
@@ -28,9 +34,10 @@ namespace XeryonMotionGUI.Views
             if (senderButton == null)
                 return;
 
-            senderButton.IsEnabled = false;
+            senderButton.IsEnabled = false;  // Disable the button while the process is running
 
-            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            // Initialize file picker
+            var picker = new FileOpenPicker();
             var window = App.MainWindow;
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
             WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
@@ -40,29 +47,31 @@ namespace XeryonMotionGUI.Views
             picker.FileTypeFilter.Add(".txt");
             picker.FileTypeFilter.Add(".xml");
 
+            // Show file picker and get file
             var file = await picker.PickSingleFileAsync();
             var icon = senderButton.Content as SymbolIcon;
             if (icon == null)
             {
-                senderButton.IsEnabled = true;
+                senderButton.IsEnabled = true;  // Re-enable the button if icon is not found
                 return;
             }
 
             var originalIcon = icon.Symbol;
-            await Task.Delay(500);
+            await Task.Delay(500);  // Wait for the file picker to finish
 
+            // Handle file based on file extension
             if (file != null && file.FileType == ".txt")
             {
-                icon.Symbol = Symbol.Accept;
+                icon.Symbol = Symbol.Accept;  // If file is .txt, change icon to accept
             }
             else
             {
-                icon.Symbol = Symbol.Cancel;
+                icon.Symbol = Symbol.Cancel;  // If not .txt, change icon to cancel
             }
 
-            await Task.Delay(1000);
-            icon.Symbol = originalIcon;
-            senderButton.IsEnabled = true;
+            await Task.Delay(1000);  // Wait before resetting the icon
+            icon.Symbol = originalIcon;  // Reset the original icon
+            senderButton.IsEnabled = true;  // Re-enable the button
         }
 
         private async void OnSaveButtonClick(object sender, RoutedEventArgs e)
@@ -76,14 +85,14 @@ namespace XeryonMotionGUI.Views
                 return;
 
             var originalIcon = icon.Symbol;
-            button.IsEnabled = false;
+            button.IsEnabled = false;  // Disable the button while saving
 
             await Task.Delay(500);
-            icon.Symbol = Symbol.Accept;
+            icon.Symbol = Symbol.Accept;  // Change icon to accept while saving
 
             await Task.Delay(1000);
-            icon.Symbol = originalIcon;
-            button.IsEnabled = true;
+            icon.Symbol = originalIcon;  // Reset the icon after save
+            button.IsEnabled = true;  // Re-enable the button after saving
         }
     }
 }
