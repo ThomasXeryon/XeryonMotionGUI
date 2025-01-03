@@ -17,6 +17,8 @@ public sealed partial class MainPage : Page
     {
         ViewModel = App.GetService<MainViewModel>();
         InitializeComponent();
+        this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
+
     }
 
     private void OpenDeviceManager_Click(object sender, RoutedEventArgs e)

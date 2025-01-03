@@ -9,8 +9,8 @@ namespace XeryonMotionGUI.Classes
         {
             _zone1Size = new Parameter(0, 1, 0.01, 0.01);
             _zone2Size = new Parameter(0, 1, 0.01, 0.1);
-            _zone1Freq = new Parameter(0, 200000, 1000, 85000);
-            _zone2Freq = new Parameter(0, 200000, 1000, 83000);
+            _zone1Freq = new Parameter(0, 185000, 1000, 85000);
+            _zone2Freq = new Parameter(0, 185000, 1000, 83000);
             _zone1Proportional = new Parameter(0, 200, 5, 90);
             _zone2Proportional = new Parameter(0, 200, 5, 45);
             _positionTolerance = new Parameter(0, 200, 2, 4);
@@ -24,7 +24,7 @@ namespace XeryonMotionGUI.Classes
             _errorLimit = new Parameter(0, 1000, 1, 50);
         }
         public event PropertyChangedEventHandler PropertyChanged;
-            
+
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

@@ -11,7 +11,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="250" />
+            <ColumnDefinition Width="300" />
             <!-- Narrow column for the ListView -->
             <ColumnDefinition Width="*" />
             <!-- Wider column for details -->
@@ -37,11 +37,7 @@
             <TextBlock Text="Axis Details" FontSize="24" FontWeight="Bold" Margin="0,0,0,10"/>
 
             <!-- Displaying details only if a controller is selected -->
-            <StackPanel Visibility="{Binding SelectedController, Converter={StaticResource NullToVisibilityConverter}}">
-                <TextBlock Text="Controller Name:" FontWeight="Bold" />
-                <TextBlock Text="{Binding SelectedController.Name}" Margin="0,0,0,10"/>
-
-                <TextBlock Text="Axis Values:" FontWeight="Bold" Margin="10,0"/>
+            <StackPanel Visibility="{Binding SelectedController, Converter={StaticResource NullToVisibilityConverter}}" Margin="0,20,0,10">
                 <ItemsControl ItemsSource="{Binding SelectedController.Axes}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
@@ -55,9 +51,6 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
-
-            <!-- Placeholder for when no controller is selected -->
-            <TextBlock Visibility="{Binding SelectedController, Converter={StaticResource NullToVisibilityConverter}, FallbackValue=Collapsed}" Text="Select a controller to see details." FontSize="16" Margin="20"/>
         </StackPanel>
     </Grid>
 </Page>

@@ -1,10 +1,17 @@
-﻿using System.Collections.ObjectModel;
+﻿using Microsoft.UI;
+using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml.Controls;
+using XeryonMotionGUI.Models;
+using XeryonMotionGUI.ViewModels;
+using Microsoft.UI.Xaml.Media;
 using XeryonMotionGUI.Classes;
 using System.IO.Ports;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using System;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Data;
+using WinUIEx.Messaging;
 
 namespace XeryonMotionGUI.Views;
 
@@ -27,6 +34,7 @@ public sealed partial class HardwarePage : Page
 
     private async Task CheckForControllers()
     {
+        RefreshProgressBar.Visibility = Visibility.Visible;
         await Task.Delay(200);
         Debug.WriteLine("Searching for controllers");
         string[] ports = System.IO.Ports.SerialPort.GetPortNames();
@@ -40,6 +48,7 @@ public sealed partial class HardwarePage : Page
         foreach (var port in ports)
         {
             var (isXeryon, response) = CheckIfXeryon(port);
+
             if (isXeryon)
             {
                 SerialPort serialPort = new SerialPort(port);
@@ -49,7 +58,7 @@ public sealed partial class HardwarePage : Page
                 var controller = new Controller();
                 controller.Axes = new ObservableCollection<Axis>
                 {
-                    new()
+                    new Axis()
                 };
                 controller.Port = serialPort;
                 serialPort.Write("INFO=0");
@@ -121,6 +130,13 @@ public sealed partial class HardwarePage : Page
                 }
                 controller.FriendlyPort = port;
                 controller.Status = "Connect";
+                controller.Axes = new ObservableCollection<Axis>
+                {
+                    controller.Axes[0],
+                    controller.Axes[0],
+                    controller.Axes[0],
+                    controller.Axes[0]
+                };
                 Controller.FoundControllers.Add(controller);
             }
             else
@@ -128,6 +144,8 @@ public sealed partial class HardwarePage : Page
                 Debug.WriteLine(port + " Response: " + response);
             }
         }
+        await Task.Delay(2000);
+        RefreshProgressBar.Visibility = Visibility.Collapsed;
     }
 
     public (bool isXeryon, string response) CheckIfXeryon(string port)
@@ -162,6 +180,11 @@ public sealed partial class HardwarePage : Page
                 serialPort.Close();
             }
         }
+    }
+
+    private void ConnectCToController(Controller controller)
+    {
+
     }
 
     private async Task ShowMessage(string title, string message)
