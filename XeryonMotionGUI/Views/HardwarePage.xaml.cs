@@ -12,6 +12,8 @@ using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using WinUIEx.Messaging;
+using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Input;
 
 namespace XeryonMotionGUI.Views;
 
@@ -123,6 +125,7 @@ public sealed partial class HardwarePage : Page
                     controller.Axes[0].AxisLetter = "None";
                     controller.Axes[0].FriendlyName = "Not set";
                     controller.Axes[0].Name = $"XLS-3/5-X-{controller.Axes[0].Resolution}";
+                    controller.Axes[0].Linear = true;
                 }
                 else // NOT SINGLE AXIS
                 {
@@ -199,4 +202,51 @@ public sealed partial class HardwarePage : Page
 
         await dialog.ShowAsync();
     }
+
+    private void AnimateItemsIn()
+    {
+        foreach (var item in AvailableControllersList.Items)
+        {
+            var container = AvailableControllersList.ContainerFromItem(item) as UIElement;
+            if (container != null)
+            {
+                Storyboard storyboard = Resources["StaggeredFadeInAnimation"] as Storyboard;
+                if (storyboard != null)
+                {
+                    // Add a delay for staggered effect
+                    storyboard.BeginTime = TimeSpan.FromMilliseconds(100 * AvailableControllersList.Items.IndexOf(item));
+                    Storyboard.SetTarget(storyboard, container);
+                    storyboard.Begin();
+                }
+            }
+        }
+    }
+
+    private void Border_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        var border = sender as Border;
+        var hoverInStoryboard = this.Resources["HoverInStoryboard"] as Storyboard;
+
+        if (hoverInStoryboard != null && border != null)
+        {
+            hoverInStoryboard.Stop(); // Stop the animation if it's already running
+            Storyboard.SetTarget(hoverInStoryboard, border);
+            hoverInStoryboard.Begin();
+        }
+    }
+
+    private void Border_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        var border = sender as Border;
+        var hoverOutStoryboard = this.Resources["HoverOutStoryboard"] as Storyboard;
+
+        if (hoverOutStoryboard != null && border != null)
+        {
+            hoverOutStoryboard.Stop(); // Stop the animation if it's already running
+            Storyboard.SetTarget(hoverOutStoryboard, border);
+            hoverOutStoryboard.Begin();
+        }
+    }
+
+
 }

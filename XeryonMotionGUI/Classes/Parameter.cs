@@ -1,98 +1,82 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
+using XeryonMotionGUI.Helpers;
 
-namespace XeryonMotionGUI.Classes;
-public class Parameter : INotifyPropertyChanged
+
+namespace XeryonMotionGUI.Classes
 {
-    private double _value;
-    private double _min;
-    private double _max;
-    private double _increment;
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    public double Value
+    public class Parameter : INotifyPropertyChanged
     {
-        get => _value;
-        set
+        private double _value;
+
+        public double Min
         {
-            if (_value != value && value >= Min && value <= Max)
+            get;
+        }
+        public double Max
+        {
+            get;
+        }
+        public double Increment
+        {
+            get;
+        }
+        public string Name
+        {
+            get;
+        }
+
+        public double Value
+        {
+            get => _value;
+            set
             {
-                _value = value;
-                OnPropertyChanged(nameof(Value));
+                if (_value != value)
+                {
+                    _value = Math.Clamp(value, Min, Max); // Ensure within bounds
+                    OnPropertyChanged(nameof(Value));
+                }
             }
         }
-    }
 
-    public double Min
-    {
-        get => _min;
-        set
+        public ICommand IncrementCommand
         {
-            if (_min != value)
-            {
-                _min = value;
-                OnPropertyChanged(nameof(Min));
-            }
+            get;
         }
-    }
-
-    public double Max
-    {
-        get => _max;
-        set
+        public ICommand DecrementCommand
         {
-            if (_max != value)
-            {
-                _max = value;
-                OnPropertyChanged(nameof(Max));
-            }
+            get;
         }
-    }
 
-    public double Increment
-    {
-        get => _increment;
-        set
+        public Parameter(double min, double max, double increment, double defaultValue, string name = "")
         {
-            if (_increment != value)
-            {
-                _increment = value;
-                OnPropertyChanged(nameof(Increment));
-            }
-        }
-    }
+            Min = min;
+            Max = max;
+            Increment = increment;
+            Value = defaultValue;
+            Name = name;
 
-    public void IncrementValue()
-    {
-        if (_value + _increment <= _max)
+            IncrementCommand = new Helpers.RelayCommand(_ => IncrementValue());
+            DecrementCommand = new Helpers.RelayCommand(_ => DecrementValue());
+        }
+
+        public void DecrementValue()
         {
-            Value += _increment;
+            Value = Math.Max(Min, Value - Increment);
         }
-    }
 
-    public void DecrementValue()
-    {
-        if (_value - _increment >= _min)
+        public void IncrementValue()
         {
-            Value -= _increment;
+            Value = Math.Min(Max, Value + Increment);
         }
-    }
 
-    protected virtual void OnPropertyChanged(string propertyName)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+        public event PropertyChangedEventHandler PropertyChanged;
 
-    public Parameter(double min, double max, double increment, double initialValue)
-    {
-        _min = min;
-        _max = max;
-        _increment = increment;
-        _value = initialValue;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 }

@@ -8,130 +8,158 @@
     mc:Ignorable="d">
 
     <Page.Resources>
-        <local:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
+        <!-- Hover In Animation -->
+        <Storyboard x:Key="HoverInStoryboard">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="1.05" Duration="0:0:0.2" />
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="1.05" Duration="0:0:0.2" />
+        </Storyboard>
+
+        <!-- Hover Out Animation -->
+        <Storyboard x:Key="HoverOutStoryboard">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="1" Duration="0:0:0.2" />
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="1" Duration="0:0:0.2" />
+        </Storyboard>
+
+        <!-- Status to Brush Converter -->
+        <local:StatusToBrushConverter x:Key="StatusToBrushConverter" />
     </Page.Resources>
 
     <Grid x:Name="ContentArea">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Refresh Button -->
-        <Button Content="Refresh" Click="CheckForControllersButton_Click" Width="100" Height="30" HorizontalAlignment="Right" Margin="10" Grid.Row="0"/>
+        <!-- Title and Refresh Section -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10" Grid.Row="0">
+            <TextBlock Text="Available Controllers" FontWeight="Bold" FontSize="24" VerticalAlignment="Center" Margin="0,0,20,0" />
+            <Button Content="Refresh" Click="CheckForControllersButton_Click" Width="100" Height="30" VerticalAlignment="Center" />
+        </StackPanel>
 
         <!-- Progress Bar -->
-        <ProgressBar 
-            x:Name="RefreshProgressBar" 
-            IsIndeterminate="True" 
-            Height="5" 
-            Visibility="Collapsed" 
-            HorizontalAlignment="Stretch" 
-            VerticalAlignment="Top" 
-            Margin="0,40,0,0"
-            Grid.Row="0"/>
-
-        <!-- Title -->
-        <TextBlock Text="Available Controllers" FontWeight="Bold" Margin="10" FontSize="24" HorizontalAlignment="Center" Grid.Row="0"/>
+        <ProgressBar
+            x:Name="RefreshProgressBar"
+            IsIndeterminate="True"
+            Visibility="Collapsed"
+            Height="5"
+            HorizontalAlignment="Stretch"
+            Margin="10,40,40,0"
+            Grid.Row="0" />
 
         <!-- Available Controllers List -->
-        <ScrollViewer VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" Grid.Row="1">
-            <ListBox x:Name="AvailableControllersList" ItemsSource="{Binding FoundControllers}" HorizontalAlignment="Stretch" Background="Transparent">
-                <ListBox.Resources>
-                    <Style TargetType="ListBoxItem">
+        <ScrollViewer VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" Grid.Row="1" Margin="20">
+            <ListView x:Name="AvailableControllersList" ItemsSource="{Binding FoundControllers}" Background="Transparent" SelectionMode="Single">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
                         <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                         <Setter Property="Template">
                             <Setter.Value>
-                                <ControlTemplate TargetType="ListBoxItem">
-                                    <Border x:Name="Border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+                                <ControlTemplate TargetType="ListViewItem">
+                                    <Border Background="Transparent" BorderBrush="Transparent" BorderThickness="0">
                                         <ContentPresenter />
                                     </Border>
                                 </ControlTemplate>
                             </Setter.Value>
                         </Setter>
                     </Style>
-                </ListBox.Resources>
+                </ListView.ItemContainerStyle>
 
-                <ListBox.ItemTemplate>
+                <ListView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="0" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                    </ItemsPanelTemplate>
+                </ListView.ItemsPanel>
+
+                <ListView.ItemTemplate>
                     <DataTemplate>
-                        <!-- Card Style for Controller -->
-                        <Border HorizontalAlignment="Left" BorderBrush="DimGray" BorderThickness="1" CornerRadius="5" Background="Transparent" Margin="10,5">
+                        <Border BorderBrush="DimGray" BorderThickness="1" CornerRadius="5" Background="Transparent" Margin="10" Width="500"
+                    RenderTransformOrigin="0.5,0.5"
+                    PointerEntered="Border_PointerEntered" PointerExited="Border_PointerExited">
+                            <Border.RenderTransform>
+                                <CompositeTransform ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
                             <Grid Padding="10">
                                 <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- Controller Title -->
-                                <TextBlock Text="{Binding ControllerTitle}" FontSize="20" FontWeight="Bold" Margin="10" Grid.Row="0"/>
+                                <!-- Controller Header -->
+                                <StackPanel Orientation="Horizontal" Grid.Row="0" VerticalAlignment="Center">
+                                    <Ellipse Width="15" Height="15" Fill="{Binding Status, Converter={StaticResource StatusToBrushConverter}}" Margin="0,0,10,0"/>
+                                    <TextBlock Text="{Binding ControllerTitle}" FontSize="20" FontWeight="Bold"/>
+                                </StackPanel>
 
                                 <!-- Controller Details -->
-                                <StackPanel Margin="10,-30,0,0" Grid.Row="1" Spacing="5">
-                                    <TextBlock Text="Type:" FontSize="16" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding Type}" FontSize="16" Margin="0,0,0,5"/>
-
-                                    <TextBlock Text="USB Port:" FontSize="14" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding FriendlyPort}" FontSize="14" Margin="0,0,0,5"/>
-
-                                    <TextBlock Text="Commercial Name:" FontSize="14" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding Name}" FontSize="14" Margin="0,0,0,5"/>
-
-                                    <TextBlock Text="Serial Number:" FontSize="14" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding Serial}" FontSize="14" Margin="0,0,0,5"/>
-
-                                    <TextBlock Text="Software Version:" FontSize="14" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding Soft}" FontSize="14" Margin="0,0,0,5"/>
+                                <StackPanel Grid.Row="1" Margin="10,5,10,10">
+                                    <TextBlock Text="Commercial Name:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <TextBlock Text="{Binding Name}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Type:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <TextBlock Text="{Binding Type}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Serial Number:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <TextBlock Text="{Binding Serial}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Software Version:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <TextBlock Text="{Binding Soft}" Margin="0,0,0,5"/>
                                 </StackPanel>
 
                                 <!-- Axes Section -->
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,50">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="10">
-                                        <ItemsControl ItemsSource="{Binding Axes}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Horizontal"/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <!-- Axis Card -->
-                                                    <Border BorderBrush="Black" BorderThickness="1" CornerRadius="5" Padding="10" Margin="5">
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding AxisTitle}" FontSize="14" FontWeight="Bold" Margin="0,0,0,5"/>
-                                                            <TextBlock Text="Commercial Name:" FontSize="12" FontWeight="Bold"/>
-                                                            <TextBlock Text="{Binding Name}" FontSize="12" Margin="0,0,0,5"/>
-
-                                                            <TextBlock Text="Type:" FontSize="12" FontWeight="Bold"/>
-                                                            <TextBlock Text="{Binding Type}" FontSize="12" Margin="0,0,0,5"/>
-
-                                                            <TextBlock Text="Resolution:" FontSize="12" FontWeight="Bold"/>
-                                                            <TextBlock Text="{Binding Resolution}" FontSize="12" Margin="0,0,0,5"/>
-
-                                                            <TextBlock Text="Friendly Name:" FontSize="12" FontWeight="Bold"/>
-                                                            <TextBlock Text="{Binding FriendlyName}" FontSize="12" Margin="0,0,0,5"/>
-
-                                                            <TextBlock Text="Travel Range:" FontSize="12" FontWeight="Bold"/>
-                                                            <TextBlock Text="{Binding Range}" FontSize="12" Margin="0,0,0,5"/>
-
-                                                            <TextBlock Text="Axis Letter:" FontSize="12" FontWeight="Bold"/>
-                                                            <TextBlock Text="{Binding AxisLetter}" FontSize="12" Margin="0,0,0,5"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
+                                <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,10,0,10">
+                                    <ItemsControl ItemsSource="{Binding Axes}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="10" Margin="5">
+                                                    <StackPanel>
+                                                        <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,5">
+                                                <Run Text="Axis: " />
+                                                <Run Text="{Binding AxisTitle}" />
+                                                        </TextBlock>
+                                                        <TextBlock FontSize="12">
+                                                <Run Text="Type: " />
+                                                <Run Text="{Binding Type}" />
+                                                        </TextBlock>
+                                                        <TextBlock FontSize="12">
+                                                <Run Text="Resolution: " />
+                                                <Run Text="{Binding Resolution}" />
+                                                        </TextBlock>
+                                                        <TextBlock FontSize="12">
+                                                <Run Text="Travel Range: " />
+                                                <Run Text="{Binding Range}" />
+                                                        </TextBlock>
+                                                        <TextBlock FontSize="12">
+                                                <Run Text="Friendly Name: " />
+                                                <Run Text="{Binding FriendlyName}" />
+                                                        </TextBlock>
+                                                        <TextBlock FontSize="12">
+                                                <Run Text="Axis Letter: " />
+                                                <Run Text="{Binding AxisLetter}" />
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </ScrollViewer>
 
-                                <!-- Connect Button -->
-                                <Button Content="{Binding Status}" Background="{Binding Status, Converter={StaticResource StatusToBrushConverter}}" Command="{Binding OpenPortCommand}" Width="150" Height="40" FontSize="16" VerticalAlignment="Bottom" HorizontalAlignment="Right" Grid.Row="2" Margin="0,0,5,5"/>
+                                <!-- Connect/Disconnect Button -->
+                                <Button Content="{Binding Status}" Background="{Binding Status, Converter={StaticResource StatusToBrushConverter}}" Command="{Binding OpenPortCommand}" Width="150" Height="40" FontSize="16"
+                            VerticalAlignment="Bottom" HorizontalAlignment="Right" Grid.Row="3" Margin="0,10,5,5"/>
                             </Grid>
                         </Border>
                     </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                </ListView.ItemTemplate>
+            </ListView>
+
         </ScrollViewer>
     </Grid>
 </Page>

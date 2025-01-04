@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.UI.Xaml.Data;
+﻿using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI;
+using System;
 
 namespace XeryonMotionGUI.Helpers
 {
@@ -15,9 +10,19 @@ namespace XeryonMotionGUI.Helpers
         {
             if (value is string status)
             {
-                return status == "Connect" ? new SolidColorBrush(Colors.Green) : new SolidColorBrush(Colors.Red);
+                switch (status.ToLower())
+                {
+                    case "connect":
+                        return new SolidColorBrush(Microsoft.UI.Colors.Green);
+                    case "disconnect":
+                        return new SolidColorBrush(Microsoft.UI.Colors.Red);
+                    case "idle":
+                        return new SolidColorBrush(Microsoft.UI.Colors.Yellow);
+                    default:
+                        return new SolidColorBrush(Microsoft.UI.Colors.Gray);
+                }
             }
-            return new SolidColorBrush(Colors.Red);
+            return new SolidColorBrush(Microsoft.UI.Colors.Gray);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)

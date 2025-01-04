@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:XeryonMotionGUI.Views"
     xmlns:helpers="using:XeryonMotionGUI.Helpers"
+    xmlns:classes="using:XeryonMotionGUI.Classes"
     xmlns:viewmodels="using:XeryonMotionGUI.ViewModels">
 
     <Page.DataContext>
@@ -11,13 +12,16 @@
     </Page.DataContext>
 
     <Page.Resources>
+        <helpers:LinearToIconConverter x:Key="LinearToIconConverter"/>
         <helpers:AxisTypeToVisibilityConverter x:Key="AxisTypeToVisibilityConverter" />
     </Page.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="400" />
+            <!-- Controllers Panel -->
             <ColumnDefinition Width="*" />
+            <!-- Axis and Parameters Panel -->
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
@@ -25,7 +29,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- ListView for controllers -->
+        <!-- Controllers Section -->
         <ListView 
             ItemsSource="{Binding RunningControllers}" 
             SelectedItem="{Binding SelectedController, Mode=TwoWay}"
@@ -35,24 +39,17 @@
             <ListView.ItemTemplate>
                 <DataTemplate>
                     <Grid Margin="10">
-                        <!-- Define rows for alignment -->
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-
-                        <!-- Define columns for text and buttons -->
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-
-                        <!-- Text fields -->
                         <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold" Grid.Row="0" Grid.Column="0" />
                         <TextBlock Text="{Binding Type}" FontSize="14" Foreground="Gray" Grid.Row="1" Grid.Column="0" />
-
-                        <!-- Buttons -->
                         <Button Margin="0,0,5,0" Width="45" Height="40" Background="Transparent" Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Click="OnFilePickerButtonClick" ToolTipService.ToolTip="Load settings from file">
                             <Button.Content>
                                 <SymbolIcon Symbol="OpenFile" />
@@ -66,163 +63,75 @@
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
-
         </ListView>
 
-        <!-- ListView for Axes -->
+        <!-- Axes Section -->
         <ListView 
-            ItemsSource="{Binding SelectedController.Axes}" 
-            SelectedItem="{Binding SelectedAxis, Mode=TwoWay}" 
             Grid.Column="1"
             Grid.Row="0"
-            Margin="30,0,0,10">
+            ItemsSource="{Binding SelectedController.Axes}"
+            SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
+            Margin="50,0,0,0">
             <ListView.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel>
-                        <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
-                    </StackPanel>
+                <DataTemplate x:DataType="classes:Axis">
+                    <Grid Margin="5" Padding="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Axis Icon -->
+                        <Grid Grid.Column="0">
+                            <SymbolIcon 
+                                VerticalAlignment="Center" 
+                                HorizontalAlignment="Center" 
+                                Width="25" 
+                                Height="25"
+                                Symbol="{Binding Linear, Converter={StaticResource LinearToIconConverter}}"
+                                Margin="5,0,10,0" />
+                        </Grid>
+
+                        <!-- Axis Name -->
+                        <Grid Grid.Column="1">
+                            <TextBlock 
+                                Text="{Binding Name}" 
+                                FontWeight="Bold" 
+                                FontSize="16" 
+                                VerticalAlignment="Center" 
+                                Margin="5"/>
+                        </Grid>
+                    </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
 
-        <!-- Scrollable section for Axis Parameters -->
-        <Grid Grid.Column="1" Grid.Row="1" Margin="50,20,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <!-- Zone 1 Size -->
-                    <TextBlock Text="Zone 1 Size:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Zone1Size.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Zone1Size.Min}" Maximum="{Binding SelectedAxis.Zone1Size.Max}" Value="{Binding SelectedAxis.Zone1Size.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Zone1Size.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Zone1Size" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Zone1Size" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Zone 2 Size -->
-                    <TextBlock Text="Zone 2 Size:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Zone2Size.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Zone2Size.Min}" Maximum="{Binding SelectedAxis.Zone2Size.Max}" Value="{Binding SelectedAxis.Zone2Size.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Zone2Size.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Zone2Size" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Zone2Size" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Zone 1 Frequency -->
-                    <TextBlock Text="Zone 1 Frequency:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Zone1Freq.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Zone1Freq.Min}" Maximum="{Binding SelectedAxis.Zone1Freq.Max}" Value="{Binding SelectedAxis.Zone1Freq.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Zone1Freq.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Zone1Freq" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Zone1Freq" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Zone 2 Frequency -->
-                    <TextBlock Text="Zone 2 Frequency:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Zone2Freq.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Zone2Freq.Min}" Maximum="{Binding SelectedAxis.Zone2Freq.Max}" Value="{Binding SelectedAxis.Zone2Freq.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Zone2Freq.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Zone2Freq" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Zone2Freq" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Zone 1 Proportional -->
-                    <TextBlock Text="Zone 1 Proportional:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Zone1Proportional.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Zone1Proportional.Min}" Maximum="{Binding SelectedAxis.Zone1Proportional.Max}" Value="{Binding SelectedAxis.Zone1Proportional.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Zone1Proportional.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Zone1Proportional" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Zone1Proportional" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Zone 2 Proportional -->
-                    <TextBlock Text="Zone 2 Proportional:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Zone2Proportional.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Zone2Proportional.Min}" Maximum="{Binding SelectedAxis.Zone2Proportional.Max}" Value="{Binding SelectedAxis.Zone2Proportional.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Zone2Proportional.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Zone2Proportional" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Zone2Proportional" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Position Tolerance -->
-                    <TextBlock Text="Position Tolerance:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.PositionTolerance.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.PositionTolerance.Min}" Maximum="{Binding SelectedAxis.PositionTolerance.Max}" Value="{Binding SelectedAxis.PositionTolerance.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.PositionTolerance.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="PositionTolerance" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="PositionTolerance" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Speed -->
-                    <TextBlock Text="Speed:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Speed.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Speed.Min}" Maximum="{Binding SelectedAxis.Speed.Max}" Value="{Binding SelectedAxis.Speed.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Speed.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Speed" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Speed" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Acceleration -->
-                    <TextBlock Text="Acceleration:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Acceleration.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Acceleration.Min}" Maximum="{Binding SelectedAxis.Acceleration.Max}" Value="{Binding SelectedAxis.Acceleration.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Acceleration.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Acceleration" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Acceleration" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Mass -->
-                    <TextBlock Text="Mass:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.Mass.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.Mass.Min}" Maximum="{Binding SelectedAxis.Mass.Max}" Value="{Binding SelectedAxis.Mass.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.Mass.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="Mass" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="Mass" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Amplitude Control -->
-                    <TextBlock Text="Amplitude Control:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.AmplitudeControl.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.AmplitudeControl.Min}" Maximum="{Binding SelectedAxis.AmplitudeControl.Max}" Value="{Binding SelectedAxis.AmplitudeControl.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.AmplitudeControl.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="AmplitudeControl" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="AmplitudeControl" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Left Soft Limit -->
-                    <TextBlock Text="Left Soft Limit:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.LeftSoftLimit.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.LeftSoftLimit.Min}" Maximum="{Binding SelectedAxis.LeftSoftLimit.Max}" Value="{Binding SelectedAxis.LeftSoftLimit.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.LeftSoftLimit.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="LeftSoftLimit" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="LeftSoftLimit" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Right Soft Limit -->
-                    <TextBlock Text="Right Soft Limit:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.RightSoftLimit.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="{StaticResource TextboxMargin}"/>
-                        <Slider Minimum="{Binding SelectedAxis.RightSoftLimit.Min}" Maximum="{Binding SelectedAxis.RightSoftLimit.Max}" Value="{Binding SelectedAxis.RightSoftLimit.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="{StaticResource SliderMargin}" TickFrequency="{Binding SelectedAxis.RightSoftLimit.Increment}" SnapsTo="Ticks" TickPlacement="None"/>
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="RightSoftLimit" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="RightSoftLimit" Width="{StaticResource ButtonWidth}" Margin="{StaticResource ButtonMargin}"/>
-                    </StackPanel>
-
-                    <!-- Phase Correction -->
-                    <TextBlock Text="Phase Correction:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.PhaseCorrection.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="0,0,5,0"/>
-                        <Slider Minimum="{Binding SelectedAxis.PhaseCorrection.Min}" Maximum="{Binding SelectedAxis.PhaseCorrection.Max}" Value="{Binding SelectedAxis.PhaseCorrection.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="0,0,5,0" TickFrequency="{Binding SelectedAxis.PhaseCorrection.Increment}" SnapsTo="Ticks" TickPlacement="None"  />
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="PhaseCorrection" Width="{StaticResource ButtonWidth}" Margin="0,0,5,0"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="PhaseCorrection" Width="{StaticResource ButtonWidth}" Margin="0,0,5,0"/>
-                    </StackPanel>
-
-                    <!-- Error Limit -->
-                    <TextBlock Text="Error Limit:" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-                        <TextBox Text="{Binding SelectedAxis.ErrorLimit.Value, Mode=TwoWay}" Width="{StaticResource TextboxWidth}" Margin="0,0,5,0"/>
-                        <Slider Minimum="{Binding SelectedAxis.ErrorLimit.Min}" Maximum="{Binding SelectedAxis.ErrorLimit.Max}" Value="{Binding SelectedAxis.ErrorLimit.Value, Mode=TwoWay}" Width="{StaticResource SliderWidth}" Margin="0,0,5,0" TickFrequency="{Binding SelectedAxis.ErrorLimit.Increment}" SnapsTo="Ticks" TickPlacement="None"  />
-                        <Button Content="-" Command="{Binding DecrementCommand}" CommandParameter="ErrorLimit" Width="{StaticResource ButtonWidth}" Margin="0,0,5,0"/>
-                        <Button Content="+" Command="{Binding IncrementCommand}" CommandParameter="ErrorLimit" Width="{StaticResource ButtonWidth}" Margin="0,0,5,0"/>
-                    </StackPanel>
+        <!-- Parameters Section -->
+        <Grid Grid.Column="1" Grid.Row="1" Margin="54,30,10,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="15">
+                    <!-- Dynamic Parameter Template -->
+                    <ItemsControl ItemsSource="{Binding SelectedAxis.Parameters}" Margin="0,10,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="2,0,0,0"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,20">
+                                        <TextBox Text="{Binding Value, Mode=TwoWay}" Width="100" />
+                                        <Slider 
+                                            Minimum="{Binding Min}" 
+                                            Maximum="{Binding Max}" 
+                                            Value="{Binding Value, Mode=TwoWay}" 
+                                            Width="200" 
+                                            TickFrequency="{Binding Increment}" 
+                                            TickPlacement="None"
+                                            SnapsTo="Ticks" />
+                                        <Button Content="-" Command="{Binding DecrementCommand}" Width="{StaticResource ButtonWidth}" CommandParameter="{Binding Name}" Margin="{StaticResource ButtonMargin}"/>
+                                        <Button Content="+" Command="{Binding IncrementCommand}" Width="{StaticResource ButtonWidth}" CommandParameter="{Binding Name}" Margin="{StaticResource ButtonMargin}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </ScrollViewer>
         </Grid>
