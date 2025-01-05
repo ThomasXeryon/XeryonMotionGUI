@@ -129,7 +129,7 @@ public sealed partial class HardwarePage : Page
                     controller.Axes[0].FriendlyName = "Not set";
                     controller.Axes[0].Name = $"XLS-3/5-X-{controller.Axes[0].Resolution}";
                     controller.Axes[0].Linear = true;
-                    controller.Axes[0].StepSize = controller.Axes[0].Resolution;
+                    controller.Axes[0].StepSize = 25;
                 }
                 else // NOT SINGLE AXIS
                 {
@@ -159,7 +159,7 @@ public sealed partial class HardwarePage : Page
             serialPort.ReadTimeout = 2000;
             serialPort.Open();
             serialPort.Write("INFO=1");
-            serialPort.Write("POLI=50");
+            serialPort.Write("POLI=25");
             System.Threading.Thread.Sleep(100);
             response = serialPort.ReadExisting();
             response = string.Join("\n", response.Split('\n').TakeLast(6));

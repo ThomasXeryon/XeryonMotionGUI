@@ -33,4 +33,21 @@ public sealed partial class MotionPage : Page
         var viewModel = (MotionViewModel)this.DataContext;
         viewModel.SelectedAxis.MaxSpeed = 0;
     }
+
+    private void Ellipse_ManipulationDelta(object sender, Microsoft.UI.Xaml.Input.ManipulationDeltaRoutedEventArgs e)
+    {
+        // Implement your logic for handling the manipulation of the Ellipse.
+        // Example: Update the position or value of the circular slider.
+
+        var ellipse = sender as Microsoft.UI.Xaml.Shapes.Ellipse;
+
+        if (ellipse != null)
+        {
+            // Example: Update position or log the manipulation data
+            Debug.WriteLine($"Translation: {e.Delta.Translation}");
+            Debug.WriteLine($"Rotation: {e.Delta.Rotation}");
+        }
+
+        e.Handled = true; // Mark the event as handled
+    }
 }

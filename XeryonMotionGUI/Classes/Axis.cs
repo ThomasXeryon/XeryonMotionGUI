@@ -616,7 +616,6 @@ namespace XeryonMotionGUI.Classes
                     SPEED = Math.Abs((_EPOS - _PreviousEPOS) / 1_000_000) / timeDelta * Resolution; // Speed in mm/s
                 }
             }
-
             _LastUpdateTime = currentTime;
         }
 
@@ -701,6 +700,7 @@ namespace XeryonMotionGUI.Classes
             {
                 if (_MotorOn != value)
                 {
+                    bool wasMotorOn = _MotorOn; // Track previous state
                     _MotorOn = value;
                     OnPropertyChanged(nameof(MotorOn));
                 }
@@ -771,10 +771,47 @@ namespace XeryonMotionGUI.Classes
             {
                 if (_PositionReached != value)
                 {
+                    if (!_PositionReached && value)
+                    {
+                        // PositionReached is transitioning from false to true
+                        if (_positionReachedLastFalseTime != default)
+                        {
+                            PositionReachedElapsedTime = DateTime.Now - _positionReachedLastFalseTime;
+                        }
+                        SPEED = 0;
+                    }
+                    else if (_PositionReached && !value)
+                    {
+                        // PositionReached is transitioning from true to false
+                        _positionReachedLastFalseTime = DateTime.Now;
+                    }
+
                     _PositionReached = value;
                     OnPropertyChanged(nameof(PositionReached));
                 }
             }
+        }
+
+        private DateTime _positionReachedLastFalseTime;
+        private TimeSpan _positionReachedElapsedTime;
+
+        public TimeSpan PositionReachedElapsedTime
+        {
+            get => _positionReachedElapsedTime;
+            private set
+            {
+                if (_positionReachedElapsedTime != value)
+                {
+                    _positionReachedElapsedTime = value;
+                    OnPropertyChanged(nameof(PositionReachedElapsedTime));
+                    OnPropertyChanged(nameof(PositionReachedElapsedMilliseconds)); // Notify for milliseconds
+                }
+            }
+        }
+
+        public double PositionReachedElapsedMilliseconds
+        {
+            get => PositionReachedElapsedTime.TotalMilliseconds; // Return total time in milliseconds
         }
 
         private bool _ErrorCompensation;

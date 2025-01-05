@@ -13,10 +13,10 @@ namespace XeryonMotionGUI.Helpers
             if (value is bool boolValue)
             {
                 // If the boolean is true, return green, otherwise red
-                return boolValue ? new SolidColorBrush(Colors.Green) : new SolidColorBrush(Colors.Red);
+                return boolValue ? new SolidColorBrush(Colors.Green) : new SolidColorBrush(Colors.Transparent);
             }
 
-            return new SolidColorBrush(Colors.Gray); // Default color if not boolean
+            return new SolidColorBrush(Colors.Transparent); // Default color if not boolean
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
