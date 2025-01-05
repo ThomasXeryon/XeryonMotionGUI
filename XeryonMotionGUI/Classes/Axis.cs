@@ -1,13 +1,26 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Windows.UI.Core;
+using System.ComponentModel;
+using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Dispatching;
+using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
+using System.Diagnostics;
+using XeryonMotionGUI.Helpers;
 
 namespace XeryonMotionGUI.Classes
 {
     public class Axis : INotifyPropertyChanged
     {
-        public Axis()
+        public Axis(Controller controller)
         {
+
+            AxisLetter = AxisLetter;
+            ParentController = controller;
+
             Parameters = new ObservableCollection<Parameter>
             {
                 Zone1Size,
@@ -26,13 +39,76 @@ namespace XeryonMotionGUI.Classes
                 PhaseCorrection,
                 ErrorLimit
             };
+
+            MoveNegativeCommand = new Helpers.RelayCommand(MoveNegative);
+            StepNegativeCommand = new Helpers.RelayCommand(StepNegative);
+            HomeCommand = new Helpers.RelayCommand(Home);
+            StepPositiveCommand = new Helpers.RelayCommand(StepPositive);
+            MovePositiveCommand = new Helpers.RelayCommand(MovePositive);
+            StopCommand = new Helpers.RelayCommand(Stop);
+            ResetCommand = new Helpers.RelayCommand(Reset);
+            IndexCommand = new Helpers.RelayCommand(Index);
+        }
+
+        public ICommand MoveNegativeCommand
+        {
+            get;
+        }
+        public ICommand StepNegativeCommand
+        {
+            get;
+        }
+        public ICommand HomeCommand
+        {
+            get;
+        }
+        public ICommand StepPositiveCommand
+        {
+            get;
+        }
+        public ICommand MovePositiveCommand
+        {
+            get;
+        }
+        public ICommand StopCommand
+        {
+            get;
+        }
+        public ICommand ResetCommand
+        {
+            get;
+        }
+        public ICommand IndexCommand
+        {
+            get;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        private DispatcherQueue _dispatcherQueue;
+
+        public void SetDispatcherQueue(DispatcherQueue dispatcherQueue)
+        {
+            _dispatcherQueue = dispatcherQueue;
+        }
+
         protected virtual void OnPropertyChanged(string propertyName)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            // Ensure PropertyChanged is called on UI thread using DispatcherQueue
+            if (_dispatcherQueue != null)
+            {
+                if (_dispatcherQueue.HasThreadAccess)
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                }
+                else
+                {
+                    _dispatcherQueue.TryEnqueue(() =>
+                    {
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                    });
+                }
+            }
         }
 
         // Collection of Parameters for easier iteration in UI
@@ -252,6 +328,11 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        public Controller ParentController
+        {
+            get; set;
+        }
+
         private string _Name;
         public string Name
         {
@@ -322,6 +403,34 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        private double _PositiveRange;
+        public double PositiveRange
+        {
+            get => _PositiveRange;
+            set
+            {
+                if (_PositiveRange != value)
+                {
+                    _PositiveRange = value;
+                    OnPropertyChanged(nameof(PositiveRange));
+                }
+            }
+        }
+
+        private double _NegativeRange;
+        public double NegativeRange
+        {
+            get => _NegativeRange;
+            set
+            {
+                if (_NegativeRange != value)
+                {
+                    _NegativeRange = value;
+                    OnPropertyChanged(nameof(NegativeRange));
+                }
+            }
+        }
+
         private double _Range;
         public double Range
         {
@@ -332,6 +441,11 @@ namespace XeryonMotionGUI.Classes
                 {
                     _Range = value;
                     OnPropertyChanged(nameof(Range));
+
+                    // Dynamically calculate PositiveRange and NegativeRange
+                    var (positiveHalf, negativeHalf) = RangeHelper.GetRangeHalves(_Range);
+                    PositiveRange = positiveHalf;
+                    NegativeRange = negativeHalf;
                 }
             }
         }
@@ -406,6 +520,7 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+
         private double _EPOS;
         public double EPOS
         {
@@ -414,8 +529,10 @@ namespace XeryonMotionGUI.Classes
             {
                 if (_EPOS != value)
                 {
+                    _PreviousEPOS = _EPOS;
                     _EPOS = value;
                     OnPropertyChanged(nameof(EPOS));
+                    CalculateSpeed();
                 }
             }
         }
@@ -447,6 +564,60 @@ namespace XeryonMotionGUI.Classes
                     OnPropertyChanged(nameof(TIME));
                 }
             }
+        }
+
+
+
+        private double _PreviousEPOS;
+        private DateTime _LastUpdateTime;
+
+        private double _SPEED;
+        public double SPEED
+        {
+            get => _SPEED;
+            set
+            {
+                if (_SPEED != value)
+                {
+                    _SPEED = value;
+                    OnPropertyChanged(nameof(SPEED));
+
+                    if (_SPEED > MaxSpeed)
+                    {
+                        MaxSpeed = _SPEED;
+                    }
+                }
+            }
+        }
+
+        private double _MaxSpeed;
+        public double MaxSpeed
+        {
+            get => _MaxSpeed;
+            set
+            {
+                if (_MaxSpeed != value)
+                {
+                    _MaxSpeed = value;
+                    OnPropertyChanged(nameof(MaxSpeed));
+                }
+            }
+        }
+
+        private void CalculateSpeed()
+        {
+            DateTime currentTime = DateTime.Now;
+            if (_LastUpdateTime != default)
+            {
+                double timeDelta = (currentTime - _LastUpdateTime).TotalSeconds; // Time in seconds
+                if (timeDelta > 0)
+                {
+                    // Convert nanometers to millimeters before calculating speed
+                    SPEED = Math.Abs((_EPOS - _PreviousEPOS) / 1_000_000) / timeDelta * Resolution; // Speed in mm/s
+                }
+            }
+
+            _LastUpdateTime = currentTime;
         }
 
         public string AxisTitle => AxisLetter != "None" ? $"Axis {AxisLetter}" : "Axis";
@@ -785,6 +956,47 @@ namespace XeryonMotionGUI.Classes
             EtherCATAcknowledge = (STAT & (1 << 19)) != 0;
             EmergencyStop = (STAT & (1 << 20)) != 0;
             PositionFail = (STAT & (1 << 21)) != 0;
+        }
+
+        private  void MoveNegative()
+        {
+            ParentController.SendCommand("MOVE=-1");
+        }
+
+        private   void StepNegative()
+        {
+            ParentController.SendCommand($"STEP={Math.Floor(-StepSize)}");
+        }
+
+        private  void Home()
+        {
+            ParentController.SendCommand("HOME");
+            DPOS= 0;
+        }
+
+        private void StepPositive()
+        {
+            ParentController.SendCommand($"STEP={Math.Floor(StepSize)}");
+        }
+
+        private  void MovePositive()
+        {
+            ParentController.SendCommand("MOVE=1");
+        }
+
+        private   void Stop()
+        {
+            ParentController.SendCommand("STOP");
+        }
+
+        private  void Index()
+        {
+            ParentController.SendCommand("INDX=0");
+        }
+
+        private void Reset()
+        {
+            ParentController.SendCommand("RSET");
         }
     }
 }

@@ -14,6 +14,7 @@ using Microsoft.UI.Xaml.Data;
 using WinUIEx.Messaging;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Dispatching;
 
 namespace XeryonMotionGUI.Views;
 
@@ -60,8 +61,9 @@ public sealed partial class HardwarePage : Page
                 var controller = new Controller();
                 controller.Axes = new ObservableCollection<Axis>
                 {
-                    new Axis()
+                    new Axis(controller)
                 };
+                controller.Axes[0].SetDispatcherQueue(DispatcherQueue);
                 controller.Port = serialPort;
                 serialPort.Write("INFO=0");
                 await Task.Delay(100);
@@ -119,13 +121,15 @@ public sealed partial class HardwarePage : Page
                     var HLIM = serialPort.ReadLine().Replace("HLIM=", "").Trim();
                     Debug.WriteLine(HLIM);
                     controller.Axes[0].Range = Math.Round(((Convert.ToInt32(HLIM) + -Convert.ToDouble(LLIM)) * Convert.ToDouble(controller.Axes[0].Resolution) / 1000000), 2);
-                    serialPort.Write("INFO=1");
+
+                    serialPort.Write("INFO=7");
                     serialPort.Close();
 
                     controller.Axes[0].AxisLetter = "None";
                     controller.Axes[0].FriendlyName = "Not set";
                     controller.Axes[0].Name = $"XLS-3/5-X-{controller.Axes[0].Resolution}";
                     controller.Axes[0].Linear = true;
+                    controller.Axes[0].StepSize = controller.Axes[0].Resolution;
                 }
                 else // NOT SINGLE AXIS
                 {
@@ -133,13 +137,6 @@ public sealed partial class HardwarePage : Page
                 }
                 controller.FriendlyPort = port;
                 controller.Status = "Connect";
-                controller.Axes = new ObservableCollection<Axis>
-                {
-                    controller.Axes[0],
-                    controller.Axes[0],
-                    controller.Axes[0],
-                    controller.Axes[0]
-                };
                 Controller.FoundControllers.Add(controller);
             }
             else

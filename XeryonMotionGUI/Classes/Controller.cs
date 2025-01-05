@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Xaml.Controls;
 
 namespace XeryonMotionGUI.Classes
 {
@@ -196,61 +197,106 @@ namespace XeryonMotionGUI.Classes
             SerialPort sp = (SerialPort)sender;
             string inData = sp.ReadExisting();
             string[] dataParts = inData.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // Check if the controller has a single axis or multiple axes at the top level
+            if (Axes.Count == 1)
+            {
+                // Single Axis Controller: Bind the EPOS and STAT directly to the first axis
+                HandleSingleAxisData(dataParts);
+            }
+            else
+            {
+                // Multi-Axis Controller: Placeholder for future multi-axis implementation
+                // Will implement later: Map the EPOS and STAT to specific axes
+                HandleMultiAxisData(dataParts);
+            }
+            sp.DiscardInBuffer();
+        }
+
+        private void HandleSingleAxisData(string[] dataParts)
+        {
             foreach (string part in dataParts)
             {
                 if (part.StartsWith("STAT="))
                 {
                     if (int.TryParse(part.Substring(5), out int statValue))
                     {
-                        foreach (var axis in Axes)
-                        {
-                            axis.STAT = statValue;
-                        }
+                        // Single Axis: Directly update the single axis STAT
+                        Axes[0].STAT = statValue;
                     }
                 }
 
                 if (part.StartsWith("EPOS="))
                 {
-                    if (int.TryParse(part.Substring(5), out int statValue))
+                    if (int.TryParse(part.Substring(5), out int eposValue))
                     {
-                        foreach (var axis in Axes)
-                        {
-                            axis.EPOS = statValue;
-                        }
-                    }
-                }
-
-                if (part.StartsWith("TIME="))
-                {
-                    if (int.TryParse(part.Substring(5), out int statValue))
-                    {
-                        foreach (var axis in Axes)
-                        {
-                            axis.TIME = statValue;
-                        }
+                        // Single Axis: Directly update the single axis EPOS
+                        Axes[0].EPOS = eposValue;
+                        //Debug.WriteLine($"EPOS: {eposValue}");
                     }
                 }
             }
         }
+
+        private void HandleMultiAxisData(string[] dataParts)
+        {
+            foreach (string part in dataParts)
+            {
+                // For now, we don't know how to associate STAT and EPOS with specific axes in multi-axis mode
+                // Placeholder logic: log the data or process later
+                if (part.StartsWith("STAT="))
+                {
+                    Debug.WriteLine("Multi-Axis Controller: STAT parsing not yet implemented.");
+                }
+
+                if (part.StartsWith("EPOS="))
+                {
+                    Debug.WriteLine("Multi-Axis Controller: EPOS parsing not yet implemented.");
+                }
+            }
+        }
+
 
         public void OpenPort()
         {
-            if (!Running)
+            try
             {
-                Port.Open();
-                Initialize();
-                Running = true;
-                Status = "Disconnect";
-                UpdateRunningControllers();
+                if (!Running)
+                {
+                    Port.Open();
+                    Running = true;
+                    Status = "Disconnect";
+                    UpdateRunningControllers();
+                    Initialize();
+                    Debug.WriteLine("Controller Connected");
+                }
+                else
+                {
+                    Port.Close();
+                    Running = false;
+                    Status = "Connect";
+                    UpdateRunningControllers();
+                }
             }
-            else
+            catch (Exception)
             {
-                Port.Close();
-                Running = false;
-                Status = "Connect";
-                UpdateRunningControllers();
+                ShowMessage("Error opening port", "Could not open port. Please check the port and try again.");
             }
         }
+
+        private async Task ShowMessage(string title, string message)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                CloseButtonText = "OK"
+                //XamlRoot = this.Content.XamlRoot // Set XamlRoot to the root of the page
+            };
+
+            await dialog.ShowAsync();
+        }
+
         public ICommand OpenPortCommand
         {
             get
@@ -272,6 +318,20 @@ namespace XeryonMotionGUI.Classes
             foreach (var controller in controllersToAdd)
             {
                 RunningControllers.Add(controller);
+            }
+        }
+
+        public void SendCommand(string command)
+        {
+            if (Port.IsOpen)
+            {
+
+                    Debug.WriteLine($"Sending Command: {command}");
+                    Port.Write(command);
+            }
+            else
+            {
+                Debug.WriteLine("Serial port not open. Command not sent.");
             }
         }
     }
