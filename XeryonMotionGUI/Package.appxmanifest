@@ -14,7 +14,7 @@
   <Identity
     Name="6f6b614f-257d-47c4-8b3f-36f5fc45845c"
     Publisher="CN=Xeryon"
-    Version="1.1.3.0" />
+    Version="1.1.5.0" />
     
   <mp:PhoneIdentity PhoneProductId="6f6b614f-257d-47c4-8b3f-36f5fc45845c" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
     
