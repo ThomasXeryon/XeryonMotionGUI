@@ -5,7 +5,6 @@
     xmlns:local="using:XeryonMotionGUI.Views"
     xmlns:helpers="using:XeryonMotionGUI.Helpers"
     xmlns:classes="using:XeryonMotionGUI.Classes"
-    xmlns:charts="using:LiveChartsCore.SkiaSharpView.WinUI"
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     xmlns:viewmodels="using:XeryonMotionGUI.ViewModels">
 
@@ -208,6 +207,7 @@
                             </Grid>
                         </Grid>
                     </Grid>
+                    
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>

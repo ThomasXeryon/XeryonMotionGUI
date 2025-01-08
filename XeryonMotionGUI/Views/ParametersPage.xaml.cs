@@ -33,45 +33,35 @@ namespace XeryonMotionGUI.Views
             var senderButton = sender as Button;
             if (senderButton == null)
                 return;
-
-            senderButton.IsEnabled = false;  // Disable the button while the process is running
-
-            // Initialize file picker
-            var picker = new FileOpenPicker();
+            senderButton.IsEnabled = false;
+            var openPicker = new Windows.Storage.Pickers.FileOpenPicker();
             var window = App.MainWindow;
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            WinRT.Interop.InitializeWithWindow.Initialize(openPicker, hWnd);
+            openPicker.ViewMode = PickerViewMode.Thumbnail;
+            openPicker.SuggestedStartLocation = PickerLocationId.PicturesLibrary;
+            openPicker.FileTypeFilter.Add(".txt");
+            var file = await openPicker.PickSingleFileAsync();
 
-            picker.SuggestedStartLocation = PickerLocationId.Desktop;
-            picker.ViewMode = PickerViewMode.List;
-            picker.FileTypeFilter.Add(".txt");
-            picker.FileTypeFilter.Add(".xml");
-
-            // Show file picker and get file
-            var file = await picker.PickSingleFileAsync();
             var icon = senderButton.Content as SymbolIcon;
             if (icon == null)
             {
-                senderButton.IsEnabled = true;  // Re-enable the button if icon is not found
+                senderButton.IsEnabled = true; 
                 return;
             }
-
             var originalIcon = icon.Symbol;
-            await Task.Delay(500);  // Wait for the file picker to finish
-
-            // Handle file based on file extension
             if (file != null && file.FileType == ".txt")
             {
-                icon.Symbol = Symbol.Accept;  // If file is .txt, change icon to accept
+                icon.Symbol = Symbol.Accept;  
+
             }
             else
             {
-                icon.Symbol = Symbol.Cancel;  // If not .txt, change icon to cancel
+                icon.Symbol = Symbol.Cancel; 
             }
-
-            await Task.Delay(1000);  // Wait before resetting the icon
-            icon.Symbol = originalIcon;  // Reset the original icon
-            senderButton.IsEnabled = true;  // Re-enable the button
+            await Task.Delay(1000);
+            icon.Symbol = originalIcon;  
+            senderButton.IsEnabled = true;  
         }
 
         private async void OnSaveButtonClick(object sender, RoutedEventArgs e)

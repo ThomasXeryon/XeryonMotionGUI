@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
-using Windows.UI.Core;
-using System.ComponentModel;
-using System.Threading.Tasks;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Dispatching;
-using CommunityToolkit.Mvvm.Input;
 using System.Windows.Input;
-using System.Diagnostics;
 using XeryonMotionGUI.Helpers;
 
 namespace XeryonMotionGUI.Classes
@@ -21,24 +14,7 @@ namespace XeryonMotionGUI.Classes
             AxisLetter = AxisLetter;
             ParentController = controller;
 
-            Parameters = new ObservableCollection<Parameter>
-            {
-                Zone1Size,
-                Zone2Size,
-                Zone1Freq,
-                Zone2Freq,
-                Zone1Proportional,
-                Zone2Proportional,
-                PositionTolerance,
-                Speed,
-                Acceleration,
-                Mass,
-                AmplitudeControl,
-                LeftSoftLimit,
-                RightSoftLimit,
-                PhaseCorrection,
-                ErrorLimit
-            };
+            Parameters = ParameterFactory.CreateParameters();
 
             MoveNegativeCommand = new Helpers.RelayCommand(MoveNegative);
             StepNegativeCommand = new Helpers.RelayCommand(StepNegative);
@@ -48,6 +24,11 @@ namespace XeryonMotionGUI.Classes
             StopCommand = new Helpers.RelayCommand(Stop);
             ResetCommand = new Helpers.RelayCommand(Reset);
             IndexCommand = new Helpers.RelayCommand(Index);
+        }
+
+        public ObservableCollection<Parameter> Parameters
+        {
+            get;
         }
 
         public ICommand MoveNegativeCommand
@@ -107,223 +88,6 @@ namespace XeryonMotionGUI.Classes
                     {
                         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
                     });
-                }
-            }
-        }
-
-        // Collection of Parameters for easier iteration in UI
-        public ObservableCollection<Parameter> Parameters
-        {
-            get;
-        }
-
-        // Parameters using the Parameter class with names set
-        private Parameter _zone1Size = new(0, 1, 0.01, 0.01, "Zone 1 Size:");
-        public Parameter Zone1Size
-        {
-            get => _zone1Size;
-            set
-            {
-                if (_zone1Size != value)
-                {
-                    _zone1Size = value;
-                    OnPropertyChanged(nameof(Zone1Size));
-                }
-            }
-        }
-
-        private Parameter _zone2Size = new(0, 1, 0.01, 0.1, "Zone 2 Size:");
-        public Parameter Zone2Size
-        {
-            get => _zone2Size;
-            set
-            {
-                if (_zone2Size != value)
-                {
-                    _zone2Size = value;
-                    OnPropertyChanged(nameof(Zone2Size));
-                }
-            }
-        }
-
-        private Parameter _zone1Freq = new(0, 185000, 1000, 85000, "Zone 1 Frequency:");
-        public Parameter Zone1Freq
-        {
-            get => _zone1Freq;
-            set
-            {
-                if (_zone1Freq != value)
-                {
-                    _zone1Freq = value;
-                    OnPropertyChanged(nameof(Zone1Freq));
-                }
-            }
-        }
-
-        private Parameter _zone2Freq = new(0, 185000, 1000, 83000, "Zone 2 Frequency:");
-        public Parameter Zone2Freq
-        {
-            get => _zone2Freq;
-            set
-            {
-                if (_zone2Freq != value)
-                {
-                    _zone2Freq = value;
-                    OnPropertyChanged(nameof(Zone2Freq));
-                }
-            }
-        }
-
-        private Parameter _zone1Proportional = new(0, 200, 5, 90, "Zone 1 Proportional:");
-        public Parameter Zone1Proportional
-        {
-            get => _zone1Proportional;
-            set
-            {
-                if (_zone1Proportional != value)
-                {
-                    _zone1Proportional = value;
-                    OnPropertyChanged(nameof(Zone1Proportional));
-                }
-            }
-        }
-
-        private Parameter _zone2Proportional = new(0, 200, 5, 45, "Zone 2 Proportional:");
-        public Parameter Zone2Proportional
-        {
-            get => _zone2Proportional;
-            set
-            {
-                if (_zone2Proportional != value)
-                {
-                    _zone2Proportional = value;
-                    OnPropertyChanged(nameof(Zone2Proportional));
-                }
-            }
-        }
-
-        private Parameter _positionTolerance = new(0, 200, 2, 4, "Position Tolerance:");
-        public Parameter PositionTolerance
-        {
-            get => _positionTolerance;
-            set
-            {
-                if (_positionTolerance != value)
-                {
-                    _positionTolerance = value;
-                    OnPropertyChanged(nameof(PositionTolerance));
-                }
-            }
-        }
-
-        private Parameter _speed = new(0, 400, 5, 200, "Speed:");
-        public Parameter Speed
-        {
-            get => _speed;
-            set
-            {
-                if (_speed != value)
-                {
-                    _speed = value;
-                    OnPropertyChanged(nameof(Speed));
-                }
-            }
-        }
-
-        private Parameter _acceleration = new(0, 64400, 1000, 32000, "Acceleration:");
-        public Parameter Acceleration
-        {
-            get => _acceleration;
-            set
-            {
-                if (_acceleration != value)
-                {
-                    _acceleration = value;
-                    OnPropertyChanged(nameof(Acceleration));
-                }
-            }
-        }
-
-        private Parameter _mass = new(0, 1500, 100, 0, "Mass");
-        public Parameter Mass
-        {
-            get => _mass;
-            set
-            {
-                if (_mass != value)
-                {
-                    _mass = value;
-                    OnPropertyChanged(nameof(Mass));
-                }
-            }
-        }
-
-        private Parameter _amplitudeControl = new(0, 1, 1, 1, "Amplitude Control:");
-        public Parameter AmplitudeControl
-        {
-            get => _amplitudeControl;
-            set
-            {
-                if (_amplitudeControl != value)
-                {
-                    _amplitudeControl = value;
-                    OnPropertyChanged(nameof(AmplitudeControl));
-                }
-            }
-        }
-
-        private Parameter _leftSoftLimit = new(-200, 0, 1, -100, "Left Soft Limit:");
-        public Parameter LeftSoftLimit
-        {
-            get => _leftSoftLimit;
-            set
-            {
-                if (_leftSoftLimit != value)
-                {
-                    _leftSoftLimit = value;
-                    OnPropertyChanged(nameof(LeftSoftLimit));
-                }
-            }
-        }
-
-        private Parameter _rightSoftLimit = new(0, 200, 1, 100, "Right Soft Limit:");
-        public Parameter RightSoftLimit
-        {
-            get => _rightSoftLimit;
-            set
-            {
-                if (_rightSoftLimit != value)
-                {
-                    _rightSoftLimit = value;
-                    OnPropertyChanged(nameof(RightSoftLimit));
-                }
-            }
-        }
-
-        private Parameter _phaseCorrection = new(0, 1, 1, 1, "Phase Correction:");
-        public Parameter PhaseCorrection
-        {
-            get => _phaseCorrection;
-            set
-            {
-                if (_phaseCorrection != value)
-                {
-                    _phaseCorrection = value;
-                    OnPropertyChanged(nameof(PhaseCorrection));
-                }
-            }
-        }
-
-        private Parameter _errorLimit = new(0, 1000, 1, 50, "Error Limit:");
-        public Parameter ErrorLimit
-        {
-            get => _errorLimit;
-            set
-            {
-                if (_errorLimit != value)
-                {
-                    _errorLimit = value;
-                    OnPropertyChanged(nameof(ErrorLimit));
                 }
             }
         }
@@ -625,141 +389,90 @@ namespace XeryonMotionGUI.Classes
         private bool _AmplifiersEnabled;
         public bool AmplifiersEnabled
         {
-            get => _AmplifiersEnabled;
-            private set
+            get => _AmplifiersEnabled; private set
             {
-                if (_AmplifiersEnabled != value)
-                {
-                    _AmplifiersEnabled = value;
-                    OnPropertyChanged(nameof(AmplifiersEnabled));
-                }
+                if (_AmplifiersEnabled != value) { _AmplifiersEnabled = value; OnPropertyChanged(nameof(AmplifiersEnabled)); }
             }
         }
 
         private bool _EndStop;
         public bool EndStop
         {
-            get => _EndStop;
-            private set
+            get => _EndStop; private set
             {
-                if (_EndStop != value)
-                {
-                    _EndStop = value;
-                    OnPropertyChanged(nameof(EndStop));
-                }
+                if (_EndStop != value) { _EndStop = value; OnPropertyChanged(nameof(EndStop)); }
             }
         }
 
         private bool _ThermalProtection1;
         public bool ThermalProtection1
         {
-            get => _ThermalProtection1;
-            private set
+            get => _ThermalProtection1; private set
             {
-                if (_ThermalProtection1 != value)
-                {
-                    _ThermalProtection1 = value;
-                    OnPropertyChanged(nameof(ThermalProtection1));
-                }
+                if (_ThermalProtection1 != value) { _ThermalProtection1 = value; OnPropertyChanged(nameof(ThermalProtection1)); }
             }
         }
 
         private bool _ThermalProtection2;
         public bool ThermalProtection2
         {
-            get => _ThermalProtection2;
-            private set
+            get => _ThermalProtection2; private set
             {
-                if (_ThermalProtection2 != value)
-                {
-                    _ThermalProtection2 = value;
-                    OnPropertyChanged(nameof(ThermalProtection2));
-                }
+                if (_ThermalProtection2 != value) { _ThermalProtection2 = value; OnPropertyChanged(nameof(ThermalProtection2)); }
             }
         }
 
         private bool _ForceZero;
         public bool ForceZero
         {
-            get => _ForceZero;
-            private set
+            get => _ForceZero; private set
             {
-                if (_ForceZero != value)
-                {
-                    _ForceZero = value;
-                    OnPropertyChanged(nameof(ForceZero));
-                }
+                if (_ForceZero != value) { _ForceZero = value; OnPropertyChanged(nameof(ForceZero)); }
             }
         }
 
         private bool _MotorOn;
         public bool MotorOn
         {
-            get => _MotorOn;
-            private set
+            get => _MotorOn; private set
             {
-                if (_MotorOn != value)
-                {
-                    bool wasMotorOn = _MotorOn; // Track previous state
-                    _MotorOn = value;
-                    OnPropertyChanged(nameof(MotorOn));
-                }
+                if (_MotorOn != value) { bool wasMotorOn = _MotorOn; _MotorOn = value; OnPropertyChanged(nameof(MotorOn)); }
             }
         }
 
         private bool _ClosedLoop;
         public bool ClosedLoop
         {
-            get => _ClosedLoop;
-            private set
+            get => _ClosedLoop; private set
             {
-                if (_ClosedLoop != value)
-                {
-                    _ClosedLoop = value;
-                    OnPropertyChanged(nameof(ClosedLoop));
-                }
+                if (_ClosedLoop != value) { _ClosedLoop = value; OnPropertyChanged(nameof(ClosedLoop)); }
             }
         }
 
         private bool _EncoderAtIndex;
         public bool EncoderAtIndex
         {
-            get => _EncoderAtIndex;
-            private set
+            get => _EncoderAtIndex; private set
             {
-                if (_EncoderAtIndex != value)
-                {
-                    _EncoderAtIndex = value;
-                    OnPropertyChanged(nameof(EncoderAtIndex));
-                }
+                if (_EncoderAtIndex != value) { _EncoderAtIndex = value; OnPropertyChanged(nameof(EncoderAtIndex)); }
             }
         }
 
         private bool _EncoderValid;
         public bool EncoderValid
         {
-            get => _EncoderValid;
-            private set
+            get => _EncoderValid; private set
             {
-                if (_EncoderValid != value)
-                {
-                    _EncoderValid = value;
-                    OnPropertyChanged(nameof(EncoderValid));
-                }
+                if (_EncoderValid != value) { _EncoderValid = value; OnPropertyChanged(nameof(EncoderValid)); }
             }
         }
 
         private bool _SearchingIndex;
         public bool SearchingIndex
         {
-            get => _SearchingIndex;
-            private set
+            get => _SearchingIndex; private set
             {
-                if (_SearchingIndex != value)
-                {
-                    _SearchingIndex = value;
-                    OnPropertyChanged(nameof(SearchingIndex));
-                }
+                if (_SearchingIndex != value) { _SearchingIndex = value; OnPropertyChanged(nameof(SearchingIndex)); }
             }
         }
 
@@ -773,16 +486,13 @@ namespace XeryonMotionGUI.Classes
                 {
                     if (!_PositionReached && value)
                     {
-                        // PositionReached is transitioning from false to true
                         if (_positionReachedLastFalseTime != default)
-                        {
                             PositionReachedElapsedTime = DateTime.Now - _positionReachedLastFalseTime;
-                        }
+
                         SPEED = 0;
                     }
                     else if (_PositionReached && !value)
                     {
-                        // PositionReached is transitioning from true to false
                         _positionReachedLastFalseTime = DateTime.Now;
                     }
 
@@ -791,6 +501,7 @@ namespace XeryonMotionGUI.Classes
                 }
             }
         }
+
 
         private DateTime _positionReachedLastFalseTime;
         private TimeSpan _positionReachedElapsedTime;
@@ -817,156 +528,102 @@ namespace XeryonMotionGUI.Classes
         private bool _ErrorCompensation;
         public bool ErrorCompensation
         {
-            get => _ErrorCompensation;
-            private set
+            get => _ErrorCompensation; private set
             {
-                if (_ErrorCompensation != value)
-                {
-                    _ErrorCompensation = value;
-                    OnPropertyChanged(nameof(ErrorCompensation));
-                }
+                if (_ErrorCompensation != value) { _ErrorCompensation = value; OnPropertyChanged(nameof(ErrorCompensation)); }
             }
         }
 
         private bool _EncoderError;
         public bool EncoderError
         {
-            get => _EncoderError;
-            private set
+            get => _EncoderError; private set
             {
-                if (_EncoderError != value)
-                {
-                    _EncoderError = value;
-                    OnPropertyChanged(nameof(EncoderError));
-                }
+                if (_EncoderError != value) { _EncoderError = value; OnPropertyChanged(nameof(EncoderError)); }
             }
         }
 
         private bool _Scanning;
         public bool Scanning
         {
-            get => _Scanning;
-            private set
+            get => _Scanning; private set
             {
-                if (_Scanning != value)
-                {
-                    _Scanning = value;
-                    OnPropertyChanged(nameof(Scanning));
-                }
+                if (_Scanning != value) { _Scanning = value; OnPropertyChanged(nameof(Scanning)); }
             }
         }
 
         private bool _LeftEndStop;
         public bool LeftEndStop
         {
-            get => _LeftEndStop;
-            private set
+            get => _LeftEndStop; private set
             {
-                if (_LeftEndStop != value)
-                {
-                    _LeftEndStop = value;
-                    OnPropertyChanged(nameof(LeftEndStop));
-                }
+                if (_LeftEndStop != value) { _LeftEndStop = value; OnPropertyChanged(nameof(LeftEndStop)); }
             }
         }
 
         private bool _RightEndStop;
         public bool RightEndStop
         {
-            get => _RightEndStop;
-            private set
+            get => _RightEndStop; private set
             {
-                if (_RightEndStop != value)
-                {
-                    _RightEndStop = value;
-                    OnPropertyChanged(nameof(RightEndStop));
-                }
+                if (_RightEndStop != value) { _RightEndStop = value; OnPropertyChanged(nameof(RightEndStop)); }
             }
         }
 
         private bool _ErrorLimit;
         public bool ErrorLimitBit
         {
-            get => _ErrorLimit;
-            private set
+            get => _ErrorLimit; private set
             {
-                if (_ErrorLimit != value)
-                {
-                    _ErrorLimit = value;
-                    OnPropertyChanged(nameof(ErrorLimitBit));
-                }
+                if (_ErrorLimit != value) { _ErrorLimit = value; OnPropertyChanged(nameof(ErrorLimitBit)); }
             }
         }
 
         private bool _SearchingOptimalFrequency;
         public bool SearchingOptimalFrequency
         {
-            get => _SearchingOptimalFrequency;
-            private set
+            get => _SearchingOptimalFrequency; private set
             {
-                if (_SearchingOptimalFrequency != value)
-                {
-                    _SearchingOptimalFrequency = value;
-                    OnPropertyChanged(nameof(SearchingOptimalFrequency));
-                }
+                if (_SearchingOptimalFrequency != value) { _SearchingOptimalFrequency = value; OnPropertyChanged(nameof(SearchingOptimalFrequency)); }
             }
         }
 
         private bool _SafetyTimeoutTriggered;
         public bool SafetyTimeoutTriggered
         {
-            get => _SafetyTimeoutTriggered;
-            private set
+            get => _SafetyTimeoutTriggered; private set
             {
-                if (_SafetyTimeoutTriggered != value)
-                {
-                    _SafetyTimeoutTriggered = value;
-                    OnPropertyChanged(nameof(SafetyTimeoutTriggered));
-                }
+                if (_SafetyTimeoutTriggered != value) { _SafetyTimeoutTriggered = value; OnPropertyChanged(nameof(SafetyTimeoutTriggered)); }
             }
         }
 
         private bool _EtherCATAcknowledge;
         public bool EtherCATAcknowledge
         {
-            get => _EtherCATAcknowledge;
-            private set
+            get => _EtherCATAcknowledge; private set
             {
-                if (_EtherCATAcknowledge != value)
-                {
-                    _EtherCATAcknowledge = value;
-                    OnPropertyChanged(nameof(EtherCATAcknowledge));
-                }
+                if (_EtherCATAcknowledge != value) { _EtherCATAcknowledge = value; OnPropertyChanged(nameof(EtherCATAcknowledge)); }
             }
         }
 
         private bool _EmergencyStop;
         public bool EmergencyStop
         {
-            get => _EmergencyStop;
-            private set
+            get => _EmergencyStop; private set
             {
-                if (_EmergencyStop != value)
-                {
-                    _EmergencyStop = value;
-                    OnPropertyChanged(nameof(EmergencyStop));
-                }
+                if (_EmergencyStop != value) { _EmergencyStop = value; OnPropertyChanged(nameof(EmergencyStop)); }
             }
         }
 
         private bool _PositionFail;
         public bool PositionFail
         {
-            get => _PositionFail;
-            private set
+            get => _PositionFail; private set
             {
-                if (_PositionFail != value)
-                {
-                    _PositionFail = value;
-                    OnPropertyChanged(nameof(PositionFail));
-                }
+                if (_PositionFail != value) { _PositionFail = value; OnPropertyChanged(nameof(PositionFail)); }
             }
         }
+
 
         public void UpdateStatusBits()
         {
