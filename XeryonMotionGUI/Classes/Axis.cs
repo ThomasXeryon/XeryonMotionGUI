@@ -1,5 +1,7 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using Microsoft.UI.Dispatching;
 using System.Windows.Input;
 using XeryonMotionGUI.Helpers;
@@ -8,29 +10,79 @@ namespace XeryonMotionGUI.Classes
 {
     public class Axis : INotifyPropertyChanged
     {
-        public Axis(Controller controller)
+        public Axis(Controller controller, string axisType, string axisLetter)
         {
-
-            AxisLetter = AxisLetter;
             ParentController = controller;
+            AxisType = axisType;
+            AxisLetter = axisLetter;
 
-            Parameters = ParameterFactory.CreateParameters();
+            InitializeParameters(axisType);
 
-            MoveNegativeCommand = new Helpers.RelayCommand(MoveNegative);
-            StepNegativeCommand = new Helpers.RelayCommand(StepNegative);
-            HomeCommand = new Helpers.RelayCommand(Home);
-            StepPositiveCommand = new Helpers.RelayCommand(StepPositive);
-            MovePositiveCommand = new Helpers.RelayCommand(MovePositive);
-            StopCommand = new Helpers.RelayCommand(Stop);
-            ResetCommand = new Helpers.RelayCommand(Reset);
-            IndexCommand = new Helpers.RelayCommand(Index);
+            // Initialize commands
+            MoveNegativeCommand = new RelayCommand(MoveNegative);
+            StepNegativeCommand = new RelayCommand(StepNegative);
+            HomeCommand = new RelayCommand(Home);
+            StepPositiveCommand = new RelayCommand(StepPositive);
+            MovePositiveCommand = new RelayCommand(MovePositive);
+            StopCommand = new RelayCommand(Stop);
+            ResetCommand = new RelayCommand(Reset);
+            IndexCommand = new RelayCommand(Index);
+
+            //Parameters = ParameterFactory.CreateParameters(ParentController.Type, axisType);
+
+            // Assign the ParentController to each Parameter
+            foreach (var parameter in Parameters)
+            {
+                parameter.ParentController = ParentController;
+            }
         }
 
-        public ObservableCollection<Parameter> Parameters
+        // Collection of parameters
+        public ObservableCollection<Parameter> Parameters { get; set; } = new();
+
+        // Dynamically initializes parameters
+        private void InitializeParameters(string axisType)
         {
-            get;
+            Parameters.Clear();
+
+            var newParameters = ParameterFactory.CreateParameters(ParentController.Type, axisType);
+
+            foreach (var parameter in newParameters)
+            {
+                Parameters.Add(parameter);
+            }
+
+            OnPropertyChanged(nameof(Parameters));
         }
 
+        // Add a parameter dynamically
+        public void AddParameter(Parameter parameter)
+        {
+            if (Parameters.All(p => p.Name != parameter.Name))
+            {
+                Parameters.Add(parameter);
+                OnPropertyChanged(nameof(Parameters));
+            }
+        }
+
+        // Update an existing parameter
+        public void UpdateParameter(string name, Action<Parameter> updateAction)
+        {
+            var parameter = Parameters.FirstOrDefault(p => p.Name == name);
+            if (parameter != null)
+            {
+                updateAction(parameter);
+                OnPropertyChanged(nameof(Parameters));
+            }
+        }
+
+        // Get a specific parameter
+        public Parameter GetParameter(string name)
+        {
+            return Parameters.FirstOrDefault(p => p.Name == name);
+        }
+
+        // Commands
         public ICommand MoveNegativeCommand
         {
             get;
@@ -64,6 +116,7 @@ namespace XeryonMotionGUI.Classes
             get;
         }
 
+        // Event for property changes
         public event PropertyChangedEventHandler PropertyChanged;
 
         private DispatcherQueue _dispatcherQueue;
@@ -75,7 +128,6 @@ namespace XeryonMotionGUI.Classes
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
-            // Ensure PropertyChanged is called on UI thread using DispatcherQueue
             if (_dispatcherQueue != null)
             {
                 if (_dispatcherQueue.HasThreadAccess)
@@ -92,11 +144,13 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        // Controller reference
         public Controller ParentController
         {
             get; set;
         }
 
+        // Other properties (Name, Type, etc.)
         private string _Name;
         public string Name
         {
@@ -212,6 +266,11 @@ namespace XeryonMotionGUI.Classes
                     NegativeRange = negativeHalf;
                 }
             }
+        }
+
+        public string AxisType
+        {
+            get; set;
         }
 
         private string _AxisLetter;

@@ -5,7 +5,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
@@ -18,16 +17,70 @@ namespace XeryonMotionGUI.Classes
         public static ObservableCollection<Controller> FoundControllers { get; set; } = new ObservableCollection<Controller>();
         public static ObservableCollection<Controller> RunningControllers { get; set; } = new ObservableCollection<Controller>();
 
-
         public event PropertyChangedEventHandler PropertyChanged;
 
+        // Commands
         private ICommand _OpenPortCommand;
+
+        // Constructor to initialize controller
+        public Controller(string name, int axisCount = 1, string type = "Default")
+        {
+            Name = name;
+            AxisCount = axisCount;
+            Type = type;
+
+            // Initialize Axes based on axis count
+            InitializeAxes(axisCount, type);
+        }
+
+        // Initialize Axes dynamically
+        private void InitializeAxes(int axisCount, string type)
+        {
+            Axes = new ObservableCollection<Axis>();
+            for (int i = 0; i < axisCount; i++)
+            {
+                var axisName = $"Axis-{i + 1}";
+                Axes.Add(new Axis(this, axisName, type));
+            }
+            OnPropertyChanged(nameof(Axes));
+        }
+
+        // Axis management methods
+        public void AddAxis(Axis axis)
+        {
+            Axes.Add(axis);
+            AxisCount = Axes.Count;
+            OnPropertyChanged(nameof(Axes));
+        }
+
+        public void RemoveAxis(Axis axis)
+        {
+            Axes.Remove(axis);
+            AxisCount = Axes.Count;
+            OnPropertyChanged(nameof(Axes));
+        }
+
+        public Axis GetAxis(string name)
+        {
+            return Axes.FirstOrDefault(a => a.Name == name);
+        }
+
+        public void UpdateAxis(string name, Action<Axis> updateAction)
+        {
+            var axis = GetAxis(name);
+            if (axis != null)
+            {
+                updateAction(axis);
+                OnPropertyChanged(nameof(Axes));
+            }
+        }
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+        // Properties
         private string _Status;
         public string Status
         {
@@ -184,78 +237,16 @@ namespace XeryonMotionGUI.Classes
 
         public string ControllerTitle => $"Controller {_FriendlyPort}";
 
-        public void Initialize()
+
+        // Command for opening/closing port
+        public ICommand OpenPortCommand
         {
-            if (Running)
+            get
             {
-                Port.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
+                _OpenPortCommand ??= new RelayCommand(OpenPort);
+                return _OpenPortCommand;
             }
         }
-
-        private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
-        {
-            SerialPort sp = (SerialPort)sender;
-            string inData = sp.ReadExisting();
-            string[] dataParts = inData.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-            // Check if the controller has a single axis or multiple axes at the top level
-            if (Axes.Count == 1)
-            {
-                // Single Axis Controller: Bind the EPOS and STAT directly to the first axis
-                HandleSingleAxisData(dataParts);
-            }
-            else
-            {
-                // Multi-Axis Controller: Placeholder for future multi-axis implementation
-                // Will implement later: Map the EPOS and STAT to specific axes
-                HandleMultiAxisData(dataParts);
-            }
-            sp.DiscardInBuffer();
-        }
-
-        private void HandleSingleAxisData(string[] dataParts)
-        {
-            foreach (string part in dataParts)
-            {
-                if (part.StartsWith("STAT="))
-                {
-                    if (int.TryParse(part.Substring(5), out int statValue))
-                    {
-                        // Single Axis: Directly update the single axis STAT
-                        Axes[0].STAT = statValue;
-                    }
-                }
-
-                if (part.StartsWith("EPOS="))
-                {
-                    if (int.TryParse(part.Substring(5), out int eposValue))
-                    {
-                        // Single Axis: Directly update the single axis EPOS
-                        Axes[0].EPOS = eposValue;
-                        //Debug.WriteLine($"EPOS: {eposValue}");
-                    }
-                }
-            }
-        }
-
-        private void HandleMultiAxisData(string[] dataParts)
-        {
-            foreach (string part in dataParts)
-            {
-                // For now, we don't know how to associate STAT and EPOS with specific axes in multi-axis mode
-                // Placeholder logic: log the data or process later
-                if (part.StartsWith("STAT="))
-                {
-                    Debug.WriteLine("Multi-Axis Controller: STAT parsing not yet implemented.");
-                }
-
-                if (part.StartsWith("EPOS="))
-                {
-                    Debug.WriteLine("Multi-Axis Controller: EPOS parsing not yet implemented.");
-                }
-            }
-        }
-
 
         public void OpenPort()
         {
@@ -284,28 +275,64 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        private async Task ShowMessage(string title, string message)
+        // Initialize the controller
+        public void Initialize()
         {
-            var dialog = new ContentDialog
+            if (Running)
             {
-                Title = title,
-                Content = message,
-                CloseButtonText = "OK"
-                //XamlRoot = this.Content.XamlRoot // Set XamlRoot to the root of the page
-            };
-
-            await dialog.ShowAsync();
-        }
-
-        public ICommand OpenPortCommand
-        {
-            get
-            {
-                _OpenPortCommand ??= new RelayCommand(OpenPort);
-                return _OpenPortCommand;
+                Port.DataReceived += DataReceivedHandler;
             }
         }
 
+        // Data handling
+        private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
+        {
+            SerialPort sp = (SerialPort)sender;
+            string inData = sp.ReadExisting();
+            string[] dataParts = inData.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (Axes.Count == 1)
+            {
+                HandleSingleAxisData(dataParts);
+            }
+            else
+            {
+                HandleMultiAxisData(dataParts);
+            }
+            sp.DiscardInBuffer();
+        }
+
+        private void HandleSingleAxisData(string[] dataParts)
+        {
+            foreach (var part in dataParts)
+            {
+                if (part.StartsWith("STAT="))
+                {
+                    if (int.TryParse(part.Substring(5), out int statValue))
+                    {
+                        Axes[0].STAT = statValue;
+                    }
+                }
+
+                if (part.StartsWith("EPOS="))
+                {
+                    if (int.TryParse(part.Substring(5), out int eposValue))
+                    {
+                        Axes[0].EPOS = eposValue;
+                    }
+                }
+            }
+        }
+
+        private void HandleMultiAxisData(string[] dataParts)
+        {
+            foreach (var part in dataParts)
+            {
+                Debug.WriteLine("Multi-Axis Controller data parsing not yet implemented.");
+            }
+        }
+
+        // Static method to manage running controllers
         public static void UpdateRunningControllers()
         {
             var controllersToRemove = RunningControllers.Where(c => !c.Running).ToList();
@@ -321,18 +348,64 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        // Show error messages
+        private async Task ShowMessage(string title, string message)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                CloseButtonText = "OK"
+            };
+            await dialog.ShowAsync();
+        }
+
         public void SendCommand(string command)
         {
             if (Port.IsOpen)
             {
 
-                    Debug.WriteLine($"Sending Command: {command}");
-                    Port.Write(command);
+                Debug.WriteLine($"Sending Command: {command}");
+                Port.Write(command);
             }
             else
             {
                 Debug.WriteLine("Serial port not open. Command not sent.");
             }
         }
+
+        public void SendSetting(string commandName, double value)
+        {
+            if (Port.IsOpen)
+            {
+                if (commandName == "SSPD" || commandName == "MSPD" || commandName == "ISPD")
+                {
+                    value = value * 1000;
+                }
+                string command = $"{commandName}={value}";
+                Debug.WriteLine($"Sending Command: {command}");
+                Port.Write(command);
+            }
+            else
+            {
+                Debug.WriteLine("Serial port not open. Command not sent.");
+            }
+        }
+
+        public void SaveSettings()
+        {
+            if (AxisCount == 1)
+            {
+                SendCommand("SAVE");
+            }
+            else
+            {
+                foreach (var axis in Axes)
+                {
+                    SendCommand($"{axis.AxisLetter}:SAVE");
+                }
+            }
+        }
+
     }
 }

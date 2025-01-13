@@ -66,6 +66,9 @@ namespace XeryonMotionGUI.Views
 
         private async void OnSaveButtonClick(object sender, RoutedEventArgs e)
         {
+            var viewModel = this.DataContext as ParametersViewModel;
+            var selectedController = viewModel?.SelectedController;
+           
             var button = sender as Button;
             if (button == null || !button.IsEnabled)
                 return;
@@ -76,6 +79,8 @@ namespace XeryonMotionGUI.Views
 
             var originalIcon = icon.Symbol;
             button.IsEnabled = false;  // Disable the button while saving
+
+            selectedController.SaveSettings();  // Save the settings
 
             await Task.Delay(500);
             icon.Symbol = Symbol.Accept;  // Change icon to accept while saving

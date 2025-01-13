@@ -40,7 +40,9 @@ public sealed partial class HardwarePage : Page
         RefreshProgressBar.Visibility = Visibility.Visible;
         await Task.Delay(200);
         Debug.WriteLine("Searching for controllers");
+
         string[] ports = System.IO.Ports.SerialPort.GetPortNames();
+
         for (int i = Controller.FoundControllers.Count - 1; i >= 0; i--)
         {
             if (!Controller.FoundControllers[i].Running)
@@ -48,26 +50,28 @@ public sealed partial class HardwarePage : Page
                 Controller.FoundControllers.RemoveAt(i);
             }
         }
+
         foreach (var port in ports)
         {
             var (isXeryon, response) = CheckIfXeryon(port);
 
             if (isXeryon)
             {
-                SerialPort serialPort = new SerialPort(port);
-                serialPort.BaudRate = 115200;
-                serialPort.ReadTimeout = 200;
-                serialPort.Open();
-                var controller = new Controller();
-                controller.Axes = new ObservableCollection<Axis>
+                SerialPort serialPort = new SerialPort(port)
                 {
-                    new Axis(controller)
+                    BaudRate = 115200,
+                    ReadTimeout = 200
                 };
-                controller.Axes[0].SetDispatcherQueue(DispatcherQueue);
+                serialPort.Open();
+
+                // Temporarily create the controller without a defined type
+                var controller = new Controller("DefaultController", 1, "Unknown");
+
                 controller.Port = serialPort;
                 serialPort.Write("INFO=0");
                 await Task.Delay(100);
                 serialPort.DiscardInBuffer();
+
                 var axesResponse = "";
                 controller.Type = "";
                 try
@@ -78,25 +82,29 @@ public sealed partial class HardwarePage : Page
                 catch (TimeoutException)
                 {
                     Debug.WriteLine(port + " IS OEM");
-                    // IS OEM
-                    controller.Type = "XD-OEM";
-                    controller.Name = "XD-OEM Single Axis controller";
+                    controller.Type = "OEM";
+                    controller.Name = "XD-OEM Single Axis Controller";
                     axesResponse = "AXES=1";
                 }
+
                 var axes = Convert.ToInt32(Regex.Match(axesResponse, @"AXES[:=](\d+)").Groups[1].Value);
                 Debug.WriteLine($"Axis count: {axes}");
 
-                if (axes == 1) // IS SINGLE AXIS XD-C
+                if (axes == 1) // Single axis controller
                 {
-                    if (controller.Type == "")
+                    if (string.IsNullOrEmpty(controller.Type))
                     {
                         Debug.WriteLine(port + " IS XD-C");
-                        controller.Name = "XD-C Single Axis controller";
                         controller.Type = "XD-C";
+                        controller.Name = "XD-C Single Axis Controller";
                     }
+
                     var ser = Regex.Match(response, @"SRNO=(\d+)");
                     var soft = Regex.Match(response, @"SOFT=(\d+)");
                     var dev = Regex.Match(response, @"SOFT=\d+\s+(.*?)\s+STAT=", RegexOptions.Singleline);
+
+                    var axis = new Axis(controller, "Linear", "");
+
                     if (ser.Success)
                     {
                         controller.Serial = ser.Groups[1].Value;
@@ -108,9 +116,10 @@ public sealed partial class HardwarePage : Page
                     }
                     if (dev.Success)
                     {
-                        controller.Axes[0].Resolution = Convert.ToInt32(dev.Groups[1].Value.Contains('=') ? dev.Groups[1].Value.Split('=')[1] : dev.Groups[1].Value);
-                        controller.Axes[0].Type = dev.Groups[1].Value.Contains('=') ? dev.Groups[1].Value.Split('=')[0] : dev.Groups[1].Value;
+                        axis.Resolution = Convert.ToInt32(dev.Groups[1].Value.Contains('=') ? dev.Groups[1].Value.Split('=')[1] : dev.Groups[1].Value);
+                        axis.Type = dev.Groups[1].Value.Contains('=') ? dev.Groups[1].Value.Split('=')[0] : dev.Groups[1].Value;
                     }
+
                     serialPort.Write("INFO=0");
                     await Task.Delay(50);
                     serialPort.DiscardInBuffer();
@@ -120,21 +129,33 @@ public sealed partial class HardwarePage : Page
                     serialPort.Write("HLIM=?");
                     var HLIM = serialPort.ReadLine().Replace("HLIM=", "").Trim();
                     Debug.WriteLine(HLIM);
-                    controller.Axes[0].Range = Math.Round(((Convert.ToInt32(HLIM) + -Convert.ToDouble(LLIM)) * Convert.ToDouble(controller.Axes[0].Resolution) / 1000000), 2);
+
+                    axis.Range = Math.Round(((Convert.ToInt32(HLIM) + -Convert.ToDouble(LLIM)) * Convert.ToDouble(axis.Resolution) / 1000000), 2);
 
                     serialPort.Write("INFO=7");
                     serialPort.Close();
 
-                    controller.Axes[0].AxisLetter = "None";
-                    controller.Axes[0].FriendlyName = "Not set";
-                    controller.Axes[0].Name = $"XLS-3/5-X-{controller.Axes[0].Resolution}";
-                    controller.Axes[0].Linear = true;
-                    controller.Axes[0].StepSize = 25;
+                    axis.AxisLetter = "None";
+                    axis.FriendlyName = "Not set";
+                    axis.Name = $"XLS-3/5-X-{axis.Resolution}";
+                    axis.Linear = true;
+                    axis.StepSize = 25;
+
+                    controller.Axes = new ObservableCollection<Axis> { axis };
+                    axis.SetDispatcherQueue(DispatcherQueue);
                 }
-                else // NOT SINGLE AXIS
+                else // Multi-axis controllers
                 {
-                    // Handle multi-axis controllers if needed
+                    if (string.IsNullOrEmpty(controller.Type))
+                    {
+                        Debug.WriteLine(port + " IS XD-M");
+                        controller.Type = "XD-M";
+                        controller.Name = "XD-M Multi-Axis Controller";
+                    }
+
+                    // Add logic to initialize multiple axes
                 }
+
                 controller.FriendlyPort = port;
                 controller.Status = "Connect";
                 Controller.FoundControllers.Add(controller);
@@ -144,9 +165,13 @@ public sealed partial class HardwarePage : Page
                 Debug.WriteLine(port + " Response: " + response);
             }
         }
+
         await Task.Delay(2000);
         RefreshProgressBar.Visibility = Visibility.Collapsed;
     }
+
+
+
 
     public (bool isXeryon, string response) CheckIfXeryon(string port)
     {
