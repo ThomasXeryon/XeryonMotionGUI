@@ -15,6 +15,7 @@
     <Page.Resources>
         <helpers:AxisTypeToVisibilityConverter x:Key="AxisTypeToVisibilityConverter" />
         <helpers:BoolToColorConverter x:Key="BoolToColorConverter" />
+        <helpers:TooltipValueFormatter x:Key="TooltipValueFormatter" />
     </Page.Resources>
 
     <Grid>
@@ -86,7 +87,6 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="110" />
-                                <!-- Fixed width for consistent alignment -->
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="110" />
                                 <ColumnDefinition Width="Auto" />
@@ -102,11 +102,20 @@
                             <TextBox Text="{Binding SPEED}" Width="100" IsReadOnly="True" Margin="5" Grid.Column="3" />
 
                             <TextBlock Text="Max Speed:" VerticalAlignment="Center" Margin="10,0,5,0" Grid.Column="4"/>
-                            <TextBox Text="{Binding MaxSpeed}" Width="100" IsReadOnly="True" Margin="5" PointerEntered="TextBox_PointerEntered" Grid.Column="5" />
+                            <TextBox Text="{Binding MaxSpeed}" Width="100" IsReadOnly="True" Margin="5" Grid.Column="5" PointerEntered="TextBox_PointerEntered" />
 
-                            <!-- New Time Display -->
                             <TextBlock Text="Time:" VerticalAlignment="Center" Margin="10,0,5,0" Grid.Column="6"/>
-                            <TextBox Text="{Binding PositionReachedElapsedMilliseconds}" Width="100" IsReadOnly="True" Margin="5" Grid.Column="7" />
+                            <TextBox Text="{Binding PositionReachedElapsedMilliseconds}" Width="100" IsReadOnly="True" Margin="5" Grid.Column="7">
+                                <ToolTipService.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding PositionReachedElapsedMilliseconds, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Movement time'}" />
+                                            <TextBlock Text="{Binding CommandToPositionReachedMilliseconds, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Total time'}" />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
                         </Grid>
 
                         <!-- Status Bits in the Top Right -->
@@ -201,16 +210,10 @@
 
                             <TextBlock Text="Step Size:" VerticalAlignment="Center" Margin="5,10,0,0" Grid.Column="0"/>
                             <TextBox x:Name="StepSizeBox" Text="{Binding StepSize, Mode=TwoWay}" Width="140" Margin="5,15,5,5" Grid.Column="1"/>
-
-                            <Grid>
-                                
-                            </Grid>
                         </Grid>
                     </Grid>
-                    
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
     </Grid>
-
 </Page>

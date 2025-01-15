@@ -10,6 +10,13 @@ namespace XeryonMotionGUI.Classes
 {
     public class Parameter : INotifyPropertyChanged
     {
+
+        public Axis ParentAxis
+        {
+            get; set;
+        }
+
+
         private double? _min;
         private double? _max;
         private double _value;
@@ -80,11 +87,17 @@ namespace XeryonMotionGUI.Classes
                 {
                     _value = clampedValue;
                     OnPropertyChanged(nameof(Value));
-                    ParentController?.SendSetting(Command, _value);
 
+                    if (ParentController != null && !ParentController.LoadingSettings)
+                    {
+                        // Retrieve the Resolution from ParentAxis
+                        int resolution = ParentAxis?.Resolution ?? 1;
+                        ParentController.SendSetting(Command, _value, resolution);
+                    }
                 }
             }
         }
+
 
         public ICommand IncrementCommand
         {

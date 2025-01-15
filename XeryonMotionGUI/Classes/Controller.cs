@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
@@ -78,6 +79,20 @@ namespace XeryonMotionGUI.Classes
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool _loadingSettings;
+        public bool LoadingSettings
+        {
+            get => _loadingSettings;
+            set
+            {
+                if (_loadingSettings != value)
+                {
+                    _loadingSettings = value;
+                    OnPropertyChanged(nameof(LoadingSettings));
+                }
+            }
         }
 
         // Properties
@@ -255,18 +270,25 @@ namespace XeryonMotionGUI.Classes
                 if (!Running)
                 {
                     Port.Open();
+                    Port.BaudRate = 230400;
+                    Port.ReadTimeout = 200;
                     Running = true;
                     Status = "Disconnect";
                     UpdateRunningControllers();
-                    Initialize();
+                    InitializeAsync();
                     Debug.WriteLine("Controller Connected");
                 }
                 else
                 {
+                    Port.DataReceived -= DataReceivedHandler; // Remove event handler
+                    Port.DiscardInBuffer();
+                    Port.DiscardOutBuffer();
                     Port.Close();
                     Running = false;
                     Status = "Connect";
                     UpdateRunningControllers();
+                    Debug.WriteLine("Controller Disconnected");
+
                 }
             }
             catch (Exception)
@@ -276,30 +298,38 @@ namespace XeryonMotionGUI.Classes
         }
 
         // Initialize the controller
-        public void Initialize()
+        public async Task InitializeAsync()
         {
             if (Running)
             {
                 Port.DataReceived += DataReceivedHandler;
             }
+            await LoadParametersFromController();
         }
 
         // Data handling
         private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
         {
             SerialPort sp = (SerialPort)sender;
-            string inData = sp.ReadExisting();
-            string[] dataParts = inData.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            try
+            {
+                string inData = sp.ReadExisting();
+                string[] dataParts = inData.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
-            if (Axes.Count == 1)
-            {
-                HandleSingleAxisData(dataParts);
+                if (Axes.Count == 1)
+                {
+                    HandleSingleAxisData(dataParts);
+                }
+                else
+                {
+                    HandleMultiAxisData(dataParts);
+                }
+                sp.DiscardInBuffer();
             }
-            else
+            catch (Exception)
             {
-                HandleMultiAxisData(dataParts);
+                throw;
             }
-            sp.DiscardInBuffer();
         }
 
         private void HandleSingleAxisData(string[] dataParts)
@@ -360,13 +390,12 @@ namespace XeryonMotionGUI.Classes
             await dialog.ShowAsync();
         }
 
-        public void SendCommand(string command)
+        public async Task SendCommand(string command)
         {
             if (Port.IsOpen)
             {
-
-                Debug.WriteLine($"Sending Command: {command}");
                 Port.Write(command);
+                Debug.WriteLine($"Sending Command: {command}");
             }
             else
             {
@@ -374,14 +403,30 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        public void SendSetting(string commandName, double value)
+        public void SendSetting(string commandName, double value, int resolution)
         {
             if (Port.IsOpen)
             {
-                if (commandName == "SSPD" || commandName == "MSPD" || commandName == "ISPD")
+                switch (commandName)
                 {
-                    value = value * 1000;
+                    case "SSPD":
+                    case "MSPD":
+                    case "ISPD":
+                        value = value * 1000;
+                        break;
+                    case "LLIM":
+                    case "HLIM":
+                    case "ZON1":
+                    case "ZON2":
+                        value = Math.Round(value * 1000000 / resolution, 0); // Convert and round to 3 decimal points
+                        break;
+                    case "CFRQ":
+                        value = value * 10;
+                        break;
+                    default:
+                        break;
                 }
+
                 string command = $"{commandName}={value}";
                 Debug.WriteLine($"Sending Command: {command}");
                 Port.Write(command);
@@ -407,5 +452,102 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        public async Task LoadParametersFromController()
+        {
+            LoadingSettings = true;
+            Port.DataReceived -= DataReceivedHandler;
+            Port.WriteLine("INFO=0");
+            Port.DiscardInBuffer();
+            await Task.Delay(100);
+            Port.DiscardInBuffer();
+            Port.DiscardOutBuffer();
+            Port.ReadTimeout = 200;
+            try
+            {
+                foreach (var axis in Axes)
+                {
+                    foreach (var parameter in axis.Parameters)
+                    {
+                        try
+                        {
+                            // Send the command with =?
+                            string command = $"{parameter.Command}=?";
+                            Debug.WriteLine($"Sending command: {command}");
+                            Port.WriteLine(command);
+
+                            // Wait for the response
+                            string response = string.Empty;
+                            try
+                            {
+                                response = Port.ReadLine(); // Read response
+                                Debug.WriteLine($"Received response: {response}");
+                            }
+                            catch (TimeoutException)
+                            {
+                                Debug.WriteLine($"Timeout waiting for response to: {command}");
+                                continue; // Skip to the next parameter
+                            }
+
+                            if (response.StartsWith(parameter.Command, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var parts = response.Split('=');
+                                if (parts.Length == 2 && double.TryParse(parts[1], out var rawValue))
+                                {
+                                    double convertedValue = rawValue;
+
+                                    // Apply command-specific conversions
+                                    switch (parameter.Command)
+                                    {
+                                        case "SSPD":
+                                        case "MSPD":
+                                        case "ISPD":
+                                            convertedValue = rawValue / 1000; 
+                                            break;
+                                        case "LLIM":
+                                        case "HLIM":
+                                        case "ZON1":
+                                        case "ZON2":
+                                            convertedValue = Math.Round(rawValue / 1000000 * axis.Resolution, 3);
+                                            break;
+                                        case "CFRQ":
+                                            convertedValue = rawValue / 10; // Convert Hz to kHz
+                                            break;
+                                        default:
+                                            break;
+                                    }
+
+                                    parameter.Value = convertedValue;
+                                    Debug.WriteLine($"Updated {parameter.Name} to {convertedValue} (raw: {rawValue})");
+                                }
+                                else
+                                {
+                                    Debug.WriteLine($"Invalid response format for {parameter.Name}: {response}");
+                                }
+                            }
+                            else
+                            {
+                                Debug.WriteLine($"Unexpected response for {parameter.Name}: {response}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error loading parameter {parameter.Name}: {ex.Message}");
+                        }
+
+                        // Small delay before the next command
+                        await Task.Delay(0);
+                    }
+                }
+            }
+            finally
+            {
+                if (Running)
+                {
+                    Port.DataReceived += DataReceivedHandler;
+                }
+                Port.WriteLine("INFO=7");
+                LoadingSettings = false;
+            }
+        }
     }
 }

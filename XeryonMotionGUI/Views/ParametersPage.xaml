@@ -124,6 +124,7 @@
                                             Width="200" 
                                             TickFrequency="{Binding Increment}" 
                                             TickPlacement="None"
+                                            
                                             SnapsTo="Ticks" />
                                         <Button Content="-" Command="{Binding DecrementCommand}" Width="{StaticResource ButtonWidth}" CommandParameter="{Binding Name}" Margin="{StaticResource ButtonMargin}"/>
                                         <Button Content="+" Command="{Binding IncrementCommand}" Width="{StaticResource ButtonWidth}" CommandParameter="{Binding Name}" Margin="{StaticResource ButtonMargin}"/>

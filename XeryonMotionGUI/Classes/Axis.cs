@@ -25,7 +25,7 @@ namespace XeryonMotionGUI.Classes
             StepPositiveCommand = new RelayCommand(StepPositive);
             MovePositiveCommand = new RelayCommand(MovePositive);
             StopCommand = new RelayCommand(Stop);
-            ResetCommand = new RelayCommand(Reset);
+            ResetCommand = new RelayCommand(async () => await ResetAsync());
             IndexCommand = new RelayCommand(Index);
 
             //Parameters = ParameterFactory.CreateParameters(ParentController.Type, axisType);
@@ -33,6 +33,7 @@ namespace XeryonMotionGUI.Classes
             // Assign the ParentController to each Parameter
             foreach (var parameter in Parameters)
             {
+                parameter.ParentAxis = this; // Set the current axis as the parent
                 parameter.ParentController = ParentController;
             }
         }
@@ -545,6 +546,11 @@ namespace XeryonMotionGUI.Classes
                 {
                     if (!_PositionReached && value)
                     {
+                        if (_commandSentTime != default)
+                        {
+                            CommandToPositionReachedDelay = DateTime.Now - _commandSentTime;
+                        }
+
                         if (_positionReachedLastFalseTime != default)
                             PositionReachedElapsedTime = DateTime.Now - _positionReachedLastFalseTime;
 
@@ -578,6 +584,24 @@ namespace XeryonMotionGUI.Classes
                 }
             }
         }
+
+        private DateTime _commandSentTime;
+        private TimeSpan _commandToPositionReachedDelay;
+        public TimeSpan CommandToPositionReachedDelay
+        {
+            get => _commandToPositionReachedDelay;
+            private set
+            {
+                if (_commandToPositionReachedDelay != value)
+                {
+                    _commandToPositionReachedDelay = value;
+                    OnPropertyChanged(nameof(CommandToPositionReachedDelay));
+                    OnPropertyChanged(nameof(CommandToPositionReachedMilliseconds));
+                }
+            }
+        }
+
+        public double CommandToPositionReachedMilliseconds => CommandToPositionReachedDelay.TotalMilliseconds;
 
         public double PositionReachedElapsedMilliseconds
         {
@@ -718,6 +742,7 @@ namespace XeryonMotionGUI.Classes
 
         private   void StepNegative()
         {
+            _commandSentTime = DateTime.Now;
             ParentController.SendCommand($"STEP={Math.Floor(-StepSize)}");
         }
 
@@ -729,6 +754,7 @@ namespace XeryonMotionGUI.Classes
 
         private void StepPositive()
         {
+            _commandSentTime = DateTime.Now;
             ParentController.SendCommand($"STEP={Math.Floor(StepSize)}");
         }
 
@@ -747,9 +773,11 @@ namespace XeryonMotionGUI.Classes
             ParentController.SendCommand("INDX=0");
         }
 
-        private void Reset()
+        private async Task ResetAsync()
         {
             ParentController.SendCommand("RSET");
+            await Task.Delay(100);
+            await ParentController.LoadParametersFromController();
         }
     }
 }
