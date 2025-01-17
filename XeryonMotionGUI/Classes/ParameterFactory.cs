@@ -39,15 +39,15 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 1, 0.001, 0, "Zone 2 Size:", "ZON2"),
                 new Parameter(0, 190000, 500, 0, "Zone 1 Frequency:", "FREQ"),
                 new Parameter(0, 190000, 500, 0, "Zone 2 Frequency:", "FRQ2"),
-                new Parameter(0, 190000, 500, 0, "Upper Frequency Limit:", "HFRQ"),
-                new Parameter(0, 190000, 500, 0, "Lower Frequency Limit:", "LFRQ"),
+                //new Parameter(0, 190000, 500, 0, "Upper Frequency Limit:", "HFRQ"),
+                //new Parameter(0, 190000, 500, 0, "Lower Frequency Limit:", "LFRQ"),
                 new Parameter(0, 200, 5, 0, "Zone 1 Proportional:", "PROP"),
                 new Parameter(0, 200, 5, 0, "Zone 2 Proportional:", "PRO2"),
                 new Parameter(0, 200, 2, 0, "Position Tolerance:", "PTOL"),
                 new Parameter(0, 200, 2, 0, "Position Tolerance 2:", "PTO2"),
                 new Parameter(0, 5000, 1000, 0, "Position Timout:", "TOUT"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout 2:", "TOUT2"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout 3:", "TOUT3"),
+                new Parameter(0, 5000, 1000, 0, "Position Timout 2:", "TOU2"),
+                new Parameter(0, 5000, 1000, 0, "Position Timout 3:", "TOU3"),
                 new Parameter(0, 5000, 1000, 0, "Contrl Loop Dead Time:", "DTIM"),
                 new Parameter(0, 1000, 5, 0, "Speed:", "SSPD"),
                 new Parameter(0, 1000, 5, 0, "Indexing Speed:", "ISPD"),
@@ -72,18 +72,18 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 200, 5, 0, "Integrational Favtor:", "INTF"),
                 new Parameter(0, 1000000, 1, 0, "Index Error Limit:", "ILIM"),
                 new Parameter(0, 1000000, 1, 0, "Error Saturation Limit:", "SLIM"),
-                new Parameter(0, 65500, 1, 0, "Duty Cycle Factor:", "DUTY"),
+                //new Parameter(0, 65500, 1, 0, "Duty Cycle Factor:", "DUTY"),
                 new Parameter(0, 1, 1, 0, "Duty Control:", "DUCO"),
-                new Parameter(0, 1, 1, 0, "Phase Correction:", "PHAC"),
-                new Parameter(0, 1000000, 1, 0, "Trigger Pitch:", "TRGP"),
+                //new Parameter(0, 1, 1, 0, "Phase Correction:", "PHAC"),
+                /*new Parameter(0, 1000000, 1, 0, "Trigger Pitch:", "TRGP"),
                 new Parameter(0, 1000000, 1, 0, "Trigger Width:", "TRGW"),
                 new Parameter(0, 1000000, 1, 0, "Trigger Start:", "TRGS"),
-                new Parameter(0, 1000000, 1, 0, "Trigger Count:", "TRGN"),
+                new Parameter(0, 1000000, 1, 0, "Trigger Count:", "TRGN"),*/
                 new Parameter(0, 1000000, 1, 0, "Step Size:", "STPS"),
-                new Parameter(0, 1, 1, 1, "Enable Encoder:", "ENON"),
+                //new Parameter(0, 1, 1, 1, "Enable Encoder:", "ENON"),
                 new Parameter(0, 1, 1, 1, "Enable After Reboot:", "ENBR"),
                 new Parameter(0, 1, 1, 1, "Enable:", "ENBL"),
-                new Parameter(0, 1, 1, 0, "Disable Piezo Signals:", "ZERO"),
+                //new Parameter(0, 1, 1, 0, "Disable Piezo Signals:", "ZERO"),
                 new Parameter(0, 1, 1, 0, "Test Leds:", "TEST"),
                 new Parameter(0, 1, 1, 1, "Stop For Error:", "BLCK"),
             };
@@ -107,8 +107,8 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 200, 2, 0, "Position Tolerance:", "PTOL"),
                 new Parameter(0, 200, 2, 0, "Position Tolerance 2:", "PTO2"),
                 new Parameter(0, 5000, 1000, 0, "Position Timout:", "TOUT"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout 2:", "TOUT2"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout 3:", "TOUT3"),
+                new Parameter(0, 5000, 1000, 0, "Position Timout 2:", "TOU2"),
+                new Parameter(0, 5000, 1000, 0, "Position Timout 3:", "TOU3"),
                 new Parameter(0, 5000, 1000, 0, "Contrl Loop Dead Time:", "DTIM"),
                 new Parameter(0, 1000, 5, 0, "Speed:", "SSPD"),
                 new Parameter(0, 1000, 5, 0, "Indexing Speed:", "ISPD"),
@@ -228,8 +228,8 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 200, 2, 0, "Position Tolerance:", "PTOL"),
                 new Parameter(0, 200, 2, 0, "Position Tolerance 2:", "PTO2"),
                 new Parameter(0, 5000, 1000, 0, "Position Timout:", "TOUT"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout 2:", "TOUT2"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout 3:", "TOUT3"),
+                new Parameter(0, 5000, 1000, 0, "Position Timout 2:", "TOU2"),
+                new Parameter(0, 5000, 1000, 0, "Position Timout 3:", "TOU3"),
                 new Parameter(0, 5000, 1000, 0, "Contrl Loop Dead Time:", "DTIM"),
                 new Parameter(0, 1000, 5, 0, "Speed:", "SSPD"),
                 new Parameter(0, 1000, 5, 0, "Indexing Speed:", "ISPD"),
@@ -314,7 +314,7 @@ namespace XeryonMotionGUI.Classes
         {
             if (axisType == "Rotational")
             {
-                new Parameter(0, 1, 1, 1, "Disable Piezo Signals:", "PATH");
+                new Parameter(0, 1, 1, 1, "Shortest path:", "PATH");
             }
             else if (axisType == "Linear")
             {

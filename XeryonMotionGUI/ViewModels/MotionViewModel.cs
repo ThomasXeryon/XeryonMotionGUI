@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
 using XeryonMotionGUI.Classes;
 
@@ -11,6 +12,7 @@ namespace XeryonMotionGUI.ViewModels
     {
         private Axis _selectedAxis;
         private Controller _selectedController;
+        private readonly DispatcherQueue _dispatcherQueue;
 
         public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
 
@@ -30,6 +32,10 @@ namespace XeryonMotionGUI.ViewModels
                     OnPropertyChanged(nameof(StepPositiveCommand));
                     OnPropertyChanged(nameof(MovePositiveCommand));
                     OnPropertyChanged(nameof(StopCommand));
+                    OnPropertyChanged(nameof(IndexCommand));
+                    OnPropertyChanged(nameof(ResetCommand));
+                    OnPropertyChanged(nameof(ScanPositiveCommand));
+                    OnPropertyChanged(nameof(ScanNegativeCommand));
                 }
             }
         }
@@ -40,6 +46,8 @@ namespace XeryonMotionGUI.ViewModels
             get => _selectedController;
             set
             {
+                OnPropertyChanged(nameof(SelectedController));
+                OnPropertyChanged(nameof(SelectedController.LoadingSettings));
                 if (SetProperty(ref _selectedController, value))
                 {
                     // When a controller is selected, set the first axis to be selected
@@ -51,7 +59,6 @@ namespace XeryonMotionGUI.ViewModels
             }
         }
 
-
         // Expose the commands from the selected axis
         public ICommand MoveNegativeCommand => SelectedAxis?.MoveNegativeCommand;
         public ICommand StepNegativeCommand => SelectedAxis?.StepNegativeCommand;
@@ -61,14 +68,24 @@ namespace XeryonMotionGUI.ViewModels
         public ICommand StopCommand => SelectedAxis?.StopCommand;
         public ICommand IndexCommand => SelectedAxis?.IndexCommand;
         public ICommand ResetCommand => SelectedAxis?.ResetCommand;
+        public ICommand ScanPositiveCommand => SelectedAxis?.ScanPositiveCommand;
+        public ICommand ScanNegativeCommand => SelectedAxis?.ScanNegativeCommand;
 
         public MotionViewModel()
         {
-            // This is where you can initialize any collections or values needed
-            // For instance, you might want to manually load running controllers into the RunningControllers collection
-            // RunningControllers = new ObservableCollection<Controller>();
+            // Initialize the DispatcherQueue to handle UI updates from other threads
+            _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+
+            if (RunningControllers?.Any() == true)
+            {
+                SelectedController = RunningControllers.First();
+
+                // Select the first axis of the first controller if available
+                if (SelectedController.Axes?.Any() == true)
+                {
+                    SelectedAxis = SelectedController.Axes.First();
+                }
+            }
         }
-
-
     }
 }

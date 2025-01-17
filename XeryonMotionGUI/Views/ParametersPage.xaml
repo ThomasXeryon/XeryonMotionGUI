@@ -7,13 +7,19 @@
     xmlns:classes="using:XeryonMotionGUI.Classes"
     xmlns:viewmodels="using:XeryonMotionGUI.ViewModels">
 
+    <!-- Assign the ViewModel as the DataContext -->
     <Page.DataContext>
         <viewmodels:ParametersViewModel />
     </Page.DataContext>
 
     <Page.Resources>
-        <helpers:LinearToIconConverter x:Key="LinearToIconConverter"/>
+        <!-- Converters -->
+        <helpers:LinearToIconConverter x:Key="LinearToIconConverter" />
         <helpers:AxisTypeToVisibilityConverter x:Key="AxisTypeToVisibilityConverter" />
+
+        <!-- Styles and Static Resources -->
+        <x:Double x:Key="ButtonWidth">30</x:Double>
+        <Thickness x:Key="ButtonMargin">5,0,5,0</Thickness>
     </Page.Resources>
 
     <Grid>
@@ -21,7 +27,7 @@
             <ColumnDefinition Width="400" />
             <!-- Controllers Panel -->
             <ColumnDefinition Width="*" />
-            <!-- Axis and Parameters Panel -->
+            <!-- Axes and Parameters Panel -->
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
@@ -34,8 +40,9 @@
             ItemsSource="{Binding RunningControllers}" 
             SelectedItem="{Binding SelectedController, Mode=TwoWay}"
             Grid.Column="0"
-            Grid.Row="0" 
-            Margin="10,0,0,0">
+            Grid.Row="0"
+            Margin="10,0,0,0"
+            VirtualizingStackPanel.VirtualizationMode="Recycling">
             <ListView.ItemTemplate>
                 <DataTemplate>
                     <Grid Margin="10">
@@ -71,7 +78,8 @@
             Grid.Row="0"
             ItemsSource="{Binding SelectedController.Axes}"
             SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
-            Margin="50,0,0,0">
+            Margin="50,0,0,0"
+            VirtualizingStackPanel.VirtualizationMode="Recycling">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="classes:Axis">
                     <Grid Margin="5" Padding="10">
@@ -108,32 +116,28 @@
         <!-- Parameters Section -->
         <Grid Grid.Column="1" Grid.Row="1" Margin="54,30,10,10" Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="15">
-                    <!-- Dynamic Parameter Template -->
-                    <ItemsControl ItemsSource="{Binding SelectedAxis.Parameters}" Margin="0,10,0,0">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="2,0,0,0"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,20">
-                                        <TextBox Text="{Binding Value, Mode=TwoWay}" Width="100" />
-                                        <Slider 
-                                            Minimum="{Binding Min}" 
-                                            Maximum="{Binding Max}" 
-                                            Value="{Binding Value, Mode=TwoWay}" 
-                                            Width="200" 
-                                            TickFrequency="{Binding Increment}" 
-                                            TickPlacement="None"
-                                            
-                                            SnapsTo="Ticks" />
-                                        <Button Content="-" Command="{Binding DecrementCommand}" Width="{StaticResource ButtonWidth}" CommandParameter="{Binding Name}" Margin="{StaticResource ButtonMargin}"/>
-                                        <Button Content="+" Command="{Binding IncrementCommand}" Width="{StaticResource ButtonWidth}" CommandParameter="{Binding Name}" Margin="{StaticResource ButtonMargin}"/>
-                                    </StackPanel>
+                <ItemsControl ItemsSource="{Binding SelectedAxis.Parameters}" Margin="0,10,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="2,0,0,0"/>
+                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,20">
+                                    <TextBox Text="{Binding Value, Mode=TwoWay}" Width="100" />
+                                    <Slider 
+                                        Minimum="{Binding Min}" 
+                                        Maximum="{Binding Max}" 
+                                        Value="{Binding Value, Mode=TwoWay}" 
+                                        Width="200" 
+                                        TickFrequency="{Binding Increment}" 
+                                        TickPlacement="None"
+                                        SnapsTo="Ticks" />
+                                    <Button Content="-" Command="{Binding DecrementCommand}" Width="{StaticResource ButtonWidth}" CommandParameter="{Binding Name}" Margin="{StaticResource ButtonMargin}"/>
+                                    <Button Content="+" Command="{Binding IncrementCommand}" Width="{StaticResource ButtonWidth}" CommandParameter="{Binding Name}" Margin="{StaticResource ButtonMargin}"/>
                                 </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </ScrollViewer>
         </Grid>
     </Grid>

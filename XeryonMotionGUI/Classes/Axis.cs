@@ -5,6 +5,10 @@ using System.Linq;
 using Microsoft.UI.Dispatching;
 using System.Windows.Input;
 using XeryonMotionGUI.Helpers;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI;
+using Microsoft.UI.Xaml;
+using Windows.UI;
 
 namespace XeryonMotionGUI.Classes
 {
@@ -27,6 +31,8 @@ namespace XeryonMotionGUI.Classes
             StopCommand = new RelayCommand(Stop);
             ResetCommand = new RelayCommand(async () => await ResetAsync());
             IndexCommand = new RelayCommand(Index);
+            ScanPositiveCommand = new RelayCommand(ScanPositive);
+            ScanNegativeCommand = new RelayCommand(ScanNegative);
 
             //Parameters = ParameterFactory.CreateParameters(ParentController.Type, axisType);
 
@@ -116,6 +122,15 @@ namespace XeryonMotionGUI.Classes
         {
             get;
         }
+        public ICommand ScanNegativeCommand
+        {
+            get;
+        }
+        public ICommand ScanPositiveCommand
+        {
+            get;
+        }
+
 
         // Event for property changes
         public event PropertyChangedEventHandler PropertyChanged;
@@ -635,21 +650,33 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        private bool _LeftEndStop;
+        private bool _leftEndStop;
         public bool LeftEndStop
         {
-            get => _LeftEndStop; private set
+            get => _leftEndStop;
+            set
             {
-                if (_LeftEndStop != value) { _LeftEndStop = value; OnPropertyChanged(nameof(LeftEndStop)); }
+                if (_leftEndStop != value)
+                {
+                    _leftEndStop = value;
+                    OnPropertyChanged(nameof(LeftEndStop));
+                    OnPropertyChanged(nameof(SliderBackground)); // Notify SliderBackground update
+                }
             }
         }
 
-        private bool _RightEndStop;
+        private bool _rightEndStop;
         public bool RightEndStop
         {
-            get => _RightEndStop; private set
+            get => _rightEndStop;
+            set
             {
-                if (_RightEndStop != value) { _RightEndStop = value; OnPropertyChanged(nameof(RightEndStop)); }
+                if (_rightEndStop != value)
+                {
+                    _rightEndStop = value;
+                    OnPropertyChanged(nameof(RightEndStop));
+                    OnPropertyChanged(nameof(SliderBackground)); // Notify SliderBackground update
+                }
             }
         }
 
@@ -735,6 +762,19 @@ namespace XeryonMotionGUI.Classes
             PositionFail = (STAT & (1 << 21)) != 0;
         }
 
+        public Brush SliderBackground
+        {
+            get
+            {
+                if (LeftEndStop || RightEndStop)
+                {
+                    return new SolidColorBrush(Colors.Red);
+                }
+                var accentColor = (Color)Application.Current.Resources["SystemAccentColorLight1"];
+        return new SolidColorBrush(accentColor);
+            }
+        }
+
         private  void MoveNegative()
         {
             ParentController.SendCommand("MOVE=-1");
@@ -773,11 +813,25 @@ namespace XeryonMotionGUI.Classes
             ParentController.SendCommand("INDX=0");
         }
 
-        private async Task ResetAsync()
+        private void ScanPositive()
         {
+            ParentController.SendCommand("SCAN=1");
+        }
+
+        private void ScanNegative()
+        {
+            ParentController.SendCommand("SCAN=-1");
+        }
+
+
+        private async Task ResetAsync()
+        {   
+            ParentController.LoadingSettings = true;
             ParentController.SendCommand("RSET");
             await Task.Delay(100);
             await ParentController.LoadParametersFromController();
+            ParentController.LoadingSettings = false;
+
         }
     }
 }

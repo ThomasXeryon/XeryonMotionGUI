@@ -43,11 +43,36 @@ namespace XeryonMotionGUI.ViewModels
         public ICommand IncrementCommand { get; }
         public ICommand DecrementCommand { get; }
 
+        private ObservableCollection<Parameter> _parameters;
+        public ObservableCollection<Parameter> Parameters
+        {
+            get => _parameters;
+            set
+            {
+                _parameters = value;
+                OnPropertyChanged(nameof(Parameters));
+            }
+        }
+
+
+
         public ParametersViewModel()
         {
             SaveParametersCommand = new RelayCommand(SaveParameters);
             IncrementCommand = new RelayCommand<string>(IncrementParameter);
             DecrementCommand = new RelayCommand<string>(DecrementParameter);
+
+            // Automatically select the first controller and its first axis (if available)
+            if (RunningControllers?.Any() == true)
+            {
+                SelectedController = RunningControllers.First();
+
+                // Select the first axis of the first controller if available
+                if (SelectedController.Axes?.Any() == true)
+                {
+                    SelectedAxis = SelectedController.Axes.First();
+                }
+            }
         }
 
         private void IncrementParameter(string parameterName)

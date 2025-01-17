@@ -152,6 +152,20 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        private string _FriendlyName;
+        public string FriendlyName
+        {
+            get => _FriendlyName;
+            set
+            {
+                if (_FriendlyName != value)
+                {
+                    _FriendlyName = value;
+                    OnPropertyChanged(nameof(FriendlyName));
+                }
+            }
+        }
+
         private string _FriendlyPort;
         public string FriendlyPort
         {
@@ -280,15 +294,27 @@ namespace XeryonMotionGUI.Classes
                 }
                 else
                 {
-                    Port.DataReceived -= DataReceivedHandler; // Remove event handler
-                    Port.DiscardInBuffer();
-                    Port.DiscardOutBuffer();
-                    Port.Close();
-                    Running = false;
-                    Status = "Connect";
-                    UpdateRunningControllers();
-                    Debug.WriteLine("Controller Disconnected");
+                    Debug.WriteLine("Trying to close controller");
+                    try
+                    {
+                        Port.DataReceived -= DataReceivedHandler; // Remove event handler
+                        Port.DiscardInBuffer();
+                        Port.DiscardOutBuffer();
+                        Port.Close();
+                    }
+                    catch (Exception)
+                    {
 
+                        throw;
+                    }
+                    finally
+                    {
+
+                        Running = false;
+                        Status = "Connect";
+                        UpdateRunningControllers();
+                        Debug.WriteLine("Controller Disconnected");
+                    }
                 }
             }
             catch (Exception)
@@ -545,8 +571,8 @@ namespace XeryonMotionGUI.Classes
                 {
                     Port.DataReceived += DataReceivedHandler;
                 }
-                Port.WriteLine("INFO=7");
                 LoadingSettings = false;
+                Port.WriteLine("INFO=7");
             }
         }
     }

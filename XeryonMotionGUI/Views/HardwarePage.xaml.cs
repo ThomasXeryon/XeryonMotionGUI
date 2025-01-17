@@ -38,7 +38,6 @@ public sealed partial class HardwarePage : Page
     private async Task CheckForControllers()
     {
         RefreshProgressBar.Visibility = Visibility.Visible;
-        await Task.Delay(200);
         Debug.WriteLine("Searching for controllers");
 
         string[] ports = System.IO.Ports.SerialPort.GetPortNames();
@@ -84,6 +83,7 @@ public sealed partial class HardwarePage : Page
                     Debug.WriteLine(port + " IS OEM");
                     controller.Type = "OEM";
                     controller.Name = "XD-OEM Single Axis Controller";
+                    controller.FriendlyName = "XD-OEM Controller";
                     axesResponse = "AXES=1";
                 }
 
@@ -97,6 +97,7 @@ public sealed partial class HardwarePage : Page
                         Debug.WriteLine(port + " IS XD-C");
                         controller.Type = "XD-C";
                         controller.Name = "XD-C Single Axis Controller";
+                        controller.FriendlyName = "XD-C Controller";
                     }
 
                     var ser = Regex.Match(response, @"SRNO=(\d+)");
@@ -165,8 +166,6 @@ public sealed partial class HardwarePage : Page
                 Debug.WriteLine(port + " Response: " + response);
             }
         }
-
-        await Task.Delay(2000);
         RefreshProgressBar.Visibility = Visibility.Collapsed;
     }
 
