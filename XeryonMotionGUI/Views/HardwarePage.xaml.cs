@@ -37,6 +37,7 @@ public sealed partial class HardwarePage : Page
 
     private async Task CheckForControllers()
     {
+        await Task.Delay(10);
         RefreshProgressBar.Visibility = Visibility.Visible;
         Debug.WriteLine("Searching for controllers");
 
@@ -133,7 +134,7 @@ public sealed partial class HardwarePage : Page
 
                     axis.Range = Math.Round(((Convert.ToInt32(HLIM) + -Convert.ToDouble(LLIM)) * Convert.ToDouble(axis.Resolution) / 1000000), 2);
 
-                    serialPort.Write("INFO=7");
+                    serialPort.Write("INFO=3");
                     serialPort.Close();
 
                     axis.AxisLetter = "None";

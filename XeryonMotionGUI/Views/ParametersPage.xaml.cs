@@ -53,7 +53,6 @@ namespace XeryonMotionGUI.Views
             if (file != null && file.FileType == ".txt")
             {
                 icon.Symbol = Symbol.Accept;  
-
             }
             else
             {

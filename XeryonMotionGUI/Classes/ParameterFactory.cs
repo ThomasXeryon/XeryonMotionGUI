@@ -45,9 +45,9 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 200, 5, 0, "Zone 2 Proportional:", "PRO2"),
                 new Parameter(0, 200, 2, 0, "Position Tolerance:", "PTOL"),
                 new Parameter(0, 200, 2, 0, "Position Tolerance 2:", "PTO2"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout:", "TOUT"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout 2:", "TOU2"),
-                new Parameter(0, 5000, 1000, 0, "Position Timout 3:", "TOU3"),
+                new Parameter(0, 5000, 1000, 0, "Position Timout:", "TOUT"), //ms
+                new Parameter(0, 5000, 1, 0, "Position Timout 2:", "TOU2"), //s
+                new Parameter(0, 5000, 1000, 0, "Position Timout 3:", "TOU3"), //ms
                 new Parameter(0, 5000, 1000, 0, "Contrl Loop Dead Time:", "DTIM"),
                 new Parameter(0, 1000, 5, 0, "Speed:", "SSPD"),
                 new Parameter(0, 1000, 5, 0, "Indexing Speed:", "ISPD"),

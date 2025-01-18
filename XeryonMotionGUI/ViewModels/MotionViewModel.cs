@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,6 +11,11 @@ namespace XeryonMotionGUI.ViewModels
 {
     public partial class MotionViewModel : ObservableObject
     {
+        private bool _isInfoBarOpen;
+        private InfoBarSeverity _infoBarSeverity;
+        private string _infoBarTitle;
+        private string _infoBarMessage;
+
         private Axis _selectedAxis;
         private Controller _selectedController;
         private readonly DispatcherQueue _dispatcherQueue;
@@ -36,6 +42,7 @@ namespace XeryonMotionGUI.ViewModels
                     OnPropertyChanged(nameof(ResetCommand));
                     OnPropertyChanged(nameof(ScanPositiveCommand));
                     OnPropertyChanged(nameof(ScanNegativeCommand));
+                    OnPropertyChanged(nameof(SelectedAxis));
                 }
             }
         }
@@ -46,18 +53,25 @@ namespace XeryonMotionGUI.ViewModels
             get => _selectedController;
             set
             {
-                OnPropertyChanged(nameof(SelectedController));
-                OnPropertyChanged(nameof(SelectedController.LoadingSettings));
                 if (SetProperty(ref _selectedController, value))
                 {
-                    // When a controller is selected, set the first axis to be selected
+                    // Notify changes for UI updates
+                    OnPropertyChanged(nameof(SelectedController));
+                    OnPropertyChanged(nameof(SelectedController.LoadingSettings));
+
+                    // Update SelectedAxis based on the new controller or clear it if none
                     if (_selectedController?.Axes?.Count > 0)
                     {
                         SelectedAxis = _selectedController.Axes[0];
                     }
+                    else
+                    {
+                        SelectedAxis = null;
+                    }
                 }
             }
         }
+
 
         // Expose the commands from the selected axis
         public ICommand MoveNegativeCommand => SelectedAxis?.MoveNegativeCommand;

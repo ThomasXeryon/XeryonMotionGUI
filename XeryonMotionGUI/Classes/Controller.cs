@@ -370,11 +370,19 @@ namespace XeryonMotionGUI.Classes
                     }
                 }
 
-                if (part.StartsWith("EPOS="))
+                else if (part.StartsWith("EPOS="))
                 {
                     if (int.TryParse(part.Substring(5), out int eposValue))
                     {
                         Axes[0].EPOS = eposValue;
+                    }
+                }
+
+                else if (part.StartsWith("DPOS="))
+                {
+                    if (int.TryParse(part.Substring(5), out int dposValue))
+                    {
+                        //Axes[0].DPOS = dposValue;
                     }
                 }
             }
@@ -572,7 +580,7 @@ namespace XeryonMotionGUI.Classes
                     Port.DataReceived += DataReceivedHandler;
                 }
                 LoadingSettings = false;
-                Port.WriteLine("INFO=7");
+                Port.WriteLine("INFO=3");
             }
         }
     }

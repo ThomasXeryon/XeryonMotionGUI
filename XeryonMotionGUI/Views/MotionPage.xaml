@@ -67,7 +67,24 @@
                 Margin="20,0,0,0">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="classes:Axis">
-                        <Grid>
+                        <StackPanel>
+                            <!-- InfoBar for the Axis -->
+                            <ItemsControl ItemsSource="{Binding InfoBarMessages}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="classes:InfoBarMessage">
+                                        <controls:InfoBar
+                                            IsOpen="True"
+                                            Severity="{Binding Severity}"
+                                            Title="{Binding Title}"
+                                            Message="{Binding Message}"
+                                            Margin="0,0,0,10"
+                                            IsClosable="False" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+
+                            <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -307,6 +324,7 @@
                             </Grid>
 
                         </Grid>
+                        </StackPanel>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>

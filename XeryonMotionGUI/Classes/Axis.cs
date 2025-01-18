@@ -9,11 +9,14 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Windows.UI;
+using Microsoft.UI.Xaml.Controls;
 
 namespace XeryonMotionGUI.Classes
 {
     public class Axis : INotifyPropertyChanged
     {
+        public ObservableCollection<InfoBarMessage> InfoBarMessages { get; set; } = new ObservableCollection<InfoBarMessage>();
+
         public Axis(Controller controller, string axisType, string axisLetter)
         {
             ParentController = controller;
@@ -683,7 +686,7 @@ namespace XeryonMotionGUI.Classes
         private bool _ErrorLimit;
         public bool ErrorLimitBit
         {
-            get => _ErrorLimit; private set
+            get => _ErrorLimit; set
             {
                 if (_ErrorLimit != value) { _ErrorLimit = value; OnPropertyChanged(nameof(ErrorLimitBit)); }
             }
@@ -692,7 +695,7 @@ namespace XeryonMotionGUI.Classes
         private bool _SearchingOptimalFrequency;
         public bool SearchingOptimalFrequency
         {
-            get => _SearchingOptimalFrequency; private set
+            get => _SearchingOptimalFrequency; set
             {
                 if (_SearchingOptimalFrequency != value) { _SearchingOptimalFrequency = value; OnPropertyChanged(nameof(SearchingOptimalFrequency)); }
             }
@@ -701,7 +704,7 @@ namespace XeryonMotionGUI.Classes
         private bool _SafetyTimeoutTriggered;
         public bool SafetyTimeoutTriggered
         {
-            get => _SafetyTimeoutTriggered; private set
+            get => _SafetyTimeoutTriggered; set
             {
                 if (_SafetyTimeoutTriggered != value) { _SafetyTimeoutTriggered = value; OnPropertyChanged(nameof(SafetyTimeoutTriggered)); }
             }
@@ -710,7 +713,7 @@ namespace XeryonMotionGUI.Classes
         private bool _EtherCATAcknowledge;
         public bool EtherCATAcknowledge
         {
-            get => _EtherCATAcknowledge; private set
+            get => _EtherCATAcknowledge; set
             {
                 if (_EtherCATAcknowledge != value) { _EtherCATAcknowledge = value; OnPropertyChanged(nameof(EtherCATAcknowledge)); }
             }
@@ -719,7 +722,7 @@ namespace XeryonMotionGUI.Classes
         private bool _EmergencyStop;
         public bool EmergencyStop
         {
-            get => _EmergencyStop; private set
+            get => _EmergencyStop; set
             {
                 if (_EmergencyStop != value) { _EmergencyStop = value; OnPropertyChanged(nameof(EmergencyStop)); }
             }
@@ -728,7 +731,7 @@ namespace XeryonMotionGUI.Classes
         private bool _PositionFail;
         public bool PositionFail
         {
-            get => _PositionFail; private set
+            get => _PositionFail; set
             {
                 if (_PositionFail != value) { _PositionFail = value; OnPropertyChanged(nameof(PositionFail)); }
             }
@@ -760,7 +763,73 @@ namespace XeryonMotionGUI.Classes
             EtherCATAcknowledge = (STAT & (1 << 19)) != 0;
             EmergencyStop = (STAT & (1 << 20)) != 0;
             PositionFail = (STAT & (1 << 21)) != 0;
+            UpdateInfoBar();
+
         }
+
+        public void UpdateInfoBar()
+        {
+            if (_dispatcherQueue == null)
+            {
+                throw new InvalidOperationException("DispatcherQueue is not set. Please call SetDispatcherQueue before updating InfoBarMessages.");
+            }
+
+            _dispatcherQueue.TryEnqueue(() =>
+            {
+                InfoBarMessages.Clear();
+
+                if (ThermalProtection1 || ThermalProtection2)
+                {
+                    InfoBarMessages.Add(new InfoBarMessage
+                    {
+                        Severity = InfoBarSeverity.Error,
+                        Title = "Thermal Protection Triggered",
+                        Message = "Thermal Protection is active. Check for short circuit or overcurrent."
+                    });
+                }
+
+                if (ErrorLimitBit)
+                {
+                    InfoBarMessages.Add(new InfoBarMessage
+                    {
+                        Severity = InfoBarSeverity.Warning,
+                        Title = "Error Limit Exceeded",
+                        Message = "An error limit has been reached. Immediate attention is required."
+                    });
+                }
+
+                if (EncoderError)
+                {
+                    InfoBarMessages.Add(new InfoBarMessage
+                    {
+                        Severity = InfoBarSeverity.Error,
+                        Title = "Encoder Error Detected",
+                        Message = "An encoder error has been detected. Immediate attention is required."
+                    });
+                }
+
+                if (SafetyTimeoutTriggered)
+                {
+                    InfoBarMessages.Add(new InfoBarMessage
+                    {
+                        Severity = InfoBarSeverity.Warning,
+                        Title = "Safety Timeout Triggered",
+                        Message = "Motor was on longer than allowed (TOU2)."
+                    });
+                }
+
+                if (PositionFail)
+                {
+                    InfoBarMessages.Add(new InfoBarMessage
+                    {
+                        Severity = InfoBarSeverity.Error,
+                        Title = "Position Fail Triggered",
+                        Message = "Failed to position within set timeframe (TOU3)."
+                    });
+                }
+            });
+        }
+
 
         public Brush SliderBackground
         {
