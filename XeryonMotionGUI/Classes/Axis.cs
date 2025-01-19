@@ -448,17 +448,24 @@ namespace XeryonMotionGUI.Classes
 
         private void CalculateSpeed()
         {
-            DateTime currentTime = DateTime.Now;
-            if (_LastUpdateTime != default)
+            if (!MotorOn)
             {
-                double timeDelta = (currentTime - _LastUpdateTime).TotalSeconds; // Time in seconds
-                if (timeDelta > 0)
-                {
-                    // Convert nanometers to millimeters before calculating speed
-                    SPEED = Math.Abs((_EPOS - _PreviousEPOS) / 1_000_000) / timeDelta * Resolution; // Speed in mm/s
-                }
+                SPEED = 0;
             }
-            _LastUpdateTime = currentTime;
+            else
+            {
+                DateTime currentTime = DateTime.Now;
+                if (_LastUpdateTime != default)
+                {
+                    double timeDelta = (currentTime - _LastUpdateTime).TotalSeconds; // Time in seconds
+                    if (timeDelta > 0)
+                    {
+                        // Convert nanometers to millimeters before calculating speed
+                        SPEED = Math.Abs((_EPOS - _PreviousEPOS) / 1_000_000) / timeDelta * Resolution; // Speed in mm/s
+                    }
+                }
+                _LastUpdateTime = currentTime;
+            }
         }
 
         public string AxisTitle => AxisLetter != "None" ? $"Axis {AxisLetter}" : "Axis";
@@ -738,6 +745,7 @@ namespace XeryonMotionGUI.Classes
         }
 
 
+
         public void UpdateStatusBits()
         {
             // Update all the status bits accordingly
@@ -764,7 +772,6 @@ namespace XeryonMotionGUI.Classes
             EmergencyStop = (STAT & (1 << 20)) != 0;
             PositionFail = (STAT & (1 << 21)) != 0;
             UpdateInfoBar();
-
         }
 
         public void UpdateInfoBar()

@@ -193,8 +193,9 @@
                             <Grid Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Margin="10,10,0,0" HorizontalAlignment="Right">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
@@ -223,7 +224,19 @@
                                     HorizontalAlignment="Right"
                                     Grid.Row="1"
                                     Grid.Column="0" />
-                            </Grid>
+                                    
+                                <TextBlock Text="Motor on" VerticalAlignment="Center" Margin="5,0" Grid.Row="2" Grid.Column="1" />
+                                <Ellipse 
+                                Width="15" 
+                                Height="15" 
+                                Fill="{Binding MotorOn, Converter={StaticResource BoolToColorConverter}}" 
+                                Margin="5,0,0,0"
+                                Stroke="Gray"
+                                StrokeThickness="0.5"
+                                HorizontalAlignment="Right"
+                                Grid.Row="2"
+                                Grid.Column="0" />
+                                </Grid>
 
                             <!-- DPOS Slider -->
                             <Grid Grid.Row="2" Grid.Column="0" Margin="7,20,0,0">

@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using Microsoft.UI.Xaml;
-
+using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel;
 
 using XeryonMotionGUI.Contracts.Services;
@@ -15,6 +15,14 @@ namespace XeryonMotionGUI.ViewModels;
 
 public partial class SettingsViewModel : ObservableRecipient
 {
+    private readonly ShellViewModel _shellViewModel;
+
+    public SolidColorBrush ShellPageBackground
+    {
+        get => _shellViewModel.ShellPageBackground;
+        set => _shellViewModel.ShellPageBackground = value;
+    }
+
     private readonly IThemeSelectorService _themeSelectorService;
 
     [ObservableProperty]
@@ -28,8 +36,9 @@ public partial class SettingsViewModel : ObservableRecipient
         get;
     }
 
-    public SettingsViewModel(IThemeSelectorService themeSelectorService)
+    public SettingsViewModel(IThemeSelectorService themeSelectorService, ShellViewModel shellViewModel)
     {
+        _shellViewModel = shellViewModel;
         _themeSelectorService = themeSelectorService;
         _elementTheme = _themeSelectorService.Theme;
         _versionDescription = GetVersionDescription();
@@ -62,4 +71,5 @@ public partial class SettingsViewModel : ObservableRecipient
 
         return $"{"AppDisplayName".GetLocalized()} - {version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
     }
+
 }

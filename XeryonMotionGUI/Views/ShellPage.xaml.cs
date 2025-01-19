@@ -31,6 +31,10 @@ public sealed partial class ShellPage : Page
         App.MainWindow.SetTitleBar(AppTitleBar);
         App.MainWindow.Activated += MainWindow_Activated;
         AppTitleBarText.Text = "AppDisplayName".GetLocalized();
+
+        this.InitializeComponent();
+        ViewModel = App.GetService<ShellViewModel>(); // Ensure the ViewModel is resolved
+        DataContext = ViewModel;
     }
 
     private void OnLoaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -78,5 +82,48 @@ public sealed partial class ShellPage : Page
         var result = navigationService.GoBack();
 
         args.Handled = result;
+    }
+
+    private void PopOutButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Check if the current content of the NavigationFrame is a Page
+        if (NavigationFrame.Content is Page currentPage)
+        {
+            // Create a new instance of the current page
+            var pageType = currentPage.GetType();
+            if (Activator.CreateInstance(pageType) is Page newPage)
+            {
+                var newWindow = new Window
+                {
+                    Title = currentPage.Name
+                };
+                newWindow.Content = newPage;
+                newWindow.Activate();
+
+            }
+            else
+            {
+                ShowErrorDialog("Unable to create a new instance of the page.");
+            }
+        }
+        else
+        {
+            // Handle case where the current content is not a Page
+            ShowErrorDialog("The current content is not a valid page.");
+        }
+    }
+
+    // Show an error dialog
+    private async void ShowErrorDialog(string message)
+    {
+        ContentDialog errorDialog = new ContentDialog
+        {
+            Title = "Error",
+            Content = message,
+            CloseButtonText = "OK",
+            XamlRoot = this.XamlRoot
+        };
+
+        await errorDialog.ShowAsync();
     }
 }

@@ -49,6 +49,27 @@
                         </RadioButton.CommandParameter>
                     </RadioButton>
                 </StackPanel>
+                <TextBlock x:Uid="Settings_Color" Margin="0,10,0,10"/>
+                <DropDownButton Background="Transparent">
+                    <DropDownButton.Content>
+                        <FontIcon Glyph="&#xE790;" FontSize="16" />
+                    </DropDownButton.Content>
+                    <DropDownButton.Flyout>
+                        <Flyout>
+                            <ColorPicker
+                                Color="{x:Bind ViewModel.ShellPageBackground.Color, Mode=TwoWay}"
+                                ColorChanged="ColorPicker_ColorChanged"
+                                ColorSpectrumShape="Box"
+                                IsMoreButtonVisible="False"
+                                IsColorSliderVisible="True"
+                                IsColorChannelTextInputVisible="True"
+                                IsHexInputVisible="True"
+                                IsAlphaEnabled="True"
+                                IsAlphaSliderVisible="True"
+                                IsAlphaTextInputVisible="True" />
+                        </Flyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
             </StackPanel>
 
             <TextBlock x:Uid="Settings_Mode" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,10"/>

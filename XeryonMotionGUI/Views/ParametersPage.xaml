@@ -18,8 +18,8 @@
         <helpers:AxisTypeToVisibilityConverter x:Key="AxisTypeToVisibilityConverter" />
 
         <!-- Styles and Static Resources -->
-        <x:Double x:Key="ButtonWidth">30</x:Double>
-        <Thickness x:Key="ButtonMargin">5,0,5,0</Thickness>
+        <x:Double x:Key="ButtonWidth">33</x:Double>
+        <Thickness x:Key="ButtonMargin">0,0,0,0</Thickness>
     </Page.Resources>
 
     <Grid>

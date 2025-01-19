@@ -15,21 +15,6 @@
             <!-- Declare your converter with a Key here -->
             <local:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
         </ResourceDictionary>
-        <Style TargetType="controls:InfoBar">
-            <Style.Triggers>
-                <!-- Trigger for Informational Severity -->
-                <Trigger Property="Severity" Value="Informational">
-                    <Setter Property="Background" Value="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
-                    <Setter Property="BorderBrush" Value="{ThemeResource SystemAccentColor}" />
-                    <Setter Property="Foreground" Value="{ThemeResource SystemControlForegroundBaseHighBrush}" />
-                    <Setter Property="IconSource">
-                        <Setter.Value>
-                            <FontIconSource Glyph="" />
-                            <!-- Use "Info" icon -->
-                        </Setter.Value>
-                    </Setter>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
+       
     </Application.Resources>
 </Application>
