@@ -82,6 +82,8 @@ namespace XeryonMotionGUI.Classes
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+
+
         private bool _loadingSettings;
         public bool LoadingSettings
         {
@@ -487,7 +489,7 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        public void UploadSettings(string settings)
+        public async void UploadSettings(string settings)
         {
             Debug.WriteLine("Uploading settings...");
 
@@ -578,6 +580,7 @@ namespace XeryonMotionGUI.Classes
                 {
                     Debug.WriteLine($"Error processing line '{line}': {ex.Message}");
                 }
+                await Task.Delay(10);
             }
 
             Debug.WriteLine("Settings upload complete.");
@@ -593,7 +596,6 @@ namespace XeryonMotionGUI.Classes
             Port.DiscardInBuffer();
             await Task.Delay(100);
             Port.DiscardInBuffer();
-            Port.DiscardOutBuffer();
             Port.ReadTimeout = 200;
             try
             {

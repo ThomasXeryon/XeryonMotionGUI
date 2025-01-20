@@ -15,19 +15,95 @@ using WinUIEx.Messaging;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Dispatching;
+using Windows.Devices.Enumeration;
 
 namespace XeryonMotionGUI.Views;
 
 public sealed partial class HardwarePage : Page
 {
     public ObservableCollection<Controller> FoundControllers => Controller.FoundControllers;
+    private DeviceWatcher deviceWatcher;
+
 
     public HardwarePage()
     {
         InitializeComponent();
         DataContext = this;
         this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
-        _ = CheckForControllers();
+        //_ = CheckForControllers();
+        StartDeviceWatcher();
+    }
+
+    private void StartDeviceWatcher()
+    {
+        string selector = "System.Devices.InterfaceClassGuid:=\"{A5DCBF10-6530-11D2-901F-00C04FB951ED}\""; // USB GUID
+
+        deviceWatcher = DeviceInformation.CreateWatcher(selector);
+
+        // Subscribe to events
+        deviceWatcher.Added += DeviceWatcher_Added;
+        deviceWatcher.Removed += DeviceWatcher_Removed;
+        deviceWatcher.Updated += DeviceWatcher_Updated;
+        deviceWatcher.EnumerationCompleted += DeviceWatcher_EnumerationCompleted;
+        deviceWatcher.Stopped += DeviceWatcher_Stopped;
+
+        Debug.WriteLine("Starting DeviceWatcher...");
+        deviceWatcher.Start();
+    }
+
+    private void StopDeviceWatcher()
+    {
+        if (deviceWatcher != null && deviceWatcher.Status == DeviceWatcherStatus.Started)
+        {
+            Debug.WriteLine("Stopping DeviceWatcher...");
+            deviceWatcher.Stop();
+        }
+    }
+
+    private void RestartDeviceWatcher()
+    {
+        if (deviceWatcher != null && deviceWatcher.Status == DeviceWatcherStatus.Stopped)
+        {
+            Debug.WriteLine("Restarting DeviceWatcher...");
+            deviceWatcher.Start();
+        }
+    }
+
+    private void DeviceWatcher_Added(DeviceWatcher sender, DeviceInformation args)
+    {
+        if (args.Name.Contains("COM") || args.Id.Contains("COM"))
+        {
+            Debug.WriteLine($"Device with COM Port Detected: {args.Name} - ID: {args.Id}");
+
+            // Only handle new devices after enumeration is complete
+            if (deviceWatcher.Status == DeviceWatcherStatus.EnumerationCompleted)
+            {
+                DispatcherQueue.TryEnqueue(() => CheckForControllers());
+            }
+        }
+    }
+
+    private void DeviceWatcher_Removed(DeviceWatcher sender, DeviceInformationUpdate args)
+    {
+        Debug.WriteLine($"Device removed: {args.Id}");
+        DispatcherQueue.TryEnqueue(() => CheckForControllers());
+    }
+
+    private void DeviceWatcher_Updated(DeviceWatcher sender, DeviceInformationUpdate args)
+    {
+        Debug.WriteLine($"Device updated: {args.Id}");
+        DispatcherQueue.TryEnqueue(() => CheckForControllers());
+    }
+
+    private void DeviceWatcher_EnumerationCompleted(DeviceWatcher sender, object args)
+    {
+        Debug.WriteLine("Device enumeration completed. Calling CheckForControllers...");
+        DispatcherQueue.TryEnqueue(() => CheckForControllers());
+    }
+
+    private void DeviceWatcher_Stopped(DeviceWatcher sender, object args)
+    {
+        Debug.WriteLine("DeviceWatcher stopped.");
     }
 
     void CheckForControllersButton_Click(object sender, RoutedEventArgs e)
