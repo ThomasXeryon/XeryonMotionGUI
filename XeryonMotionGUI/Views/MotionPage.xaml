@@ -303,13 +303,31 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Index Button -->
-                                        <Button Content="Index" Command="{Binding IndexCommand}" Width="100" Margin="5" Grid.Row="0" Grid.Column="0" />
+                                            <SplitButton Content="Index"
+                                                 Width="100"
+                                                 Margin="5"
+                                                 Command="{Binding IndexCommand}">
+                                                <SplitButton.Flyout>
+                                                    <MenuFlyout>
+                                                        <MenuFlyoutItem Text="Index Left" Command="{Binding IndexMinusCommand}" />
+                                                        <MenuFlyoutItem Text="Index Right" Command="{Binding IndexPlusCommand}" />
+                                                    </MenuFlyout>
+                                                </SplitButton.Flyout>
+                                            </SplitButton>
 
-                                        <!-- Reset Button -->
-                                        <Button Content="Reset" Command="{Binding ResetCommand}" Width="100" Margin="5" Grid.Row="0" Grid.Column="1" />
+                                            <SplitButton Content="Reset"
+                                                 Width="100" Margin="5" Grid.Row="0" Grid.Column="1"
+                                                 Command="{Binding ResetCommand}"
+                                                 IsEnabled="{Binding IsResetEnabled}">
+                                                <SplitButton.Flyout>
+                                                    <MenuFlyout>
+                                                        <MenuFlyoutItem Text="Reset All" Command="{Binding ResetCommand}" />
+                                                        <MenuFlyoutItem Text="Reset Encoder" Command="{Binding ResetEncoderCommand}" />
+                                                    </MenuFlyout>
+                                                </SplitButton.Flyout>
+                                            </SplitButton>
 
-                                        <!-- Progress Bar for Index -->
+                                            <!-- Progress Bar for Index -->
                                         <ProgressBar
                                             Value="100"
                                             IsIndeterminate="True"

@@ -4,6 +4,11 @@ using XeryonMotionGUI.Classes;
 using Microsoft.UI.Xaml.Controls.Primitives; // For RangeBaseValueChangedEventArgs
 using XeryonMotionGUI.ViewModels;
 using System.Diagnostics;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml;
+using System.Windows.Input;
+using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
 
 namespace XeryonMotionGUI.Views;
 
@@ -50,4 +55,6 @@ public sealed partial class MotionPage : Page
 
         e.Handled = true; // Mark the event as handled
     }
+
+
 }

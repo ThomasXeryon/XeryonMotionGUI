@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 using System.Reflection.Metadata;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
@@ -485,6 +486,104 @@ namespace XeryonMotionGUI.Classes
                 }
             }
         }
+
+        public void UploadSettings(string settings)
+        {
+            Debug.WriteLine("Uploading settings...");
+
+            var lines = settings.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var line in lines)
+            {
+                try
+                {
+                    // Remove comments after '%' (if any)
+                    var cleanLine = line.Split('%')[0].Trim();
+
+                    if (string.IsNullOrWhiteSpace(cleanLine))
+                    {
+                        continue; // Skip empty or comment-only lines
+                    }
+
+                    string axisLetter = null;
+                    string command = null;
+                    double rawValue = 0;
+
+                    // Check if the line has an axis letter prefix (e.g., A:SSPD=200)
+                    if (cleanLine.Contains(":"))
+                    {
+                        var axisParts = cleanLine.Split(new[] { ':' }, 2);
+                        if (axisParts.Length == 2)
+                        {
+                            axisLetter = axisParts[0].Trim(); // Extract axis letter (e.g., "A")
+                            var commandParts = axisParts[1].Split('=');
+                            if (commandParts.Length == 2 && double.TryParse(commandParts[1], out rawValue))
+                            {
+                                command = commandParts[0].Trim(); // Extract command (e.g., "SSPD")
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // For single-axis controllers without prefix (e.g., SSPD=200)
+                        var commandParts = cleanLine.Split('=');
+                        if (commandParts.Length == 2 && double.TryParse(commandParts[1], out rawValue))
+                        {
+                            command = commandParts[0].Trim(); // Extract command (e.g., "SSPD")
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(command))
+                    {
+                        // Determine the target axis
+                        Axis targetAxis = null;
+
+                        if (!string.IsNullOrEmpty(axisLetter))
+                        {
+                            // Multi-axis case: Find axis by letter
+                            targetAxis = Axes.FirstOrDefault(a => a.AxisLetter.Equals(axisLetter, StringComparison.OrdinalIgnoreCase));
+                        }
+                        else if (Axes.Count == 1)
+                        {
+                            // Single-axis case: Use the only available axis
+                            targetAxis = Axes[0];
+                        }
+
+                        if (targetAxis != null)
+                        {
+                            // Find the parameter by command in the target axis
+                            var parameter = targetAxis.Parameters.FirstOrDefault(p => p.Command == command);
+                            if (parameter != null)
+                            {
+                                // Update the parameter value
+                                parameter.Value = rawValue;
+                                //Debug.WriteLine($"Axis {targetAxis.AxisLetter}: Updated {parameter.Name} to {rawValue}");
+                            }
+                            else
+                            {
+                                Debug.WriteLine($"Axis {targetAxis.AxisLetter}: Command {command} not found in parameters.");
+                            }
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"Axis {axisLetter ?? "None"}: Not found for command {command}.");
+                        }
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Invalid format in settings line: {line}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error processing line '{line}': {ex.Message}");
+                }
+            }
+
+            Debug.WriteLine("Settings upload complete.");
+        }
+
+
 
         public async Task LoadParametersFromController()
         {

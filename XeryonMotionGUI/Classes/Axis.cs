@@ -10,6 +10,7 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Windows.UI;
 using Microsoft.UI.Xaml.Controls;
+using System.Diagnostics;
 
 namespace XeryonMotionGUI.Classes
 {
@@ -33,9 +34,13 @@ namespace XeryonMotionGUI.Classes
             MovePositiveCommand = new RelayCommand(MovePositive);
             StopCommand = new RelayCommand(Stop);
             ResetCommand = new RelayCommand(async () => await ResetAsync());
+            ResetEncoderCommand = new RelayCommand(async () => await ResetEncoderAsync());
+
             IndexCommand = new RelayCommand(Index);
             ScanPositiveCommand = new RelayCommand(ScanPositive);
             ScanNegativeCommand = new RelayCommand(ScanNegative);
+            IndexMinusCommand = new RelayCommand(IndexMinus);
+            IndexPlusCommand = new RelayCommand(IndexPlus);
 
             //Parameters = ParameterFactory.CreateParameters(ParentController.Type, axisType);
 
@@ -46,6 +51,9 @@ namespace XeryonMotionGUI.Classes
                 parameter.ParentController = ParentController;
             }
         }
+
+        public bool IsResetEnabled => !SuppressEncoderError;
+
 
         // Collection of parameters
         public ObservableCollection<Parameter> Parameters { get; set; } = new();
@@ -121,6 +129,10 @@ namespace XeryonMotionGUI.Classes
         {
             get;
         }
+        public ICommand ResetEncoderCommand
+        {
+            get;
+        }
         public ICommand IndexCommand
         {
             get;
@@ -130,6 +142,15 @@ namespace XeryonMotionGUI.Classes
             get;
         }
         public ICommand ScanPositiveCommand
+        {
+            get;
+        }
+
+        public ICommand IndexMinusCommand
+        {
+            get;
+        }
+        public ICommand IndexPlusCommand
         {
             get;
         }
@@ -468,6 +489,23 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        private bool _suppressEncoderError;
+        public bool SuppressEncoderError
+        {
+            get => _suppressEncoderError;
+            set
+            {
+                if (_suppressEncoderError != value)
+                {
+                    _suppressEncoderError = value;
+                    OnPropertyChanged(nameof(SuppressEncoderError));
+                    OnPropertyChanged(nameof(IsResetEnabled)); // Notify IsResetEnabled change
+                }
+            }
+        }
+
+
+
         public string AxisTitle => AxisLetter != "None" ? $"Axis {AxisLetter}" : "Axis";
 
         // Status bits properties (Updated)
@@ -645,9 +683,20 @@ namespace XeryonMotionGUI.Classes
         private bool _EncoderError;
         public bool EncoderError
         {
-            get => _EncoderError; private set
+            get => _EncoderError;
+            private set
             {
-                if (_EncoderError != value) { _EncoderError = value; OnPropertyChanged(nameof(EncoderError)); }
+                if (_suppressEncoderError)
+                {
+                    Debug.WriteLine("EncoderError update suppressed.");
+                    return; // Ignore updates during suppression
+                }
+
+                if (_EncoderError != value)
+                {
+                    _EncoderError = value;
+                    OnPropertyChanged(nameof(EncoderError));
+                }
             }
         }
 
@@ -899,6 +948,16 @@ namespace XeryonMotionGUI.Classes
             ParentController.SendCommand("SCAN=-1");
         }
 
+        private void IndexPlus()
+        {
+            ParentController.SendCommand("INDX=1");
+        }
+
+        private void IndexMinus()
+        {
+            ParentController.SendCommand("INDX=0");
+        }
+
 
         private async Task ResetAsync()
         {   
@@ -908,6 +967,46 @@ namespace XeryonMotionGUI.Classes
             await ParentController.LoadParametersFromController();
             ParentController.LoadingSettings = false;
 
+        }
+
+        private async Task ResetEncoderAsync()
+        {
+            try
+            {
+                // Start suppression
+                SuppressEncoderError = true;
+
+                // Clear the EncoderError flag
+                EncoderError = false;
+
+                // Send the reset command
+                ParentController.SendCommand("ENCR");
+
+                // Retrieve the PollingInterval from the Parameters
+                var pollingIntervalParameter = Parameters.FirstOrDefault(p => p.Command == "POLI");
+                int pollingInterval = pollingIntervalParameter != null ? (int)pollingIntervalParameter.Value : 25; // Default to 25ms if not found
+
+                // Calculate suppression duration: PollingInterval + 100ms
+                int suppressionDuration = pollingInterval + 500;
+
+                // Wait for the transient period to complete
+                await Task.Delay(suppressionDuration);
+
+                // Stop suppression
+                SuppressEncoderError = false;
+
+                Debug.WriteLine($"Encoder reset completed, suppression lifted after {suppressionDuration}ms.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during encoder reset: {ex.Message}");
+                InfoBarMessages.Add(new InfoBarMessage
+                {
+                    Severity = InfoBarSeverity.Error,
+                    Title = "Encoder Reset Error",
+                    Message = "An error occurred while resetting the encoder."
+                });
+            }
         }
     }
 }

@@ -40,9 +40,12 @@ namespace XeryonMotionGUI.ViewModels
                     OnPropertyChanged(nameof(StopCommand));
                     OnPropertyChanged(nameof(IndexCommand));
                     OnPropertyChanged(nameof(ResetCommand));
+                    OnPropertyChanged(nameof(ResetEncoderCommand));
                     OnPropertyChanged(nameof(ScanPositiveCommand));
                     OnPropertyChanged(nameof(ScanNegativeCommand));
                     OnPropertyChanged(nameof(SelectedAxis));
+                    OnPropertyChanged(nameof(IndexMinusCommand));
+                    OnPropertyChanged(nameof(IndexPlusCommand));
                 }
             }
         }
@@ -82,8 +85,12 @@ namespace XeryonMotionGUI.ViewModels
         public ICommand StopCommand => SelectedAxis?.StopCommand;
         public ICommand IndexCommand => SelectedAxis?.IndexCommand;
         public ICommand ResetCommand => SelectedAxis?.ResetCommand;
+        public ICommand ResetEncoderCommand => SelectedAxis?.ResetEncoderCommand;
+
         public ICommand ScanPositiveCommand => SelectedAxis?.ScanPositiveCommand;
         public ICommand ScanNegativeCommand => SelectedAxis?.ScanNegativeCommand;
+        public ICommand IndexMinusCommand => SelectedAxis?.IndexMinusCommand;
+        public ICommand IndexPlusCommand => SelectedAxis?.IndexPlusCommand;
 
         public MotionViewModel()
         {
