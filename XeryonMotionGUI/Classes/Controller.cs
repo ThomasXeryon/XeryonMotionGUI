@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
 
 namespace XeryonMotionGUI.Classes
@@ -20,6 +21,8 @@ namespace XeryonMotionGUI.Classes
         public static ObservableCollection<Controller> RunningControllers { get; set; } = new ObservableCollection<Controller>();
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public ICommand ReconnectCommand => new RelayCommand(Reconnect);
 
         // Commands
         private ICommand _OpenPortCommand;
@@ -77,12 +80,92 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        protected virtual void OnPropertyChanged(string propertyName)
+        private void Reconnect()
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            try
+            {
+                // Attempt to reconnect the controller
+                Port.Open();
+                IsConnected = true; // Mark as connected
+                Debug.WriteLine($"Reconnected to port {Port.PortName}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to reconnect: {ex.Message}");
+            }
         }
 
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            if (Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread() is DispatcherQueue dispatcherQueue)
+            {
+                dispatcherQueue.TryEnqueue(() =>
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                });
+            }
+            else
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
 
+        private string _deviceId;
+        public string DeviceId
+        {
+            get => _deviceId;
+            set
+            {
+                if (_deviceId != value)
+                {
+                    _deviceId = value;
+                    OnPropertyChanged(nameof(DeviceId));
+                }
+            }
+        }
+
+        private string _deviceKey;
+        public string DeviceKey
+        {
+            get => _deviceKey;
+            set
+            {
+                if (_deviceKey != value)
+                {
+                    _deviceKey = value;
+                    OnPropertyChanged(nameof(DeviceKey));
+                }
+            }
+        }
+
+        private string _deviceSerial;
+        public string DeviceSerial
+        {
+            get => _deviceSerial;
+            set
+            {
+                if (_deviceSerial != value)
+                {
+                    _deviceSerial = value;
+                    OnPropertyChanged(nameof(DeviceSerial));
+                }
+            }
+        }
+
+        private bool _isConnected;
+
+        public bool IsConnected
+        {
+            get => _isConnected;
+            set
+            {
+                if (_isConnected != value)
+                {
+                    _isConnected = value;
+                    OnPropertyChanged(nameof(IsConnected));
+                }
+            }
+        }
 
         private bool _loadingSettings;
         public bool LoadingSettings
@@ -113,16 +196,16 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        private bool _Running;
+        private bool _running;
         public bool Running
         {
-            get => _Running;
+            get => _running;
             set
             {
-                if (_Running != value)
+                if (_running != value)
                 {
-                    _Running = value;
-                    OnPropertyChanged(nameof(Running));
+                    _running = value;
+                    OnPropertyChanged(nameof(Running)); // Safely notify the UI
                 }
             }
         }
@@ -277,6 +360,28 @@ namespace XeryonMotionGUI.Classes
             {
                 _OpenPortCommand ??= new RelayCommand(OpenPort);
                 return _OpenPortCommand;
+            }
+        }
+
+        public void Disconnect()
+        {
+            try
+            {
+                if (Port != null && Port.IsOpen)
+                {
+                    Port.DataReceived -= DataReceivedHandler;
+                    Port.Close();
+                    Debug.WriteLine($"Port {Port.PortName} closed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error closing port {Port?.PortName}: {ex.Message}");
+            }
+            finally
+            {
+                Running = false; // Safely notify UI of the state change
+                UpdateRunningControllers();
             }
         }
 

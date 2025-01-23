@@ -80,7 +80,7 @@ public partial class ShellViewModel : ObservableRecipient
         }
 
         // Default color if no saved value exists
-        //ShellPageBackground = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x80, 0x02));
+        ShellPageBackground = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x80, 0x02));
     }
 
     private void SaveBackgroundColor(Windows.UI.Color color)

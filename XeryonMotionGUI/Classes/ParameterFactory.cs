@@ -7,8 +7,8 @@ namespace XeryonMotionGUI.Classes
         /// <summary>
         /// Creates parameters based on the specified controller type and axis type.
         /// </summary>
-        /// <param name="controllerType">The type of controller for which to create parameters.</param>
-        /// <param name="axisType">Optional axis type to customize parameters further (e.g., Linear or Rotational).</param>
+        // <param name="controllerType">The type of controller for which to create parameters.</param>
+        // <param name="axisType">Optional axis type to customize parameters further (e.g., Linear or Rotational).</param>
         /// <returns>A collection of parameters tailored to the controller and axis type.</returns>
         public static ObservableCollection<Parameter> CreateParameters(string controllerType, string axisType)
         {

@@ -10,7 +10,4 @@
     <Color x:Key="SystemAccentColorLight3">#27b62d</Color>
     <Color x:Key="SystemAccentColorDark3">#27b62d</Color>
 
-    <Color x:Key="SystemBaseHighColor">#c6ebbe</Color>
-    <!-- A slightly darker white -->
-    <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource SystemBaseHighColor}" />
 </ResourceDictionary>
