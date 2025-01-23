@@ -161,7 +161,7 @@
                                                         </TextBlock>
                                                         <TextBlock FontSize="12">
                                                             <Run Text="Axis Letter: " />
-                                                            <Run Text="{Binding AxisLetter}" />
+                                                            <Run Text="{Binding AxisLetter}"/>
                                                         </TextBlock>
                                                     </StackPanel>
                                                 </Border>

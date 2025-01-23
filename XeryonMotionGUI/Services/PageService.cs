@@ -19,6 +19,7 @@ public class PageService : IPageService
         Configure<ParametersViewModel, ParametersPage>();
         Configure<MotionViewModel, MotionPage>();
         Configure<SettingsViewModel, SettingsPage>();
+        Configure<DemoBuilderViewModel, DemoBuilderPage>();
     }
 
     public Type GetPageType(string key)
