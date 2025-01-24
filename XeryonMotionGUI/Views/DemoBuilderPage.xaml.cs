@@ -28,7 +28,8 @@ namespace XeryonMotionGUI.Views
         "Move Left",
         "Move Right",
         "Wait",
-        "Repeat"
+        "Repeat",
+        "Home"
         };
 
         private DraggableElement _draggedBlock; // Block currently being dragged

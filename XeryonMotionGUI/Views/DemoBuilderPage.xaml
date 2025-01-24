@@ -24,67 +24,75 @@
                 BorderThickness="2"
                 CornerRadius="5"
                 Padding="5">
+            <!-- Single Grid as Child of Border -->
             <Grid>
-                <!-- Canvas -->
-                <Canvas x:Name="WorkspaceCanvas"
-                        Background="Transparent"
-                        AllowDrop="True"
-                        Width="2000"
-                        Height="2000">
-                    <!-- Shadow block for snapping preview -->
-                    <local:DraggableElement x:Name="SnapShadow"
-                        Text=""
-                        Width="150"
-                        Opacity="0.5"
-                        Visibility="Collapsed"
-                        IsHitTestVisible="False"
-                        Background="Gray" />
-                    <!-- Green Flag Start Block -->
-                    <local:DraggableElement x:Name="GreenFlagBlock"
-                        Text="Start"
-                        Width="120"
-                        Margin="10"
-                        IsHitTestVisible="False">
-                        <local:DraggableElement.Content>
-                            <Border CornerRadius="5" Padding="10" Background="LightGray" BorderThickness="1" BorderBrush="Black">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <!-- Start Icon -->
-                                    <FontIcon Glyph="&#xE768;" FontSize="16" Margin="0,0,5,0" Foreground="Green" />
-                                    <!-- Start Text -->
-                                    <TextBlock Text="Start" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
-                        </local:DraggableElement.Content>
-                    </local:DraggableElement>
-                </Canvas>
+                <!-- Scrollable and Zoomable Workspace -->
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" 
+                              VerticalScrollBarVisibility="Auto"
+                              ZoomMode="Enabled" 
+                              MinZoomFactor="0.5" 
+                              MaxZoomFactor="3.0">
+                    <Canvas x:Name="WorkspaceCanvas"
+                            Background="Transparent"
+                            AllowDrop="True"
+                            Width="2000"
+                            Height="2000">
+                        <!-- Shadow block for snapping preview -->
+                        <local:DraggableElement x:Name="SnapShadow"
+                            Text=""
+                            Width="150"
+                            Opacity="0.5"
+                            Visibility="Collapsed"
+                            IsHitTestVisible="False"
+                            Background="Gray" />
+                        <!-- Green Flag Start Block -->
+                        <local:DraggableElement x:Name="GreenFlagBlock"
+                            Text="Start"
+                            Width="120"
+                            Margin="10"
+                            IsHitTestVisible="False">
+                            <local:DraggableElement.Content>
+                                <Border CornerRadius="5" Padding="10" Background="LightGray" BorderThickness="1" BorderBrush="Black">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <!-- Start Icon -->
+                                        <FontIcon Glyph="&#xE768;" FontSize="16" Margin="0,0,5,0" Foreground="Green" />
+                                        <!-- Start Text -->
+                                        <TextBlock Text="Start" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </local:DraggableElement.Content>
+                        </local:DraggableElement>
+                    </Canvas>
+                </ScrollViewer>
+
+                <!-- Overlay for Buttons and Trash Icon -->
                 <Grid>
-                    <!-- Existing Start Button -->
+                    <!-- Start Button -->
                     <Button x:Name="StartButton"
-            Content="Start"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            Margin="10"
-            Click="StartButton_Click" />
+                            Content="Start"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="10,10,70,10"
+                            Click="StartButton_Click" />
 
-                    <!-- New Stop Button -->
+                    <!-- Stop Button -->
                     <Button x:Name="StopButton"
-            Content="Stop"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            Margin="100,10,0,0"
-            Click="StopButton_Click"
-            IsEnabled="False" />
-                    <!-- Initially disabled -->
-                </Grid>
+                            Content="Stop"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="100,10,10,0"
+                            Click="StopButton_Click"
+                            IsEnabled="False" />
 
-                <!-- Trash Icon -->
-                <FontIcon x:Name="TrashIcon"
-           Glyph="&#xE74D;"
-           HorizontalAlignment="Right"
-           VerticalAlignment="Bottom"
-           Margin="10"
-           Foreground="Red"
-           FontSize="24" />
+                    <!-- Trash Icon -->
+                    <FontIcon x:Name="TrashIcon"
+                        Glyph="&#xE74D;"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Margin="10"
+                        Foreground="Red"
+                        FontSize="24" />
+                </Grid>
             </Grid>
         </Border>
     </Grid>

@@ -969,7 +969,7 @@ namespace XeryonMotionGUI.Classes
 
         }
 
-        private async Task ResetEncoderAsync()
+        public async Task ResetEncoderAsync()
         {
             try
             {

@@ -58,7 +58,7 @@
                 <ComboBox 
                     ItemsSource="{Binding RunningControllers}" 
                     SelectedItem="{Binding SelectedController, Mode=TwoWay}"
-                    DisplayMemberPath="Name"
+                    DisplayMemberPath="FriendlyName"
                     Margin="0,5,0,5"
                     PlaceholderText="Select Controller" />
 
@@ -66,7 +66,7 @@
                 <ComboBox 
                     ItemsSource="{Binding SelectedController.Axes}" 
                     SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
-                    DisplayMemberPath="Name"
+                    DisplayMemberPath="FriendlyName"
                     Margin="0,5,0,5"
                     PlaceholderText="Select Axis"
                     IsEnabled="{Binding SelectedController, Converter={StaticResource NullToBooleanConverter}}" />

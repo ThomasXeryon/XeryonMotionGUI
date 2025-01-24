@@ -177,6 +177,9 @@ namespace XeryonMotionGUI
                 case "Repeat":
                     ExecuteRepeat(); // Implement repeat logic if needed
                     break;
+                case "Home":
+                    SelectedAxis.Home();
+                    break;
                 default:
                     Debug.WriteLine($"Unknown block type: {Text}");
                     break;

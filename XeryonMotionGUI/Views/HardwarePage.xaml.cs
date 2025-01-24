@@ -160,7 +160,7 @@ public sealed partial class HardwarePage : Page
                     Debug.WriteLine(port + " IS OEM");
                     controller.Type = "OEM";
                     controller.Name = "XD-OEM Single Axis Controller";
-                    controller.FriendlyName = "XD-OEM Controller";
+                    controller.FriendlyName = "XD-OEM";
                     axesResponse = "AXES=1";
                 }
 
@@ -214,7 +214,7 @@ public sealed partial class HardwarePage : Page
                     serialPort.Close();
 
                     axis.AxisLetter = "None";
-                    axis.FriendlyName = "Not set";
+                    axis.FriendlyName = "Test XLA";
                     axis.Name = $"XLS-3/5-X-{axis.Resolution}";
                     axis.Linear = true;
                     axis.StepSize = 25;
