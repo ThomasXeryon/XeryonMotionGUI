@@ -123,4 +123,7 @@
   <data name="Shell_DemoBuilder.Content" xml:space="preserve">
     <value>DemoBuilder</value>
   </data>
+  <data name="Shell_Demo.Content" xml:space="preserve">
+    <value>Demo</value>
+  </data>
 </root>

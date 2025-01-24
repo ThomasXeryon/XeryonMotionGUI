@@ -900,60 +900,60 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        private  void MoveNegative()
+        public  void MoveNegative()
         {
             ParentController.SendCommand("MOVE=-1");
         }
 
-        private   void StepNegative()
+        public void StepNegative()
         {
             _commandSentTime = DateTime.Now;
             ParentController.SendCommand($"STEP={Math.Floor(-StepSize)}");
         }
 
-        private  void Home()
+        public void Home()
         {
             ParentController.SendCommand("HOME");
             DPOS= 0;
         }
 
-        private void StepPositive()
+        public void StepPositive()
         {
             _commandSentTime = DateTime.Now;
             ParentController.SendCommand($"STEP={Math.Floor(StepSize)}");
         }
 
-        private  void MovePositive()
+        public void MovePositive()
         {
             ParentController.SendCommand("MOVE=1");
         }
 
-        private   void Stop()
+        public void Stop()
         {
             ParentController.SendCommand("STOP");
         }
 
-        private  void Index()
+        public void Index()
         {
             ParentController.SendCommand("INDX=0");
         }
 
-        private void ScanPositive()
+        public void ScanPositive()
         {
             ParentController.SendCommand("SCAN=1");
         }
 
-        private void ScanNegative()
+        public void ScanNegative()
         {
             ParentController.SendCommand("SCAN=-1");
         }
 
-        private void IndexPlus()
+        public void IndexPlus()
         {
             ParentController.SendCommand("INDX=1");
         }
 
-        private void IndexMinus()
+        public void IndexMinus()
         {
             ParentController.SendCommand("INDX=0");
         }

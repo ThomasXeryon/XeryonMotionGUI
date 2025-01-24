@@ -27,6 +27,7 @@
     <AppInstallerUri>C:\Users\thoma\Desktop\Installer\Updates</AppInstallerUri>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="DraggableElement.xaml" />
     <None Remove="Styles\ResourceDictionary1.xaml" />
   </ItemGroup>
 
@@ -80,6 +81,9 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="DraggableElement.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="Styles\ResourceDictionary1.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
