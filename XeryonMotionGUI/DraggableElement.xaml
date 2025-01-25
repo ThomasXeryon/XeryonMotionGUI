@@ -14,6 +14,7 @@
 
     <Grid>
         <Border 
+            x:Name="BlockBorder"
             CornerRadius="5" 
             Padding="10" 
             Background="LightGray" 

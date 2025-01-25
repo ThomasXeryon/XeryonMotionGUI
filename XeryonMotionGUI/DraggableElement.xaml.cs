@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI
@@ -138,51 +139,62 @@ namespace XeryonMotionGUI
         // Handle block actions based on block type
         public async Task ExecuteActionAsync(CancellationToken cancellationToken = default)
         {
-            // Skip SelectedAxis check for "Wait" blocks
-            if (Text != "Wait" && SelectedAxis == null)
+            try
             {
-                Debug.WriteLine("No axis selected for the block.");
-                return; // Skip this block if no axis is selected
+                // Set the block as executing
+                IsExecuting = true;
+
+                // Skip SelectedAxis check for "Wait" blocks
+                if (Text != "Wait" && SelectedAxis == null)
+                {
+                    Debug.WriteLine("No axis selected for the block.");
+                    return; // Skip this block if no axis is selected
+                }
+
+                switch (Text)
+                {
+                    case "Step +":
+                        SelectedAxis.StepSize = 1000; // Set step size to 1
+                        SelectedAxis.StepPositive(); // Call StepPositive on the selected axis
+                        break;
+                    case "Step -":
+                        SelectedAxis.StepSize = 1000; // Set step size to 1
+                        SelectedAxis.StepNegative(); // Call StepNegative on the selected axis
+                        break;
+                    case "Scan Left":
+                        SelectedAxis.ScanNegative(); // Call ScanNegative on the selected axis
+                        break;
+                    case "Scan Right":
+                        SelectedAxis.ScanPositive(); // Call ScanPositive on the selected axis
+                        break;
+                    case "Move Left":
+                        SelectedAxis.MoveNegative(); // Call MoveNegative on the selected axis
+                        break;
+                    case "Move Right":
+                        SelectedAxis.MovePositive(); // Call MovePositive on the selected axis
+                        break;
+                    case "Wait":
+                        if (cancellationToken.IsCancellationRequested)
+                            return; // Exit immediately if cancellation is requested
+
+                        Debug.WriteLine($"Waiting for {WaitTime} ms...");
+                        await Task.Delay(WaitTime, cancellationToken); // Use cancellation token
+                        break;
+                    case "Repeat":
+                        ExecuteRepeat(); // Implement repeat logic if needed
+                        break;
+                    case "Home":
+                        SelectedAxis.Home();
+                        break;
+                    default:
+                        Debug.WriteLine($"Unknown block type: {Text}");
+                        break;
+                }
             }
-
-            switch (Text)
+            finally
             {
-                case "Step +":
-                    SelectedAxis.StepSize = 1000; // Set step size to 1
-                    SelectedAxis.StepPositive(); // Call StepPositive on the selected axis
-                    break;
-                case "Step -":
-                    SelectedAxis.StepSize = 1000; // Set step size to 1
-                    SelectedAxis.StepNegative(); // Call StepNegative on the selected axis
-                    break;
-                case "Scan Left":
-                    SelectedAxis.ScanNegative(); // Call ScanNegative on the selected axis
-                    break;
-                case "Scan Right":
-                    SelectedAxis.ScanPositive(); // Call ScanPositive on the selected axis
-                    break;
-                case "Move Left":
-                    SelectedAxis.MoveNegative(); // Call MoveNegative on the selected axis
-                    break;
-                case "Move Right":
-                    SelectedAxis.MovePositive(); // Call MovePositive on the selected axis
-                    break;
-                case "Wait":
-                    if (cancellationToken.IsCancellationRequested)
-                        return; // Exit immediately if cancellation is requested
-
-                    Debug.WriteLine($"Waiting for {WaitTime} ms...");
-                    await Task.Delay(WaitTime, cancellationToken); // Use cancellation token
-                    break;
-                case "Repeat":
-                    ExecuteRepeat(); // Implement repeat logic if needed
-                    break;
-                case "Home":
-                    SelectedAxis.Home();
-                    break;
-                default:
-                    Debug.WriteLine($"Unknown block type: {Text}");
-                    break;
+                // Reset the executing state
+                IsExecuting = false;
             }
         }
 
@@ -264,7 +276,9 @@ namespace XeryonMotionGUI
                 foreach (var block in blocksToRepeat)
                 {
                     Debug.WriteLine($"Executing block: {block.Text}");
+                    block.IsExecuting = true; // Set executing state
                     await block.ExecuteActionAsync();
+                    block.IsExecuting = false; // Reset executing state
                 }
 
                 Debug.WriteLine($"Repetition {i + 1} complete.");
@@ -314,5 +328,46 @@ namespace XeryonMotionGUI
                 block.SelectedAxis = null; // Clear selected axis when controller changes
             }
         }
+
+        public static readonly DependencyProperty IsExecutingProperty =
+    DependencyProperty.Register(
+        nameof(IsExecuting),
+        typeof(bool),
+        typeof(DraggableElement),
+        new PropertyMetadata(false, OnIsExecutingChanged));
+
+        public bool IsExecuting
+        {
+            get => (bool)GetValue(IsExecutingProperty);
+            set => SetValue(IsExecutingProperty, value);
+        }
+
+        private static void OnIsExecutingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var block = d as DraggableElement;
+            if (block != null)
+            {
+                block.UpdateVisualState();
+            }
+        }
+
+        private void UpdateVisualState()
+        {
+            var border = this.FindName("BlockBorder") as Border;
+            if (border != null)
+            {
+                if (IsExecuting)
+                {
+                    // Apply a green fade background when executing
+                    border.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen);
+                }
+                else
+                {
+                    // Revert to the default background when not executing
+                    border.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGray);
+                }
+            }
+        }
     }
+
 }
