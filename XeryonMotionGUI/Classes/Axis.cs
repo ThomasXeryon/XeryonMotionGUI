@@ -16,7 +16,27 @@ namespace XeryonMotionGUI.Classes
 {
     public class Axis : INotifyPropertyChanged
     {
+        #region Fields
+
+        // General collections
         public ObservableCollection<InfoBarMessage> InfoBarMessages { get; set; } = new ObservableCollection<InfoBarMessage>();
+
+        // Dispatcher for thread-safe property change notifications
+        private DispatcherQueue _dispatcherQueue;
+
+        // Speed and position tracking
+        private double _PreviousEPOS;
+        private DateTime _LastUpdateTime;
+
+        private DateTime _positionReachedLastFalseTime;
+        private TimeSpan _positionReachedElapsedTime;
+
+        private DateTime _commandSentTime;
+        private TimeSpan _commandToPositionReachedDelay;
+
+        #endregion
+
+        #region Constructor
 
         public Axis(Controller controller, string axisType, string axisLetter)
         {
@@ -42,18 +62,17 @@ namespace XeryonMotionGUI.Classes
             IndexMinusCommand = new RelayCommand(IndexMinus);
             IndexPlusCommand = new RelayCommand(IndexPlus);
 
-            //Parameters = ParameterFactory.CreateParameters(ParentController.Type, axisType);
-
             // Assign the ParentController to each Parameter
             foreach (var parameter in Parameters)
             {
-                parameter.ParentAxis = this; // Set the current axis as the parent
+                parameter.ParentAxis = this;
                 parameter.ParentController = ParentController;
             }
         }
 
-        public bool IsResetEnabled => !SuppressEncoderError;
+        #endregion
 
+        #region Parameter Management
 
         // Collection of parameters
         public ObservableCollection<Parameter> Parameters { get; set; } = new();
@@ -100,66 +119,11 @@ namespace XeryonMotionGUI.Classes
             return Parameters.FirstOrDefault(p => p.Name == name);
         }
 
-        // Commands
-        public ICommand MoveNegativeCommand
-        {
-            get;
-        }
-        public ICommand StepNegativeCommand
-        {
-            get;
-        }
-        public ICommand HomeCommand
-        {
-            get;
-        }
-        public ICommand StepPositiveCommand
-        {
-            get;
-        }
-        public ICommand MovePositiveCommand
-        {
-            get;
-        }
-        public ICommand StopCommand
-        {
-            get;
-        }
-        public ICommand ResetCommand
-        {
-            get;
-        }
-        public ICommand ResetEncoderCommand
-        {
-            get;
-        }
-        public ICommand IndexCommand
-        {
-            get;
-        }
-        public ICommand ScanNegativeCommand
-        {
-            get;
-        }
-        public ICommand ScanPositiveCommand
-        {
-            get;
-        }
+        #endregion
 
-        public ICommand IndexMinusCommand
-        {
-            get;
-        }
-        public ICommand IndexPlusCommand
-        {
-            get;
-        }
+        #region INotifyPropertyChanged
 
-
-        // Event for property changes
         public event PropertyChangedEventHandler PropertyChanged;
-
-        private DispatcherQueue _dispatcherQueue;
 
         public void SetDispatcherQueue(DispatcherQueue dispatcherQueue)
         {
@@ -184,13 +148,180 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        // Controller reference
+        #endregion
+
+        #region Core Properties (Controller, Basic Axis Info, etc.)
+
+        // Reference to the controller
         public Controller ParentController
         {
             get; set;
         }
 
-        // Other properties (Name, Type, etc.)
+        // Axis identification
+        public string AxisType
+        {
+            get; set;
+        }
+
+        private string _AxisLetter;
+        public string AxisLetter
+        {
+            get => _AxisLetter;
+            set
+            {
+                if (_AxisLetter != value)
+                {
+                    _AxisLetter = value;
+                    OnPropertyChanged(nameof(AxisLetter));
+                }
+            }
+        }
+
+        public string AxisTitle => AxisLetter != "None" ? $"Axis {AxisLetter}" : "Axis";
+
+        #endregion
+
+        #region Basic Movement & Position Properties
+
+        private double _DPOS;
+        public double DPOS
+        {
+            get => _DPOS;
+            set
+            {
+                if (_DPOS != value)
+                {
+                    _DPOS = value;
+                    OnPropertyChanged(nameof(DPOS));
+                }
+            }
+        }
+
+        private double _EPOS;
+        public double EPOS
+        {
+            get => _EPOS;
+            set
+            {
+                if (_EPOS != value)
+                {
+                    _PreviousEPOS = _EPOS;
+                    _EPOS = value;
+                    OnPropertyChanged(nameof(EPOS));
+                    CalculateSpeed();
+                }
+            }
+        }
+
+        private int _STAT;
+        public int STAT
+        {
+            get => _STAT;
+            set
+            {
+                if (_STAT != value)
+                {
+                    _STAT = value;
+                    OnPropertyChanged(nameof(STAT));
+                    UpdateStatusBits();
+                }
+            }
+        }
+
+        private int _TIME;
+        public int TIME
+        {
+            get => _TIME;
+            set
+            {
+                if (_TIME != value)
+                {
+                    _TIME = value;
+                    OnPropertyChanged(nameof(TIME));
+                }
+            }
+        }
+
+        private double _DesiredPosition;
+        public double DesiredPosition
+        {
+            get => _DesiredPosition;
+            set
+            {
+                if (_DesiredPosition != value)
+                {
+                    _DesiredPosition = value;
+                    OnPropertyChanged(nameof(DesiredPosition));
+                }
+            }
+        }
+
+        private double _ActualPosition;
+        public double ActualPosition
+        {
+            get => _ActualPosition;
+            set
+            {
+                if (_ActualPosition != value)
+                {
+                    _ActualPosition = value;
+                    OnPropertyChanged(nameof(ActualPosition));
+                }
+            }
+        }
+
+        private double _StepSize;
+        public double StepSize
+        {
+            get => _StepSize;
+            set
+            {
+                if (_StepSize != value)
+                {
+                    _StepSize = value;
+                    OnPropertyChanged(nameof(StepSize));
+                }
+            }
+        }
+
+        private double _SPEED;
+        public double SPEED
+        {
+            get => _SPEED;
+            set
+            {
+                if (_SPEED != value)
+                {
+                    _SPEED = value;
+                    OnPropertyChanged(nameof(SPEED));
+
+                    if (_SPEED > MaxSpeed)
+                    {
+                        MaxSpeed = _SPEED;
+                    }
+                }
+            }
+        }
+
+        private double _MaxSpeed;
+        public double MaxSpeed
+        {
+            get => _MaxSpeed;
+            set
+            {
+                if (_MaxSpeed != value)
+                {
+                    _MaxSpeed = value;
+                    OnPropertyChanged(nameof(MaxSpeed));
+                }
+            }
+        }
+
+        #endregion
+
+        #region Axis Configuration Properties
+
         private string _Name;
         public string Name
         {
@@ -308,294 +439,205 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        public string AxisType
+        #endregion
+
+        #region Commands
+
+        public ICommand MoveNegativeCommand
         {
-            get; set;
+            get;
+        }
+        public ICommand StepNegativeCommand
+        {
+            get;
+        }
+        public ICommand HomeCommand
+        {
+            get;
+        }
+        public ICommand StepPositiveCommand
+        {
+            get;
+        }
+        public ICommand MovePositiveCommand
+        {
+            get;
+        }
+        public ICommand StopCommand
+        {
+            get;
+        }
+        public ICommand ResetCommand
+        {
+            get;
+        }
+        public ICommand ResetEncoderCommand
+        {
+            get;
+        }
+        public ICommand IndexCommand
+        {
+            get;
+        }
+        public ICommand ScanNegativeCommand
+        {
+            get;
+        }
+        public ICommand ScanPositiveCommand
+        {
+            get;
+        }
+        public ICommand IndexMinusCommand
+        {
+            get;
+        }
+        public ICommand IndexPlusCommand
+        {
+            get;
         }
 
-        private string _AxisLetter;
-        public string AxisLetter
-        {
-            get => _AxisLetter;
-            set
-            {
-                if (_AxisLetter != value)
-                {
-                    _AxisLetter = value;
-                    OnPropertyChanged(nameof(AxisLetter));
-                }
-            }
-        }
+        #endregion
 
-        private double _DesiredPosition;
-        public double DesiredPosition
-        {
-            get => _DesiredPosition;
-            set
-            {
-                if (_DesiredPosition != value)
-                {
-                    _DesiredPosition = value;
-                    OnPropertyChanged(nameof(DesiredPosition));
-                }
-            }
-        }
+        #region Status Bit & Error Handling Properties
 
-        private double _ActualPosition;
-        public double ActualPosition
-        {
-            get => _ActualPosition;
-            set
-            {
-                if (_ActualPosition != value)
-                {
-                    _ActualPosition = value;
-                    OnPropertyChanged(nameof(ActualPosition));
-                }
-            }
-        }
-
-        private double _StepSize;
-        public double StepSize
-        {
-            get => _StepSize;
-            set
-            {
-                if (_StepSize != value)
-                {
-                    _StepSize = value;
-                    OnPropertyChanged(nameof(StepSize));
-                }
-            }
-        }
-
-        private double _DPOS;
-        public double DPOS
-        {
-            get => _DPOS;
-            set
-            {
-                if (_DPOS != value)
-                {
-                    _DPOS = value;
-                    OnPropertyChanged(nameof(DPOS));
-                }
-            }
-        }
-
-
-        private double _EPOS;
-        public double EPOS
-        {
-            get => _EPOS;
-            set
-            {
-                if (_EPOS != value)
-                {
-                    _PreviousEPOS = _EPOS;
-                    _EPOS = value;
-                    OnPropertyChanged(nameof(EPOS));
-                    CalculateSpeed();
-                }
-            }
-        }
-
-        private int _STAT;
-        public int STAT
-        {
-            get => _STAT;
-            set
-            {
-                if (_STAT != value)
-                {
-                    _STAT = value;
-                    OnPropertyChanged(nameof(STAT));
-                    UpdateStatusBits();
-                }
-            }
-        }
-
-        private int _TIME;
-        public int TIME
-        {
-            get => _TIME;
-            set
-            {
-                if (_TIME != value)
-                {
-                    _TIME = value;
-                    OnPropertyChanged(nameof(TIME));
-                }
-            }
-        }
-
-
-
-        private double _PreviousEPOS;
-        private DateTime _LastUpdateTime;
-
-        private double _SPEED;
-        public double SPEED
-        {
-            get => _SPEED;
-            set
-            {
-                if (_SPEED != value)
-                {
-                    _SPEED = value;
-                    OnPropertyChanged(nameof(SPEED));
-
-                    if (_SPEED > MaxSpeed)
-                    {
-                        MaxSpeed = _SPEED;
-                    }
-                }
-            }
-        }
-
-        private double _MaxSpeed;
-        public double MaxSpeed
-        {
-            get => _MaxSpeed;
-            set
-            {
-                if (_MaxSpeed != value)
-                {
-                    _MaxSpeed = value;
-                    OnPropertyChanged(nameof(MaxSpeed));
-                }
-            }
-        }
-
-        private void CalculateSpeed()
-        {
-            if (!MotorOn)
-            {
-                SPEED = 0;
-            }
-            else
-            {
-                DateTime currentTime = DateTime.Now;
-                if (_LastUpdateTime != default)
-                {
-                    double timeDelta = (currentTime - _LastUpdateTime).TotalSeconds; // Time in seconds
-                    if (timeDelta > 0)
-                    {
-                        // Convert nanometers to millimeters before calculating speed
-                        SPEED = Math.Abs((_EPOS - _PreviousEPOS) / 1_000_000) / timeDelta * Resolution; // Speed in mm/s
-                    }
-                }
-                _LastUpdateTime = currentTime;
-            }
-        }
-
-        private bool _suppressEncoderError;
-        public bool SuppressEncoderError
-        {
-            get => _suppressEncoderError;
-            set
-            {
-                if (_suppressEncoderError != value)
-                {
-                    _suppressEncoderError = value;
-                    OnPropertyChanged(nameof(SuppressEncoderError));
-                    OnPropertyChanged(nameof(IsResetEnabled)); // Notify IsResetEnabled change
-                }
-            }
-        }
-
-
-
-        public string AxisTitle => AxisLetter != "None" ? $"Axis {AxisLetter}" : "Axis";
-
-        // Status bits properties (Updated)
         private bool _AmplifiersEnabled;
         public bool AmplifiersEnabled
         {
-            get => _AmplifiersEnabled; private set
+            get => _AmplifiersEnabled;
+            private set
             {
-                if (_AmplifiersEnabled != value) { _AmplifiersEnabled = value; OnPropertyChanged(nameof(AmplifiersEnabled)); }
+                if (_AmplifiersEnabled != value)
+                {
+                    _AmplifiersEnabled = value;
+                    OnPropertyChanged(nameof(AmplifiersEnabled));
+                }
             }
         }
 
         private bool _EndStop;
         public bool EndStop
         {
-            get => _EndStop; private set
+            get => _EndStop;
+            private set
             {
-                if (_EndStop != value) { _EndStop = value; OnPropertyChanged(nameof(EndStop)); }
+                if (_EndStop != value)
+                {
+                    _EndStop = value;
+                    OnPropertyChanged(nameof(EndStop));
+                }
             }
         }
 
         private bool _ThermalProtection1;
         public bool ThermalProtection1
         {
-            get => _ThermalProtection1; private set
+            get => _ThermalProtection1;
+            private set
             {
-                if (_ThermalProtection1 != value) { _ThermalProtection1 = value; OnPropertyChanged(nameof(ThermalProtection1)); }
+                if (_ThermalProtection1 != value)
+                {
+                    _ThermalProtection1 = value;
+                    OnPropertyChanged(nameof(ThermalProtection1));
+                }
             }
         }
 
         private bool _ThermalProtection2;
         public bool ThermalProtection2
         {
-            get => _ThermalProtection2; private set
+            get => _ThermalProtection2;
+            private set
             {
-                if (_ThermalProtection2 != value) { _ThermalProtection2 = value; OnPropertyChanged(nameof(ThermalProtection2)); }
+                if (_ThermalProtection2 != value)
+                {
+                    _ThermalProtection2 = value;
+                    OnPropertyChanged(nameof(ThermalProtection2));
+                }
             }
         }
 
         private bool _ForceZero;
         public bool ForceZero
         {
-            get => _ForceZero; private set
+            get => _ForceZero;
+            private set
             {
-                if (_ForceZero != value) { _ForceZero = value; OnPropertyChanged(nameof(ForceZero)); }
+                if (_ForceZero != value)
+                {
+                    _ForceZero = value;
+                    OnPropertyChanged(nameof(ForceZero));
+                }
             }
         }
 
         private bool _MotorOn;
         public bool MotorOn
         {
-            get => _MotorOn; private set
+            get => _MotorOn;
+            private set
             {
-                if (_MotorOn != value) { bool wasMotorOn = _MotorOn; _MotorOn = value; OnPropertyChanged(nameof(MotorOn)); }
+                if (_MotorOn != value)
+                {
+                    bool wasMotorOn = _MotorOn;
+                    _MotorOn = value;
+                    OnPropertyChanged(nameof(MotorOn));
+                }
             }
         }
 
         private bool _ClosedLoop;
         public bool ClosedLoop
         {
-            get => _ClosedLoop; private set
+            get => _ClosedLoop;
+            private set
             {
-                if (_ClosedLoop != value) { _ClosedLoop = value; OnPropertyChanged(nameof(ClosedLoop)); }
+                if (_ClosedLoop != value)
+                {
+                    _ClosedLoop = value;
+                    OnPropertyChanged(nameof(ClosedLoop));
+                }
             }
         }
 
         private bool _EncoderAtIndex;
         public bool EncoderAtIndex
         {
-            get => _EncoderAtIndex; private set
+            get => _EncoderAtIndex;
+            private set
             {
-                if (_EncoderAtIndex != value) { _EncoderAtIndex = value; OnPropertyChanged(nameof(EncoderAtIndex)); }
+                if (_EncoderAtIndex != value)
+                {
+                    _EncoderAtIndex = value;
+                    OnPropertyChanged(nameof(EncoderAtIndex));
+                }
             }
         }
 
         private bool _EncoderValid;
         public bool EncoderValid
         {
-            get => _EncoderValid; private set
+            get => _EncoderValid;
+            private set
             {
-                if (_EncoderValid != value) { _EncoderValid = value; OnPropertyChanged(nameof(EncoderValid)); }
+                if (_EncoderValid != value)
+                {
+                    _EncoderValid = value;
+                    OnPropertyChanged(nameof(EncoderValid));
+                }
             }
         }
 
         private bool _SearchingIndex;
         public bool SearchingIndex
         {
-            get => _SearchingIndex; private set
+            get => _SearchingIndex;
+            private set
             {
-                if (_SearchingIndex != value) { _SearchingIndex = value; OnPropertyChanged(nameof(SearchingIndex)); }
+                if (_SearchingIndex != value)
+                {
+                    _SearchingIndex = value;
+                    OnPropertyChanged(nameof(SearchingIndex));
+                }
             }
         }
 
@@ -609,6 +651,7 @@ namespace XeryonMotionGUI.Classes
                 {
                     if (!_PositionReached && value)
                     {
+                        // Transition from false to true
                         if (_commandSentTime != default)
                         {
                             CommandToPositionReachedDelay = DateTime.Now - _commandSentTime;
@@ -621,6 +664,7 @@ namespace XeryonMotionGUI.Classes
                     }
                     else if (_PositionReached && !value)
                     {
+                        // Transition from true to false
                         _positionReachedLastFalseTime = DateTime.Now;
                     }
 
@@ -629,10 +673,6 @@ namespace XeryonMotionGUI.Classes
                 }
             }
         }
-
-
-        private DateTime _positionReachedLastFalseTime;
-        private TimeSpan _positionReachedElapsedTime;
 
         public TimeSpan PositionReachedElapsedTime
         {
@@ -643,13 +683,13 @@ namespace XeryonMotionGUI.Classes
                 {
                     _positionReachedElapsedTime = value;
                     OnPropertyChanged(nameof(PositionReachedElapsedTime));
-                    OnPropertyChanged(nameof(PositionReachedElapsedMilliseconds)); // Notify for milliseconds
+                    OnPropertyChanged(nameof(PositionReachedElapsedMilliseconds));
                 }
             }
         }
 
-        private DateTime _commandSentTime;
-        private TimeSpan _commandToPositionReachedDelay;
+        public double PositionReachedElapsedMilliseconds => PositionReachedElapsedTime.TotalMilliseconds;
+
         public TimeSpan CommandToPositionReachedDelay
         {
             get => _commandToPositionReachedDelay;
@@ -666,17 +706,17 @@ namespace XeryonMotionGUI.Classes
 
         public double CommandToPositionReachedMilliseconds => CommandToPositionReachedDelay.TotalMilliseconds;
 
-        public double PositionReachedElapsedMilliseconds
-        {
-            get => PositionReachedElapsedTime.TotalMilliseconds; // Return total time in milliseconds
-        }
-
         private bool _ErrorCompensation;
         public bool ErrorCompensation
         {
-            get => _ErrorCompensation; private set
+            get => _ErrorCompensation;
+            private set
             {
-                if (_ErrorCompensation != value) { _ErrorCompensation = value; OnPropertyChanged(nameof(ErrorCompensation)); }
+                if (_ErrorCompensation != value)
+                {
+                    _ErrorCompensation = value;
+                    OnPropertyChanged(nameof(ErrorCompensation));
+                }
             }
         }
 
@@ -703,9 +743,14 @@ namespace XeryonMotionGUI.Classes
         private bool _Scanning;
         public bool Scanning
         {
-            get => _Scanning; private set
+            get => _Scanning;
+            private set
             {
-                if (_Scanning != value) { _Scanning = value; OnPropertyChanged(nameof(Scanning)); }
+                if (_Scanning != value)
+                {
+                    _Scanning = value;
+                    OnPropertyChanged(nameof(Scanning));
+                }
             }
         }
 
@@ -742,58 +787,124 @@ namespace XeryonMotionGUI.Classes
         private bool _ErrorLimit;
         public bool ErrorLimitBit
         {
-            get => _ErrorLimit; set
+            get => _ErrorLimit;
+            set
             {
-                if (_ErrorLimit != value) { _ErrorLimit = value; OnPropertyChanged(nameof(ErrorLimitBit)); }
+                if (_ErrorLimit != value)
+                {
+                    _ErrorLimit = value;
+                    OnPropertyChanged(nameof(ErrorLimitBit));
+                }
             }
         }
 
         private bool _SearchingOptimalFrequency;
         public bool SearchingOptimalFrequency
         {
-            get => _SearchingOptimalFrequency; set
+            get => _SearchingOptimalFrequency;
+            set
             {
-                if (_SearchingOptimalFrequency != value) { _SearchingOptimalFrequency = value; OnPropertyChanged(nameof(SearchingOptimalFrequency)); }
+                if (_SearchingOptimalFrequency != value)
+                {
+                    _SearchingOptimalFrequency = value;
+                    OnPropertyChanged(nameof(SearchingOptimalFrequency));
+                }
             }
         }
 
         private bool _SafetyTimeoutTriggered;
         public bool SafetyTimeoutTriggered
         {
-            get => _SafetyTimeoutTriggered; set
+            get => _SafetyTimeoutTriggered;
+            set
             {
-                if (_SafetyTimeoutTriggered != value) { _SafetyTimeoutTriggered = value; OnPropertyChanged(nameof(SafetyTimeoutTriggered)); }
+                if (_SafetyTimeoutTriggered != value)
+                {
+                    _SafetyTimeoutTriggered = value;
+                    OnPropertyChanged(nameof(SafetyTimeoutTriggered));
+                }
             }
         }
 
         private bool _EtherCATAcknowledge;
         public bool EtherCATAcknowledge
         {
-            get => _EtherCATAcknowledge; set
+            get => _EtherCATAcknowledge;
+            set
             {
-                if (_EtherCATAcknowledge != value) { _EtherCATAcknowledge = value; OnPropertyChanged(nameof(EtherCATAcknowledge)); }
+                if (_EtherCATAcknowledge != value)
+                {
+                    _EtherCATAcknowledge = value;
+                    OnPropertyChanged(nameof(EtherCATAcknowledge));
+                }
             }
         }
 
         private bool _EmergencyStop;
         public bool EmergencyStop
         {
-            get => _EmergencyStop; set
+            get => _EmergencyStop;
+            set
             {
-                if (_EmergencyStop != value) { _EmergencyStop = value; OnPropertyChanged(nameof(EmergencyStop)); }
+                if (_EmergencyStop != value)
+                {
+                    _EmergencyStop = value;
+                    OnPropertyChanged(nameof(EmergencyStop));
+                }
             }
         }
 
         private bool _PositionFail;
         public bool PositionFail
         {
-            get => _PositionFail; set
+            get => _PositionFail;
+            set
             {
-                if (_PositionFail != value) { _PositionFail = value; OnPropertyChanged(nameof(PositionFail)); }
+                if (_PositionFail != value)
+                {
+                    _PositionFail = value;
+                    OnPropertyChanged(nameof(PositionFail));
+                }
             }
         }
 
+        private bool _suppressEncoderError;
+        public bool SuppressEncoderError
+        {
+            get => _suppressEncoderError;
+            set
+            {
+                if (_suppressEncoderError != value)
+                {
+                    _suppressEncoderError = value;
+                    OnPropertyChanged(nameof(SuppressEncoderError));
+                    OnPropertyChanged(nameof(IsResetEnabled)); // Notify IsResetEnabled change
+                }
+            }
+        }
 
+        public bool IsResetEnabled => !SuppressEncoderError;
+
+        #endregion
+
+        #region UI Styling
+
+        public Brush SliderBackground
+        {
+            get
+            {
+                if (LeftEndStop || RightEndStop)
+                {
+                    return new SolidColorBrush(Colors.Red);
+                }
+                var accentColor = (Color)Application.Current.Resources["SystemAccentColorLight1"];
+                return new SolidColorBrush(accentColor);
+            }
+        }
+
+        #endregion
+
+        #region Status Bits & InfoBar Methods
 
         public void UpdateStatusBits()
         {
@@ -820,6 +931,7 @@ namespace XeryonMotionGUI.Classes
             EtherCATAcknowledge = (STAT & (1 << 19)) != 0;
             EmergencyStop = (STAT & (1 << 20)) != 0;
             PositionFail = (STAT & (1 << 21)) != 0;
+
             UpdateInfoBar();
         }
 
@@ -886,21 +998,33 @@ namespace XeryonMotionGUI.Classes
             });
         }
 
+        #endregion
 
-        public Brush SliderBackground
+        #region Movement & Command Execution
+
+        private void CalculateSpeed()
         {
-            get
+            if (!MotorOn)
             {
-                if (LeftEndStop || RightEndStop)
+                SPEED = 0;
+            }
+            else
+            {
+                DateTime currentTime = DateTime.Now;
+                if (_LastUpdateTime != default)
                 {
-                    return new SolidColorBrush(Colors.Red);
+                    double timeDelta = (currentTime - _LastUpdateTime).TotalSeconds; // Time in seconds
+                    if (timeDelta > 0)
+                    {
+                        // Convert nanometers to millimeters before calculating speed
+                        SPEED = Math.Abs((_EPOS - _PreviousEPOS) / 1_000_000) / timeDelta * Resolution; // Speed in mm/s
+                    }
                 }
-                var accentColor = (Color)Application.Current.Resources["SystemAccentColorLight1"];
-        return new SolidColorBrush(accentColor);
+                _LastUpdateTime = currentTime;
             }
         }
 
-        public  void MoveNegative()
+        public void MoveNegative()
         {
             ParentController.SendCommand("MOVE=-1");
         }
@@ -914,7 +1038,7 @@ namespace XeryonMotionGUI.Classes
         public void Home()
         {
             ParentController.SendCommand("HOME");
-            DPOS= 0;
+            DPOS = 0;
         }
 
         public void StepPositive()
@@ -958,15 +1082,17 @@ namespace XeryonMotionGUI.Classes
             ParentController.SendCommand("INDX=0");
         }
 
+        #endregion
+
+        #region Reset & Encoder Methods
 
         private async Task ResetAsync()
-        {   
+        {
             ParentController.LoadingSettings = true;
             ParentController.SendCommand("RSET");
             await Task.Delay(100);
             await ParentController.LoadParametersFromController();
             ParentController.LoadingSettings = false;
-
         }
 
         public async Task ResetEncoderAsync()
@@ -1008,5 +1134,7 @@ namespace XeryonMotionGUI.Classes
                 });
             }
         }
+
+        #endregion
     }
 }

@@ -2,75 +2,88 @@
     x:Class="XeryonMotionGUI.DraggableElement"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="using:XeryonMotionGUI.Helpers"
     xmlns:local="using:XeryonMotionGUI"
-    xmlns:helpers="using:XeryonMotionGUI.Helpers">
+    x:Name="DraggableElementRoot"
+    DataContext="{Binding RelativeSource={RelativeSource Self}}"
+    Width="{Binding Block.Width, Mode=TwoWay}"
+    Height="{Binding Block.Height, Mode=TwoWay}">
 
     <UserControl.Resources>
-        <helpers:NullToBooleanConverter x:Key="NullToBooleanConverter" />
-        <helpers:WaitBlockToVisibilityConverter x:Key="WaitBlockToVisibilityConverter" />
-        <helpers:RepeatBlockToVisibilityConverter x:Key="RepeatBlockToVisibilityConverter" />
-        <helpers:StringToIntConverter x:Key="StringToIntConverter" />
+        <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </UserControl.Resources>
 
     <Grid>
-        <Border 
-            x:Name="BlockBorder"
-            CornerRadius="5" 
-            Padding="10" 
-            Background="LightGray" 
-            BorderThickness="1" 
+        <!-- Default Block Layout (for non-Repeat blocks) -->
+        <Border x:Name="DefaultBlockLayout"
+            CornerRadius="5"
+            Padding="10"
+            Background="{Binding Background, ElementName=DraggableElementRoot}"
+            BorderThickness="1"
             BorderBrush="Black"
-            Width="150" 
-            IsHitTestVisible="True">
-            <!-- Ensure the Border is hittable -->
+            Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step +|Step -|Wait'}">
             <StackPanel>
-                <!-- Block Text -->
-                <TextBlock 
-                    Text="{Binding Text}" 
-                    FontWeight="Bold" 
-                    Margin="0,0,0,5" 
+                <TextBlock
+                    Text="{Binding Text}"
+                    FontWeight="Bold"
+                    Margin="0,0,0,5"
                     HorizontalAlignment="Center" />
-                <!-- Center the text -->
 
-                <!-- Wait Time Input (Visible only for Wait block) -->
-                <NumberBox
-    x:Name="WaitTimeInput"
-    Header="Wait time (ms)"
-    Value="{Binding WaitTime, Mode=TwoWay}"
-    SpinButtonPlacementMode="Inline"
-    SmallChange="100"
-    LargeChange="1000"
-    Margin="0,5,0,5"
-    Visibility="{Binding Text, Converter={StaticResource WaitBlockToVisibilityConverter}}"
-    ValueChanged="WaitTimeInput_ValueChanged" />
-                <NumberBox
-    x:Name="RepeatCountInput"
-    Header="Repeat Count"
-    Value="{Binding RepeatCount, Mode=TwoWay}"
-    SpinButtonPlacementMode="Inline"
-    SmallChange="1"
-    LargeChange="5"
-    Minimum="1"
-    Margin="0,5,0,5"
-    ValueChanged="RepeatInput_ValueChanged"
-    Visibility="{Binding Text, Converter={StaticResource RepeatBlockToVisibilityConverter}}" />
-
-                <!-- Controller Selection -->
-                <ComboBox 
-                    ItemsSource="{Binding RunningControllers}" 
-                    SelectedItem="{Binding SelectedController, Mode=TwoWay}"
+                <ComboBox
+                    ItemsSource="{Binding RunningControllers}"
+                    SelectedItem="{Binding Block.SelectedController, Mode=TwoWay}"
                     DisplayMemberPath="FriendlyName"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step +|Step -'}"
                     Margin="0,5,0,5"
                     PlaceholderText="Select Controller" />
 
-                <!-- Axis Selection -->
-                <ComboBox 
-                    ItemsSource="{Binding SelectedController.Axes}" 
-                    SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
+                <ComboBox
+                    ItemsSource="{Binding Block.SelectedController.Axes}"
+                    SelectedItem="{Binding Block.SelectedAxis, Mode=TwoWay}"
                     DisplayMemberPath="FriendlyName"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step +|Step -'}"
                     Margin="0,5,0,5"
-                    PlaceholderText="Select Axis"
-                    IsEnabled="{Binding SelectedController, Converter={StaticResource NullToBooleanConverter}}" />
+                    PlaceholderText="Select Axis" />
+
+                <NumberBox
+                    x:Name="WaitTimeInput"
+                    Header="Wait time (ms)"
+                    Value="{Binding Block.WaitTime, Mode=TwoWay}"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Wait'}"
+                    Margin="0,5,0,5"
+                    PlaceholderText="Enter wait time" />
+            </StackPanel>
+        </Border>
+
+        <!-- Repeat Block Layout -->
+        <Border x:Name="RepeatBlockLayout"
+                CornerRadius="5"
+                Padding="10"
+                Background="LightGray"
+                BorderThickness="1"
+                BorderBrush="Black"
+                Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Repeat'}">
+
+            <StackPanel>
+                <TextBlock
+                    Text="Repeat"
+                    FontWeight="Bold"
+                    Margin="0,0,0,5"
+                    HorizontalAlignment="Center" />
+
+                <NumberBox
+                    x:Name="RepeatCountInput"
+                    Header="Repeat count"
+                    Value="{Binding Block.RepeatCount, Mode=TwoWay}"
+                    Margin="0,5,0,5"
+                    PlaceholderText="Enter repeat times" />
+
+                <NumberBox
+                    x:Name="BlocksToRepeatInput"
+                    Header="Blocks to repeat"
+                    Value="{Binding Block.BlocksToRepeat, Mode=TwoWay}"
+                    Margin="0,5,0,5"
+                    PlaceholderText="Enter number of blocks" />
             </StackPanel>
         </Border>
     </Grid>

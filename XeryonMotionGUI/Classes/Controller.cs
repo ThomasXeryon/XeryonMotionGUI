@@ -17,17 +17,39 @@ namespace XeryonMotionGUI.Classes
 {
     public class Controller : INotifyPropertyChanged
     {
+        #region Static Collections
         public static ObservableCollection<Controller> FoundControllers { get; set; } = new ObservableCollection<Controller>();
         public static ObservableCollection<Controller> RunningControllers { get; set; } = new ObservableCollection<Controller>();
+        #endregion
 
+        #region Events
         public event PropertyChangedEventHandler PropertyChanged;
+        #endregion
 
-        public ICommand ReconnectCommand => new RelayCommand(Reconnect);
-
-        // Commands
+        #region Backing Fields
         private ICommand _OpenPortCommand;
 
-        // Constructor to initialize controller
+        private string _deviceId;
+        private string _deviceKey;
+        private string _deviceSerial;
+        private bool _isConnected;
+        private bool _loadingSettings;
+
+        private string _Status;
+        private bool _running;
+        private SerialPort _Port;
+        private string _Name;
+        private string _FriendlyName;
+        private string _FriendlyPort;
+        private int _AxisCount;
+        private ObservableCollection<Axis> _Axes;
+        private string _Type;
+        private string _Serial;
+        private string _Soft;
+        private string _Fgpa;
+        #endregion
+
+        #region Constructor
         public Controller(string name, int axisCount = 1, string type = "Default")
         {
             Name = name;
@@ -37,8 +59,268 @@ namespace XeryonMotionGUI.Classes
             // Initialize Axes based on axis count
             InitializeAxes(axisCount, type);
         }
+        #endregion
 
-        // Initialize Axes dynamically
+        #region Public Properties
+
+        public string DeviceId
+        {
+            get => _deviceId;
+            set
+            {
+                if (_deviceId != value)
+                {
+                    _deviceId = value;
+                    OnPropertyChanged(nameof(DeviceId));
+                }
+            }
+        }
+
+        public string DeviceKey
+        {
+            get => _deviceKey;
+            set
+            {
+                if (_deviceKey != value)
+                {
+                    _deviceKey = value;
+                    OnPropertyChanged(nameof(DeviceKey));
+                }
+            }
+        }
+
+        public string DeviceSerial
+        {
+            get => _deviceSerial;
+            set
+            {
+                if (_deviceSerial != value)
+                {
+                    _deviceSerial = value;
+                    OnPropertyChanged(nameof(DeviceSerial));
+                }
+            }
+        }
+
+        public bool IsConnected
+        {
+            get => _isConnected;
+            set
+            {
+                if (_isConnected != value)
+                {
+                    _isConnected = value;
+                    OnPropertyChanged(nameof(IsConnected));
+                }
+            }
+        }
+
+        public bool LoadingSettings
+        {
+            get => _loadingSettings;
+            set
+            {
+                if (_loadingSettings != value)
+                {
+                    _loadingSettings = value;
+                    OnPropertyChanged(nameof(LoadingSettings));
+                }
+            }
+        }
+
+        public string Status
+        {
+            get => _Status;
+            set
+            {
+                if (_Status != value)
+                {
+                    _Status = value;
+                    OnPropertyChanged(nameof(Status));
+                }
+            }
+        }
+
+        public bool Running
+        {
+            get => _running;
+            set
+            {
+                if (_running != value)
+                {
+                    _running = value;
+                    OnPropertyChanged(nameof(Running));
+                }
+            }
+        }
+
+        public SerialPort Port
+        {
+            get => _Port;
+            set
+            {
+                if (_Port != value)
+                {
+                    _Port = value;
+                    OnPropertyChanged(nameof(Port));
+                }
+            }
+        }
+
+        public string Name
+        {
+            get => _Name;
+            set
+            {
+                if (_Name != value)
+                {
+                    _Name = value;
+                    OnPropertyChanged(nameof(Name));
+                }
+            }
+        }
+
+        public string FriendlyName
+        {
+            get => _FriendlyName;
+            set
+            {
+                if (_FriendlyName != value)
+                {
+                    _FriendlyName = value;
+                    OnPropertyChanged(nameof(FriendlyName));
+                }
+            }
+        }
+
+        public string FriendlyPort
+        {
+            get => _FriendlyPort;
+            set
+            {
+                if (_FriendlyPort != value)
+                {
+                    _FriendlyPort = value;
+                    OnPropertyChanged(nameof(FriendlyPort));
+                }
+            }
+        }
+
+        public int AxisCount
+        {
+            get => _AxisCount;
+            set
+            {
+                if (_AxisCount != value)
+                {
+                    _AxisCount = value;
+                    OnPropertyChanged(nameof(AxisCount));
+                }
+            }
+        }
+
+        public ObservableCollection<Axis> Axes
+        {
+            get => _Axes;
+            set
+            {
+                if (_Axes != value)
+                {
+                    _Axes = value;
+                    OnPropertyChanged(nameof(Axes));
+                }
+            }
+        }
+
+        public string Type
+        {
+            get => _Type;
+            set
+            {
+                if (_Type != value)
+                {
+                    _Type = value;
+                    OnPropertyChanged(nameof(Type));
+                }
+            }
+        }
+
+        public string Serial
+        {
+            get => _Serial;
+            set
+            {
+                if (_Serial != value)
+                {
+                    _Serial = value;
+                    OnPropertyChanged(nameof(Serial));
+                }
+            }
+        }
+
+        public string Soft
+        {
+            get => _Soft;
+            set
+            {
+                if (_Soft != value)
+                {
+                    _Soft = value;
+                    OnPropertyChanged(nameof(Soft));
+                }
+            }
+        }
+
+        public string Fgpa
+        {
+            get => _Fgpa;
+            set
+            {
+                if (_Fgpa != value)
+                {
+                    _Fgpa = value;
+                    OnPropertyChanged(nameof(Fgpa));
+                }
+            }
+        }
+
+        public string ControllerTitle => $"Controller {_FriendlyPort}";
+        #endregion
+
+        #region Command Properties
+
+        // Command for Reconnect
+        public ICommand ReconnectCommand => new RelayCommand(Reconnect);
+
+        // Command for opening/closing port
+        public ICommand OpenPortCommand
+        {
+            get
+            {
+                _OpenPortCommand ??= new RelayCommand(OpenPort);
+                return _OpenPortCommand;
+            }
+        }
+        #endregion
+
+        #region INotifyPropertyChanged Implementation
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            if (Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread() is DispatcherQueue dispatcherQueue)
+            {
+                dispatcherQueue.TryEnqueue(() =>
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                });
+            }
+            else
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+        #endregion
+
+        #region Axis Management
         private void InitializeAxes(int axisCount, string type)
         {
             Axes = new ObservableCollection<Axis>();
@@ -50,7 +332,6 @@ namespace XeryonMotionGUI.Classes
             OnPropertyChanged(nameof(Axes));
         }
 
-        // Axis management methods
         public void AddAxis(Axis axis)
         {
             Axes.Add(axis);
@@ -79,7 +360,9 @@ namespace XeryonMotionGUI.Classes
                 OnPropertyChanged(nameof(Axes));
             }
         }
+        #endregion
 
+        #region Connection Methods
         private void Reconnect()
         {
             try
@@ -92,274 +375,6 @@ namespace XeryonMotionGUI.Classes
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to reconnect: {ex.Message}");
-            }
-        }
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            if (Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread() is DispatcherQueue dispatcherQueue)
-            {
-                dispatcherQueue.TryEnqueue(() =>
-                {
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-                });
-            }
-            else
-            {
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-            }
-        }
-
-        private string _deviceId;
-        public string DeviceId
-        {
-            get => _deviceId;
-            set
-            {
-                if (_deviceId != value)
-                {
-                    _deviceId = value;
-                    OnPropertyChanged(nameof(DeviceId));
-                }
-            }
-        }
-
-        private string _deviceKey;
-        public string DeviceKey
-        {
-            get => _deviceKey;
-            set
-            {
-                if (_deviceKey != value)
-                {
-                    _deviceKey = value;
-                    OnPropertyChanged(nameof(DeviceKey));
-                }
-            }
-        }
-
-        private string _deviceSerial;
-        public string DeviceSerial
-        {
-            get => _deviceSerial;
-            set
-            {
-                if (_deviceSerial != value)
-                {
-                    _deviceSerial = value;
-                    OnPropertyChanged(nameof(DeviceSerial));
-                }
-            }
-        }
-
-        private bool _isConnected;
-
-        public bool IsConnected
-        {
-            get => _isConnected;
-            set
-            {
-                if (_isConnected != value)
-                {
-                    _isConnected = value;
-                    OnPropertyChanged(nameof(IsConnected));
-                }
-            }
-        }
-
-        private bool _loadingSettings;
-        public bool LoadingSettings
-        {
-            get => _loadingSettings;
-            set
-            {
-                if (_loadingSettings != value)
-                {
-                    _loadingSettings = value;
-                    OnPropertyChanged(nameof(LoadingSettings));
-                }
-            }
-        }
-
-        // Properties
-        private string _Status;
-        public string Status
-        {
-            get => _Status;
-            set
-            {
-                if (_Status != value)
-                {
-                    _Status = value;
-                    OnPropertyChanged(nameof(Status));
-                }
-            }
-        }
-
-        private bool _running;
-        public bool Running
-        {
-            get => _running;
-            set
-            {
-                if (_running != value)
-                {
-                    _running = value;
-                    OnPropertyChanged(nameof(Running)); // Safely notify the UI
-                }
-            }
-        }
-
-        private SerialPort _Port;
-        public SerialPort Port
-        {
-            get => _Port;
-            set
-            {
-                if (_Port != value)
-                {
-                    _Port = value;
-                    OnPropertyChanged(nameof(Port));
-                }
-            }
-        }
-
-        private string _Name;
-        public string Name
-        {
-            get => _Name;
-            set
-            {
-                if (_Name != value)
-                {
-                    _Name = value;
-                    OnPropertyChanged(nameof(Name));
-                }
-            }
-        }
-
-        private string _FriendlyName;
-        public string FriendlyName
-        {
-            get => _FriendlyName;
-            set
-            {
-                if (_FriendlyName != value)
-                {
-                    _FriendlyName = value;
-                    OnPropertyChanged(nameof(FriendlyName));
-                }
-            }
-        }
-
-        private string _FriendlyPort;
-        public string FriendlyPort
-        {
-            get => _FriendlyPort;
-            set
-            {
-                if (_FriendlyPort != value)
-                {
-                    _FriendlyPort = value;
-                    OnPropertyChanged(nameof(FriendlyPort));
-                }
-            }
-        }
-
-        private int _AxisCount;
-        public int AxisCount
-        {
-            get => _AxisCount;
-            set
-            {
-                if (_AxisCount != value)
-                {
-                    _AxisCount = value;
-                    OnPropertyChanged(nameof(AxisCount));
-                }
-            }
-        }
-
-        private ObservableCollection<Axis> _Axes;
-        public ObservableCollection<Axis> Axes
-        {
-            get => _Axes;
-            set
-            {
-                if (_Axes != value)
-                {
-                    _Axes = value;
-                    OnPropertyChanged(nameof(Axes));
-                }
-            }
-        }
-
-        private string _Type;
-        public string Type
-        {
-            get => _Type;
-            set
-            {
-                if (_Type != value)
-                {
-                    _Type = value;
-                    OnPropertyChanged(nameof(Type));
-                }
-            }
-        }
-
-        private string _Serial;
-        public string Serial
-        {
-            get => _Serial;
-            set
-            {
-                if (_Serial != value)
-                {
-                    _Serial = value;
-                    OnPropertyChanged(nameof(Serial));
-                }
-            }
-        }
-
-        private string _Soft;
-        public string Soft
-        {
-            get => _Soft;
-            set
-            {
-                if (_Soft != value)
-                {
-                    _Soft = value;
-                    OnPropertyChanged(nameof(Soft));
-                }
-            }
-        }
-
-        private string _Fgpa;
-        public string Fgpa
-        {
-            get => _Fgpa;
-            set
-            {
-                if (_Fgpa != value)
-                {
-                    _Fgpa = value;
-                    OnPropertyChanged(nameof(Fgpa));
-                }
-            }
-        }
-
-        public string ControllerTitle => $"Controller {_FriendlyPort}";
-
-
-        // Command for opening/closing port
-        public ICommand OpenPortCommand
-        {
-            get
-            {
-                _OpenPortCommand ??= new RelayCommand(OpenPort);
-                return _OpenPortCommand;
             }
         }
 
@@ -412,12 +427,10 @@ namespace XeryonMotionGUI.Classes
                     }
                     catch (Exception)
                     {
-
                         throw;
                     }
                     finally
                     {
-
                         Running = false;
                         Status = "Connect";
                         UpdateRunningControllers();
@@ -430,18 +443,9 @@ namespace XeryonMotionGUI.Classes
                 ShowMessage("Error opening port", "Could not open port. Please check the port and try again.");
             }
         }
+        #endregion
 
-        // Initialize the controller
-        public async Task InitializeAsync()
-        {
-            if (Running)
-            {
-                Port.DataReceived += DataReceivedHandler;
-            }
-            await LoadParametersFromController();
-        }
-
-        // Data handling
+        #region Data Handling
         private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
         {
             SerialPort sp = (SerialPort)sender;
@@ -477,7 +481,6 @@ namespace XeryonMotionGUI.Classes
                         Axes[0].STAT = statValue;
                     }
                 }
-
                 else if (part.StartsWith("EPOS="))
                 {
                     if (int.TryParse(part.Substring(5), out int eposValue))
@@ -485,7 +488,6 @@ namespace XeryonMotionGUI.Classes
                         Axes[0].EPOS = eposValue;
                     }
                 }
-
                 else if (part.StartsWith("DPOS="))
                 {
                     if (int.TryParse(part.Substring(5), out int dposValue))
@@ -503,46 +505,16 @@ namespace XeryonMotionGUI.Classes
                 Debug.WriteLine("Multi-Axis Controller data parsing not yet implemented.");
             }
         }
+        #endregion
 
-        // Static method to manage running controllers
-        public static void UpdateRunningControllers()
+        #region Parameter / Settings Methods
+        public async Task InitializeAsync()
         {
-            var controllersToRemove = RunningControllers.Where(c => !c.Running).ToList();
-            foreach (var controller in controllersToRemove)
+            if (Running)
             {
-                RunningControllers.Remove(controller);
+                Port.DataReceived += DataReceivedHandler;
             }
-
-            var controllersToAdd = FoundControllers.Where(c => c.Running && !RunningControllers.Contains(c)).ToList();
-            foreach (var controller in controllersToAdd)
-            {
-                RunningControllers.Add(controller);
-            }
-        }
-
-        // Show error messages
-        private async Task ShowMessage(string title, string message)
-        {
-            var dialog = new ContentDialog
-            {
-                Title = title,
-                Content = message,
-                CloseButtonText = "OK"
-            };
-            await dialog.ShowAsync();
-        }
-
-        public async Task SendCommand(string command)
-        {
-            if (Port.IsOpen)
-            {
-                Port.Write(command);
-                Debug.WriteLine($"Sending Command: {command}");
-            }
-            else
-            {
-                Debug.WriteLine("Serial port not open. Command not sent.");
-            }
+            await LoadParametersFromController();
         }
 
         public void SendSetting(string commandName, double value, int resolution)
@@ -664,7 +636,6 @@ namespace XeryonMotionGUI.Classes
                             {
                                 // Update the parameter value
                                 parameter.Value = rawValue;
-                                //Debug.WriteLine($"Axis {targetAxis.AxisLetter}: Updated {parameter.Name} to {rawValue}");
                             }
                             else
                             {
@@ -691,8 +662,6 @@ namespace XeryonMotionGUI.Classes
             Debug.WriteLine("Settings upload complete.");
         }
 
-
-
         public async Task LoadParametersFromController()
         {
             LoadingSettings = true;
@@ -702,6 +671,7 @@ namespace XeryonMotionGUI.Classes
             await Task.Delay(100);
             Port.DiscardInBuffer();
             Port.ReadTimeout = 200;
+
             try
             {
                 foreach (var axis in Axes)
@@ -741,7 +711,7 @@ namespace XeryonMotionGUI.Classes
                                         case "SSPD":
                                         case "MSPD":
                                         case "ISPD":
-                                            convertedValue = rawValue / 1000; 
+                                            convertedValue = rawValue / 1000;
                                             break;
                                         case "LLIM":
                                         case "HLIM":
@@ -789,5 +759,51 @@ namespace XeryonMotionGUI.Classes
                 Port.WriteLine("INFO=3");
             }
         }
+        #endregion
+
+        #region Command Sending
+        public async Task SendCommand(string command)
+        {
+            if (Port.IsOpen)
+            {
+                Port.Write(command);
+                Debug.WriteLine($"Sending Command: {command}");
+            }
+            else
+            {
+                Debug.WriteLine("Serial port not open. Command not sent.");
+            }
+        }
+        #endregion
+
+        #region Static Methods
+        public static void UpdateRunningControllers()
+        {
+            var controllersToRemove = RunningControllers.Where(c => !c.Running).ToList();
+            foreach (var controller in controllersToRemove)
+            {
+                RunningControllers.Remove(controller);
+            }
+
+            var controllersToAdd = FoundControllers.Where(c => c.Running && !RunningControllers.Contains(c)).ToList();
+            foreach (var controller in controllersToAdd)
+            {
+                RunningControllers.Add(controller);
+            }
+        }
+        #endregion
+
+        #region UI Helpers
+        private async Task ShowMessage(string title, string message)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                CloseButtonText = "OK"
+            };
+            await dialog.ShowAsync();
+        }
+        #endregion
     }
 }

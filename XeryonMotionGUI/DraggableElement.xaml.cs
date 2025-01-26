@@ -1,94 +1,60 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using System;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using Windows.Foundation;
+using XeryonMotionGUI.Blocks;
 using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI
 {
-    public sealed partial class DraggableElement : UserControl, INotifyPropertyChanged
+    public sealed partial class DraggableElement : UserControl
     {
-        public event PropertyChangedEventHandler PropertyChanged;
 
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        private Point _dragStartOffset;
+        private bool _isDragging = false;
+        private bool _isUpdatingPosition = false;
+        private const double SnapThreshold = 60.0; // Adjust as needed
+
+        public DraggableElement()
         {
-            Debug.WriteLine($"PropertyChanged triggered for {propertyName}");
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            this.InitializeComponent();
+            this.PointerPressed += OnPointerPressed;
+            this.SizeChanged += OnSizeChanged;
+
+            // Set minimum size for the block
+            this.MinWidth = 150;
+            this.MinHeight = 50;
         }
 
-        public static readonly DependencyProperty WaitTimeProperty =
-        DependencyProperty.Register(
-            nameof(WaitTime),
-            typeof(int),
-            typeof(DraggableElement),
-            new PropertyMetadata(0));
-
-        private int _waitTime;
-        public int WaitTime
-        {
-            get => _waitTime;
-            set
-            {
-                if (_waitTime != value)
-                {
-                    _waitTime = value;
-                    OnPropertyChanged();
-                    SetValue(WaitTimeProperty, value);
-                    WaitTime = (int)WaitTimeInput.Value; // Force an update in the backing field
-
-                    Debug.WriteLine($"WaitTime updated to: {_waitTime}");
-                }
-            }
-        }
-
-        public static readonly DependencyProperty RepeatCountProperty =
-    DependencyProperty.Register(
-        nameof(RepeatCount),
-        typeof(int),
-        typeof(DraggableElement),
-        new PropertyMetadata(1)); // Default to 1
-
-        private int _repeatCount = 1; // Default value
-        public int RepeatCount
-        {
-            get => _repeatCount;
-            set
-            {
-                if (_repeatCount != value)
-                {
-                    _repeatCount = value;
-                    OnPropertyChanged();
-                    SetValue(RepeatCountProperty, value);
-                    Debug.WriteLine($"RepeatCount set to: {_repeatCount}");
-                }
-            }
-        }
-
-        // Define the RunningControllers DependencyProperty
+        // Dependency properties
         public static readonly DependencyProperty RunningControllersProperty =
-            DependencyProperty.Register(
-                nameof(RunningControllers),
-                typeof(ObservableCollection<Controller>),
-                typeof(DraggableElement),
-                new PropertyMetadata(null));
+                DependencyProperty.Register(
+                    nameof(RunningControllers),
+                    typeof(ObservableCollection<Controller>),
+                    typeof(DraggableElement),
+                    new PropertyMetadata(null));
 
         public ObservableCollection<Controller> RunningControllers
         {
             get => (ObservableCollection<Controller>)GetValue(RunningControllersProperty);
-            set => SetValue(RunningControllersProperty, value);
+            set
+            {
+                SetValue(RunningControllersProperty, value);
+                Debug.WriteLine($"RunningControllers set: Count = {value?.Count}");
+            }
         }
 
-        public DraggableElement NextBlock
-        {
-            get; set;
-        } // The block snapped below
-        public DraggableElement PreviousBlock
-        {
-            get; set;
-        } // The block snapped above
+        public static readonly DependencyProperty BlockProperty =
+        DependencyProperty.Register(
+            nameof(Block),
+            typeof(BlockBase),
+            typeof(DraggableElement),
+            new PropertyMetadata(null));
 
         public static readonly DependencyProperty TextProperty =
             DependencyProperty.Register(
@@ -97,277 +63,265 @@ namespace XeryonMotionGUI
                 typeof(DraggableElement),
                 new PropertyMetadata(string.Empty, OnTextChanged));
 
+        public static readonly DependencyProperty BackgroundProperty =
+    DependencyProperty.Register(
+        nameof(Background),
+        typeof(Brush),
+        typeof(DraggableElement),
+        new PropertyMetadata(new SolidColorBrush(Colors.LightGray)));
+
+        public Brush Background
+        {
+            get => (Brush)GetValue(BackgroundProperty);
+            set => SetValue(BackgroundProperty, value);
+        }
+
+        private DraggableElement _previousBlock;
+        public DraggableElement PreviousBlock
+        {
+            get => _previousBlock;
+            set
+            {
+                if (_previousBlock != value)
+                {
+                    _previousBlock = value;
+                    // Sync with BlockBase level
+                    if (Block != null)
+                    {
+                        Block.PreviousBlock = value?.Block;
+                    }
+                }
+            }
+        }
+
+        private DraggableElement _nextBlock;
+        public DraggableElement NextBlock
+        {
+            get => _nextBlock;
+            set
+            {
+                if (_nextBlock != value)
+                {
+                    _nextBlock = value;
+                    // Sync with BlockBase level
+                    if (Block != null)
+                    {
+                        Block.NextBlock = value?.Block;
+                    }
+                }
+            }
+        }    // The block below this one
+        public DraggableElement SnapShadow
+        {
+            get; set;
+        }    // Reference to the snap shadow
+
         public string Text
         {
             get => (string)GetValue(TextProperty);
             set => SetValue(TextProperty, value);
         }
 
-        public static readonly DependencyProperty SelectedControllerProperty =
-            DependencyProperty.Register(
-                nameof(SelectedController),
-                typeof(Controller),
-                typeof(DraggableElement),
-                new PropertyMetadata(null, OnSelectedControllerChanged));
-
-        public Controller SelectedController
+        private void OnSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            get => (Controller)GetValue(SelectedControllerProperty);
-            set => SetValue(SelectedControllerProperty, value);
+            // No need to call UpdateHeight anymore
         }
 
-        public static readonly DependencyProperty SelectedAxisProperty =
-            DependencyProperty.Register(
-                nameof(SelectedAxis),
-                typeof(Axis),
-                typeof(DraggableElement),
-                new PropertyMetadata(null));
-
-        public Axis SelectedAxis
+        private Canvas _workspaceCanvas;
+        public Canvas WorkspaceCanvas
         {
-            get => (Axis)GetValue(SelectedAxisProperty);
-            set => SetValue(SelectedAxisProperty, value);
+            get => _workspaceCanvas;
+            set
+            {
+                _workspaceCanvas = value;
+                Debug.WriteLine($"WorkspaceCanvas set in DraggableElement: {_workspaceCanvas != null}");
+            }
         }
 
-        public DraggableElement()
+        private static void OnTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            this.InitializeComponent();
-            this.DataContext = this; // Set DataContext to enable binding
-            Debug.WriteLine($"DataContext set to: {this.DataContext}");
+            if (d is DraggableElement draggableElement && draggableElement.Block != null)
+            {
+                draggableElement.Block.Text = e.NewValue as string; // Update the Block.Text property
+            }
         }
 
-        // Handle block actions based on block type
-        public async Task ExecuteActionAsync(CancellationToken cancellationToken = default)
+        public BlockBase Block
         {
+            get => (BlockBase)GetValue(BlockProperty);
+            set
+            {
+                SetValue(BlockProperty, value);
+
+                if (value != null)
+                {
+                    // Synchronize Block.Text with DraggableElement.Text
+                    Text = value.Text;
+
+                    // Set the UiElement property of the block to this DraggableElement
+                    value.UiElement = this;
+
+                    Debug.WriteLine($"Block set: Text = {Text}, SelectedController = {value.SelectedController}, SelectedAxis = {value.SelectedAxis}");
+                    Debug.WriteLine($"Block set: Text = {Text}, UiElement = {value.UiElement != null}");
+
+                }
+            }
+        }
+
+        // Handles dragging behavior
+        private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            if (WorkspaceCanvas == null)
+            {
+                Debug.WriteLine("WorkspaceCanvas is not set!");
+                return;
+            }
+
+            _isDragging = true;
+
+            var position = e.GetCurrentPoint(WorkspaceCanvas).Position;
+            _dragStartOffset = new Point(
+                position.X - Canvas.GetLeft(this),
+                position.Y - Canvas.GetTop(this)
+            );
+
+            WorkspaceCanvas.PointerMoved += OnPointerMoved;
+            WorkspaceCanvas.PointerReleased += OnPointerReleased;
+        }
+
+        private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
+        {
+            if (!_isDragging || _isUpdatingPosition) return;
+
+            _isUpdatingPosition = true;
+
             try
             {
-                // Set the block as executing
-                IsExecuting = true;
+                var currentPosition = e.GetCurrentPoint(WorkspaceCanvas).Position;
+                double newLeft = currentPosition.X - _dragStartOffset.X;
+                double newTop = currentPosition.Y - _dragStartOffset.Y;
 
-                // Skip SelectedAxis check for "Wait" blocks
-                if (Text != "Wait" && SelectedAxis == null)
-                {
-                    Debug.WriteLine("No axis selected for the block.");
-                    return; // Skip this block if no axis is selected
-                }
+                // Update the position of the dragged block
+                Canvas.SetLeft(this, newLeft);
+                Canvas.SetTop(this, newTop);
 
-                switch (Text)
-                {
-                    case "Step +":
-                        SelectedAxis.StepSize = 1000; // Set step size to 1
-                        SelectedAxis.StepPositive(); // Call StepPositive on the selected axis
-                        break;
-                    case "Step -":
-                        SelectedAxis.StepSize = 1000; // Set step size to 1
-                        SelectedAxis.StepNegative(); // Call StepNegative on the selected axis
-                        break;
-                    case "Scan Left":
-                        SelectedAxis.ScanNegative(); // Call ScanNegative on the selected axis
-                        break;
-                    case "Scan Right":
-                        SelectedAxis.ScanPositive(); // Call ScanPositive on the selected axis
-                        break;
-                    case "Move Left":
-                        SelectedAxis.MoveNegative(); // Call MoveNegative on the selected axis
-                        break;
-                    case "Move Right":
-                        SelectedAxis.MovePositive(); // Call MovePositive on the selected axis
-                        break;
-                    case "Wait":
-                        if (cancellationToken.IsCancellationRequested)
-                            return; // Exit immediately if cancellation is requested
-
-                        Debug.WriteLine($"Waiting for {WaitTime} ms...");
-                        await Task.Delay(WaitTime, cancellationToken); // Use cancellation token
-                        break;
-                    case "Repeat":
-                        ExecuteRepeat(); // Implement repeat logic if needed
-                        break;
-                    case "Home":
-                        SelectedAxis.Home();
-                        break;
-                    default:
-                        Debug.WriteLine($"Unknown block type: {Text}");
-                        break;
-                }
+                // Move all connected blocks below this one
+                MoveConnectedBlocks(this, newLeft, newTop);
             }
             finally
             {
-                // Reset the executing state
-                IsExecuting = false;
+                _isUpdatingPosition = false;
             }
         }
 
-        // Define actions for each block type
-        private void ExecuteStepPlus()
+        private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
         {
-            Debug.WriteLine("Step + action executed.");
-            // Add logic for "Step +" here
+            if (!_isDragging) return;
+
+            _isDragging = false;
+
+            // Attempt to snap to the nearest block
+            SnapToNearestBlock();
+
+            // Clean up event handlers
+            WorkspaceCanvas.PointerMoved -= OnPointerMoved;
+            WorkspaceCanvas.PointerReleased -= OnPointerReleased;
         }
 
-        private void ExecuteStepMinus()
+        // Snap to the nearest block below
+        private void SnapToNearestBlock()
         {
-            Debug.WriteLine("Step - action executed.");
-            // Add logic for "Step -" here
-        }
-
-        private void ExecuteTurnLeft()
-        {
-            Debug.WriteLine("Turn Left action executed.");
-            // Add logic for "Turn Left" here
-        }
-
-        private void ExecuteTurnRight()
-        {
-            Debug.WriteLine("Turn Right action executed.");
-            // Add logic for "Turn Right" here
-        }
-
-        private async Task ExecuteWaitAsync()
-        {
-            Debug.WriteLine($"Executing wait block with WaitTime: {WaitTime}");
-
-            if (WaitTime <= 0)
+            if (WorkspaceCanvas == null || SnapShadow == null)
             {
-                Debug.WriteLine("Invalid wait time. Please set a positive wait time.");
+                Debug.WriteLine("WorkspaceCanvas or SnapShadow is null in SnapToNearestBlock.");
                 return;
             }
 
-            Debug.WriteLine($"Waiting for {WaitTime} ms...");
-            await Task.Delay(WaitTime); // Delay for the specified wait time
-            Debug.WriteLine("Wait completed.");
-        }
-
-
-
-        private async void ExecuteRepeat()
-        {
-            Debug.WriteLine("Repeat action executed.");
-
-            if (RepeatCount <= 0)
+            // Only snap if the shadow is visible
+            if (SnapShadow.Visibility != Visibility.Visible)
             {
-                Debug.WriteLine("Invalid RepeatCount. Must be greater than 0.");
+                Debug.WriteLine("No shadow visible. Block will not snap.");
                 return;
             }
 
-            // Collect all the blocks above this block
-            var blocksToRepeat = new List<DraggableElement>();
-            var currentBlock = PreviousBlock;
+            // Calculate the target position for snapping (based on the shadow's position)
+            double snapLeft = Canvas.GetLeft(SnapShadow);
+            double snapTop = Canvas.GetTop(SnapShadow);
 
-            while (currentBlock != null)
+            // Move the block to the shadow's position
+            Canvas.SetLeft(this, snapLeft);
+            Canvas.SetTop(this, snapTop);
+
+            // Update connections
+            if (this.PreviousBlock != null)
             {
-                blocksToRepeat.Insert(0, currentBlock); // Insert at the start to maintain order
-                currentBlock = currentBlock.PreviousBlock;
+                this.PreviousBlock.NextBlock = null; // Detach from previous block
             }
 
-            if (blocksToRepeat.Count == 0)
+            // Find the block that corresponds to the shadow's position
+            foreach (var child in WorkspaceCanvas.Children)
             {
-                Debug.WriteLine("No blocks above to repeat.");
-                return;
-            }
-
-            Debug.WriteLine($"Repeating {blocksToRepeat.Count} blocks {RepeatCount} times.");
-
-            // Execute the blocks the specified number of times
-            for (int i = 0; i < RepeatCount; i++)
-            {
-                Debug.WriteLine($"Starting repetition {i + 1}...");
-
-                foreach (var block in blocksToRepeat)
+                if (child is DraggableElement targetBlock &&
+                    targetBlock != this &&
+                    targetBlock != SnapShadow)
                 {
-                    Debug.WriteLine($"Executing block: {block.Text}");
-                    block.IsExecuting = true; // Set executing state
-                    await block.ExecuteActionAsync();
-                    block.IsExecuting = false; // Reset executing state
-                }
+                    double targetLeft = Canvas.GetLeft(targetBlock);
+                    double targetTop = Canvas.GetTop(targetBlock);
 
-                Debug.WriteLine($"Repetition {i + 1} complete.");
-            }
-        }
-
-        // Handle text changes (optional)
-        private static void OnTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            var block = d as DraggableElement;
-            if (block != null)
-            {
-                Debug.WriteLine($"Block text changed to: {block.Text}");
-
-                // Only set the default if WaitTime has not been initialized
-                if (block.Text == "Wait" && block.WaitTime == 0)
-                {
-                    block.WaitTime = 1000;
+                    if (Math.Abs(snapLeft - targetLeft) < SnapThreshold &&
+                        Math.Abs(snapTop - (targetTop + targetBlock.ActualHeight)) < SnapThreshold)
+                    {
+                        this.PreviousBlock = targetBlock;
+                        targetBlock.NextBlock = this;
+                        Debug.WriteLine($"Block snapped to: {targetBlock.Text}");
+                        break;
+                    }
                 }
             }
-        }
-        private void WaitTimeInput_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-        {
-            // Use the new value directly, ensuring it's converted to an integer
-            WaitTime = (int)args.NewValue;
 
-            // Debug to confirm the new value
-            Debug.WriteLine($"WaitTimeInput ValueChanged: New WaitTime = {WaitTime}");
+            // Move all connected blocks below this one
+            MoveConnectedBlocks(this, snapLeft, snapTop);
         }
 
-        private void RepeatInput_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+        // Move all connected blocks below this one
+        private void MoveConnectedBlocks(DraggableElement block, double parentLeft, double parentTop)
         {
-            // Use the new value directly, ensuring it's converted to an integer
-            RepeatCount = (int)args.NewValue - 1;
-
-            // Debug to confirm the new value
-            Debug.WriteLine($"Repeat time ValueChanged: New RepeatTime = {RepeatCount}");
-        }
-
-
-        // Handle selected controller changes
-        private static void OnSelectedControllerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            var block = d as DraggableElement;
-            if (block != null)
+            if (block.NextBlock != null)
             {
-                block.SelectedAxis = null; // Clear selected axis when controller changes
+                var nextBlock = block.NextBlock;
+                double nextLeft = parentLeft;
+                double nextTop = parentTop + block.ActualHeight;
+
+                // Update the position of the next block
+                Canvas.SetLeft(nextBlock, nextLeft);
+                Canvas.SetTop(nextBlock, nextTop);
+
+                // Recursively move blocks connected below
+                MoveConnectedBlocks(nextBlock, nextLeft, nextTop);
             }
         }
 
-        public static readonly DependencyProperty IsExecutingProperty =
-    DependencyProperty.Register(
-        nameof(IsExecuting),
-        typeof(bool),
-        typeof(DraggableElement),
-        new PropertyMetadata(false, OnIsExecutingChanged));
-
-        public bool IsExecuting
+        // Handle ComboBox size changes
+        private void ComboBox_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            get => (bool)GetValue(IsExecutingProperty);
-            set => SetValue(IsExecutingProperty, value);
-        }
-
-        private static void OnIsExecutingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            var block = d as DraggableElement;
-            if (block != null)
+            if (sender is ComboBox comboBox)
             {
-                block.UpdateVisualState();
+                Debug.WriteLine($"ComboBox size changed: Width = {e.NewSize.Width}, Height = {e.NewSize.Height}");
             }
         }
 
-        private void UpdateVisualState()
+        public void HighlightBlock(bool isExecuting)
         {
-            var border = this.FindName("BlockBorder") as Border;
-            if (border != null)
+            if (isExecuting)
             {
-                if (IsExecuting)
-                {
-                    // Apply a green fade background when executing
-                    border.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen);
-                }
-                else
-                {
-                    // Revert to the default background when not executing
-                    border.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGray);
-                }
+                // Apply a green fade effect
+                this.Background = new SolidColorBrush(Colors.LightGreen);
+            }
+            else
+            {
+                // Reset to the default background color
+                this.Background = new SolidColorBrush(Colors.LightGray);
             }
         }
     }
-
 }

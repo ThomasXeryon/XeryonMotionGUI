@@ -3,190 +3,99 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using Windows.Foundation;
-using System.Threading.Tasks;
 using System.Collections.ObjectModel;
+using Windows.Foundation;
 using XeryonMotionGUI.Classes;
-using Microsoft.UI.Xaml.Data;
+using XeryonMotionGUI.Blocks;
+using System.Threading;
 
 namespace XeryonMotionGUI.Views
 {
     public sealed partial class DemoBuilderPage : Page
     {
-
         private CancellationTokenSource _cancellationTokenSource;
         private bool _isRunning = false;
+        private const double SnapThreshold = 30.0;
+        private bool _isUpdatingPosition = false;
+
+        private DraggableElement _draggedBlock;
+        private Point _dragStartOffset;
+
         public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
 
-        private List<string> BlockTypes = new List<string>
+        private readonly List<string> BlockTypes = new()
         {
-        "Step +",
-        "Step -",
-        "Scan Left",
-        "Scan Right",
-        "Move Left",
-        "Move Right",
-        "Wait",
-        "Repeat",
-        "Home",
-        "Speed"
+            "Step +", "Step -", "Wait", "Repeat"
         };
-
-        private DraggableElement _draggedBlock; // Block currently being dragged
-        private Point _dragStartOffset; // Offset between cursor and block origin
-        private const double SnapThreshold = 30.0; // Distance to show snap shadow
 
         public DemoBuilderPage()
         {
             this.InitializeComponent();
-            InitializeGreenFlag();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
-            InitializeBlockPalette(); // Dynamically create blocks in the palette
-
+            InitializeGreenFlag();
+            InitializeBlockPalette();
         }
 
+        // Position the GreenFlagBlock
+        private void InitializeGreenFlag()
+        {
+            Canvas.SetLeft(GreenFlagBlock, 50);
+            Canvas.SetTop(GreenFlagBlock, 10);
+
+            // Assign a StartBlock to the GreenFlagBlock
+            GreenFlagBlock.Block = new StartBlock();
+            Debug.WriteLine("Assigned StartBlock to GreenFlagBlock.");
+        }
+
+        // Create palette blocks
         private void InitializeBlockPalette()
         {
             foreach (var blockType in BlockTypes)
             {
+                // Create a DraggableElement for the palette
                 var block = new DraggableElement
                 {
+                    Block = BlockFactory.CreateBlock(blockType), // Use BlockFactory to create the block
                     Text = blockType,
                     Margin = new Thickness(10),
-                    Width = 150 // Increase the width to 150 (or any desired value)
+                    Background = new SolidColorBrush(Microsoft.UI.Colors.LightGray)
                 };
 
-                // Bind the RunningControllers collection to the block
-                block.SetBinding(DraggableElement.RunningControllersProperty, new Binding
-                {
-                    Source = this,
-                    Path = new PropertyPath(nameof(RunningControllers))
-                });
-
-                // Debug log for Wait blocks
-                if (blockType == "Wait")
-                {
-                    Debug.WriteLine($"Created Wait block with WaitTime: {block.WaitTime}");
-                }
-
+                // Attach pointer pressed for palette logic
+                block.PointerPressed += PaletteBlock_PointerPressed;
                 BlockPalette.Children.Add(block);
 
-                // Attach the PointerPressed event handler
-                block.PointerPressed += PaletteBlock_PointerPressed;
-
+                Debug.WriteLine($"Palette block '{blockType}' added.");
             }
         }
 
-        // Initialize the top-most Start block (GreenFlagBlock)
-        private void InitializeGreenFlag()
-        {
-            // Set the GreenFlagBlock to a fixed position
-            Canvas.SetLeft(GreenFlagBlock, 50); // Adjust X position as needed
-            Canvas.SetTop(GreenFlagBlock, 10); // Adjust Y position as needed
-        }
-
-        private void StopButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (_isRunning && _cancellationTokenSource != null)
-            {
-                Debug.WriteLine("Stop button clicked. Stopping execution...");
-                _cancellationTokenSource.Cancel(); // Request cancellation
-            }
-        }
-
-        private async void StartButton_Click(object sender, RoutedEventArgs e)
-        {
-            Debug.WriteLine("Start button clicked. Executing block actions...");
-
-            // Disable Start Button and enable Stop Button
-            StartButton.IsEnabled = false;
-            StopButton.IsEnabled = true;
-
-            // Initialize cancellation token
-            _cancellationTokenSource = new CancellationTokenSource();
-            var cancellationToken = _cancellationTokenSource.Token;
-            _isRunning = true;
-
-            try
-            {
-                // Traverse the connected blocks starting from the GreenFlagBlock
-                var currentBlock = GreenFlagBlock.NextBlock;
-                while (currentBlock != null)
-                {
-                    Debug.WriteLine($"Executing block: {currentBlock.Text}");
-
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        Debug.WriteLine("Execution stopped.");
-                        break; // Exit the loop if stop is requested
-                    }
-
-                    await currentBlock.ExecuteActionAsync(); // Execute the action for the current block
-                    currentBlock = currentBlock.NextBlock; // Move to the next block in the chain
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during execution: {ex.Message}");
-            }
-            finally
-            {
-                // Reset buttons after execution completes
-                StartButton.IsEnabled = true;
-                StopButton.IsEnabled = false;
-                _isRunning = false;
-                _cancellationTokenSource = null;
-            }
-        }
-
-
-        // Handle PointerPressed on the palette blocks (begin dragging from palette)
+        // When user clicks a palette block to drag it out
         private void PaletteBlock_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
             if (sender is DraggableElement paletteBlock)
             {
-                // Clone the palette block for dragging
+                // 1. Create a brand-new block instance
+                var newBlockInstance = BlockFactory.CreateBlock(paletteBlock.Text);
+
+                // 2. Clone it into a new DraggableElement
                 _draggedBlock = new DraggableElement
                 {
+                    Block = newBlockInstance, // Assign the new block
                     Text = paletteBlock.Text,
-                    Width = paletteBlock.Width,
-                    Height = paletteBlock.Height,
-                    DataContext = paletteBlock.DataContext, // Preserve the DataContext
-                    RunningControllers = paletteBlock.RunningControllers, // Preserve RunningControllers
-                    SelectedController = paletteBlock.SelectedController, // Preserve SelectedController
-                    SelectedAxis = paletteBlock.SelectedAxis, // Preserve SelectedAxis
-                    WaitTime = paletteBlock.WaitTime // Preserve WaitTime
+                    WorkspaceCanvas = WorkspaceCanvas,
+                    SnapShadow = SnapShadow,
+                    RunningControllers = this.RunningControllers
                 };
 
-                // Null-check _draggedBlock before subscribing to PropertyChanged
-                if (_draggedBlock == null)
+                // 3. Add the clone to the workspace (if it doesn't already exist)
+                if (!WorkspaceCanvas.Children.Contains(_draggedBlock))
                 {
-                    Debug.WriteLine("Error: _draggedBlock is null during initialization.");
-                    return; // Safeguard
+                    WorkspaceCanvas.Children.Add(_draggedBlock);
                 }
 
-                // Subscribe to PropertyChanged events on the original block
-                paletteBlock.PropertyChanged += (s, args) =>
-                {
-                    if (_draggedBlock == null)
-                    {
-                        Debug.WriteLine("Error: _draggedBlock is null in PropertyChanged handler.");
-                        return; // Safeguard
-                    }
-
-                    if (args.PropertyName == nameof(DraggableElement.WaitTime))
-                    {
-                        Debug.WriteLine($"WaitTime updated in paletteBlock: {paletteBlock.WaitTime}");
-                        _draggedBlock.WaitTime = paletteBlock.WaitTime;
-                        Debug.WriteLine($"WaitTime updated in _draggedBlock: {_draggedBlock.WaitTime}");
-                    }
-                };
-
-                // Add the clone to the workspace
-                WorkspaceCanvas.Children.Add(_draggedBlock);
-
-                // Set the initial position of the clone
+                // 4. Set the initial position
                 var initialPosition = e.GetCurrentPoint(WorkspaceCanvas).Position;
                 Canvas.SetLeft(_draggedBlock, initialPosition.X);
                 Canvas.SetTop(_draggedBlock, initialPosition.Y);
@@ -196,33 +105,34 @@ namespace XeryonMotionGUI.Views
                     initialPosition.Y - Canvas.GetTop(_draggedBlock)
                 );
 
-                // Attach drag events to the clone
+                // 5. Attach drag events to the clone
                 AttachDragEvents(_draggedBlock);
 
-                // Add event handlers for PointerMoved and PointerReleased
+                // 6. Register PointerMoved and PointerReleased for canvas-level dragging
                 WorkspaceCanvas.PointerMoved += WorkspaceCanvas_PointerMoved;
                 WorkspaceCanvas.PointerReleased += WorkspaceCanvas_PointerReleased;
+
+                Debug.WriteLine($"Cloned block '{_draggedBlock.Text}' at {initialPosition}.");
             }
         }
 
-
-        // Attach drag-and-drop events to a block
         private void AttachDragEvents(DraggableElement block)
         {
+            // So we can drag existing blocks
             block.PointerPressed += WorkspaceBlock_PointerPressed;
         }
 
-        // Handle PointerPressed on workspace blocks (start dragging an existing block)
+        // Start dragging an existing block
         private void WorkspaceBlock_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
             if (sender is DraggableElement block)
             {
                 _draggedBlock = block;
-                var initialPosition = e.GetCurrentPoint(WorkspaceCanvas).Position;
+                var position = e.GetCurrentPoint(WorkspaceCanvas).Position;
 
                 _dragStartOffset = new Point(
-                    initialPosition.X - Canvas.GetLeft(block),
-                    initialPosition.Y - Canvas.GetTop(block)
+                    position.X - Canvas.GetLeft(block),
+                    position.Y - Canvas.GetTop(block)
                 );
 
                 WorkspaceCanvas.PointerMoved += WorkspaceCanvas_PointerMoved;
@@ -230,14 +140,12 @@ namespace XeryonMotionGUI.Views
             }
         }
 
-        // Handle PointerMoved (real-time dragging logic with shadow snapping)
+        // Drag real-time
         private void WorkspaceCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
             if (_draggedBlock != null)
             {
                 var currentPosition = e.GetCurrentPoint(WorkspaceCanvas).Position;
-
-                // Calculate the new position of the dragged block
                 double newLeft = currentPosition.X - _dragStartOffset.X;
                 double newTop = currentPosition.Y - _dragStartOffset.Y;
 
@@ -245,22 +153,29 @@ namespace XeryonMotionGUI.Views
                 Canvas.SetLeft(_draggedBlock, newLeft);
                 Canvas.SetTop(_draggedBlock, newTop);
 
-                // Check if the block is no longer snapped to its PreviousBlock
+                // Check if block is no longer within snap threshold of its previous block
                 if (_draggedBlock.PreviousBlock != null)
                 {
                     double previousBlockLeft = Canvas.GetLeft(_draggedBlock.PreviousBlock);
                     double previousBlockTop = Canvas.GetTop(_draggedBlock.PreviousBlock);
 
-                    // Calculate the expected position if the block were still snapped
+                    // If we've moved far enough away, break the chain
                     double expectedLeft = previousBlockLeft;
                     double expectedTop = previousBlockTop + _draggedBlock.PreviousBlock.ActualHeight;
 
-                    // Check if the block is no longer within the snap threshold
                     if (Math.Abs(newLeft - expectedLeft) > SnapThreshold ||
                         Math.Abs(newTop - expectedTop) > SnapThreshold)
                     {
-                        // Reset connections
+                        // UI-level: remove the "next" pointer from the previous block
                         _draggedBlock.PreviousBlock.NextBlock = null;
+
+                        // Block-level: remove the "next" pointer from the previous block's underlying block
+                        _draggedBlock.PreviousBlock.Block.NextBlock = null;
+
+                        // Block-level: remove the "previous" pointer on *this* block's underlying block
+                        _draggedBlock.Block.PreviousBlock = null;
+
+                        // UI-level: remove the "previous" pointer on the DraggableElement
                         _draggedBlock.PreviousBlock = null;
                     }
                 }
@@ -268,104 +183,44 @@ namespace XeryonMotionGUI.Views
                 // Move all connected blocks below the dragged block
                 MoveConnectedBlocks(_draggedBlock, newLeft, newTop);
 
-                // Update the snap shadow
+                // Update SnapShadow
                 UpdateSnapShadow(_draggedBlock);
-
-                // Trash icon hover detection
-                if (IsHoveringOverTrash(_draggedBlock))
-                {
-                    TrashIcon.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Red);
-                }
-                else
-                {
-                    TrashIcon.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray); // Default color
-                }
             }
         }
 
-        private void MoveConnectedBlocks(DraggableElement block, double parentLeft, double parentTop)
-        {
-            if (block.NextBlock != null)
-            {
-                var nextBlock = block.NextBlock;
-
-                // Calculate the new position of the next block
-                double nextLeft = parentLeft;
-                double nextTop = parentTop + block.ActualHeight;
-
-                // Move the next block
-                Canvas.SetLeft(nextBlock, nextLeft);
-                Canvas.SetTop(nextBlock, nextTop);
-
-                // Recursively move blocks connected below
-                MoveConnectedBlocks(nextBlock, nextLeft, nextTop);
-            }
-        }
-
-        private void UpdateSnapConnections(DraggableElement block)
-        {
-            foreach (var child in WorkspaceCanvas.Children)
-            {
-                if (child is DraggableElement targetBlock && targetBlock != block && targetBlock != SnapShadow)
-                {
-                    double blockLeft = Canvas.GetLeft(block);
-                    double blockTop = Canvas.GetTop(block);
-
-                    double targetLeft = Canvas.GetLeft(targetBlock);
-                    double targetTop = Canvas.GetTop(targetBlock);
-
-                    // Check if the block is snapped below the target block and the target block has no NextBlock
-                    if (targetBlock.NextBlock == null &&
-                        Math.Abs(blockLeft - targetLeft) <= SnapThreshold &&
-                        Math.Abs(blockTop - (targetTop + targetBlock.ActualHeight)) <= SnapThreshold)
-                    {
-                        // Update connections
-                        block.PreviousBlock = targetBlock;
-                        targetBlock.NextBlock = block;
-                        return; // Exit after snapping to the first valid target
-                    }
-                }
-            }
-
-            // If no snap target is found, clear connections
-            if (block.PreviousBlock != null)
-            {
-                block.PreviousBlock.NextBlock = null;
-                block.PreviousBlock = null;
-            }
-        }
-
-
-        // Handle PointerReleased (stop dragging and check snapping or trash)
+        // Handle PointerReleased to delete the block if hovering over trash
         private void WorkspaceCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
             if (_draggedBlock != null)
             {
-                // Check if dropped on the trash icon
+                Debug.WriteLine($"PointerReleased: Block '{_draggedBlock.Text}' dropped.");
+
                 if (IsDroppedInTrash(_draggedBlock))
                 {
+                    Debug.WriteLine($"Block '{_draggedBlock.Text}' dropped in trash.");
+                    // Remove from UI
                     WorkspaceCanvas.Children.Remove(_draggedBlock);
-                    TrashIcon.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Green);
-                    ResetTrashIconColorAfterDelay();
+
+                    // (Optionally) also clear block-logic references here
+                    _draggedBlock.Block.PreviousBlock = null;
+                    _draggedBlock.Block.NextBlock = null;
                 }
                 else
                 {
-                    // Snap the block to the shadow's position if snapping is active
-                    if (SnapShadow.Visibility == Visibility.Visible)
-                    {
-                        // Move the dragged block to the shadow's position
-                        Canvas.SetLeft(_draggedBlock, Canvas.GetLeft(SnapShadow));
-                        Canvas.SetTop(_draggedBlock, Canvas.GetTop(SnapShadow));
+                    Debug.WriteLine($"Block '{_draggedBlock.Text}' snapped to position.");
+                    // 1) Snap the block to the nearest position
+                    SnapToNearestBlock(_draggedBlock);
 
-                        // Update connections for the dragged block
-                        UpdateSnapConnections(_draggedBlock);
+                    // 2) Update connections
+                    UpdateSnapConnections(_draggedBlock);
 
-                        // Move all connected blocks below the dragged block
-                        MoveConnectedBlocks(_draggedBlock, Canvas.GetLeft(_draggedBlock), Canvas.GetTop(_draggedBlock));
-                    }
+                    // 3) Move any connected blocks below it
+                    MoveConnectedBlocks(_draggedBlock, Canvas.GetLeft(_draggedBlock), Canvas.GetTop(_draggedBlock));
                 }
 
-                // Hide the snap shadow
+                //DebugBlockConnections();
+
+                // Hide snap shadow
                 SnapShadow.Visibility = Visibility.Collapsed;
 
                 WorkspaceCanvas.PointerMoved -= WorkspaceCanvas_PointerMoved;
@@ -373,9 +228,86 @@ namespace XeryonMotionGUI.Views
 
                 _draggedBlock = null;
             }
+
+            RemoveDuplicateBlocks();
         }
 
-        // Update the position and visibility of the snap shadow
+        private void SnapToNearestBlock(DraggableElement block)
+        {
+            if (WorkspaceCanvas == null || SnapShadow == null)
+            {
+                Debug.WriteLine("WorkspaceCanvas or SnapShadow is null in SnapToNearestBlock.");
+                return;
+            }
+
+            // Only snap if the shadow is visible
+            if (SnapShadow.Visibility != Visibility.Visible)
+            {
+                Debug.WriteLine("No shadow visible. Block will not snap.");
+                return;
+            }
+
+            // Calculate the target position for snapping (based on the shadow's position)
+            double snapLeft = Canvas.GetLeft(SnapShadow);
+            double snapTop = Canvas.GetTop(SnapShadow);
+
+            // Move the block to the shadow's position
+            Canvas.SetLeft(block, snapLeft);
+            Canvas.SetTop(block, snapTop);
+
+            // Update connections
+            if (block.PreviousBlock != null)
+            {
+                block.PreviousBlock.NextBlock = null; // Detach from previous block
+            }
+
+            // Find the block that corresponds to the shadow's position
+            foreach (var child in WorkspaceCanvas.Children)
+            {
+                if (child is DraggableElement targetBlock &&
+                    targetBlock != block &&
+                    targetBlock != SnapShadow)
+                {
+                    double targetLeft = Canvas.GetLeft(targetBlock);
+                    double targetTop = Canvas.GetTop(targetBlock);
+
+                    if (Math.Abs(snapLeft - targetLeft) < SnapThreshold &&
+                        Math.Abs(snapTop - (targetTop + targetBlock.ActualHeight)) < SnapThreshold)
+                    {
+                        block.PreviousBlock = targetBlock;
+                        targetBlock.NextBlock = block;
+                        Debug.WriteLine($"Block snapped to: {targetBlock.Text}");
+                        break;
+                    }
+                }
+            }
+
+            // Move all connected blocks below this one
+            MoveConnectedBlocks(block, snapLeft, snapTop);
+        }
+
+        private void RemoveDuplicateBlocks()
+        {
+            var uniqueBlocks = new HashSet<DraggableElement>();
+
+            for (int i = WorkspaceCanvas.Children.Count - 1; i >= 0; i--)
+            {
+                if (WorkspaceCanvas.Children[i] is DraggableElement block)
+                {
+                    if (uniqueBlocks.Contains(block))
+                    {
+                        WorkspaceCanvas.Children.RemoveAt(i);
+                        Debug.WriteLine($"Removed duplicate block: '{block.Text}'");
+                    }
+                    else
+                    {
+                        uniqueBlocks.Add(block);
+                    }
+                }
+            }
+        }
+
+        // Update the snap shadow position
         private void UpdateSnapShadow(DraggableElement block)
         {
             DraggableElement snapTarget = null; // Keep track of the closest block to snap to
@@ -383,7 +315,6 @@ namespace XeryonMotionGUI.Views
 
             foreach (var child in WorkspaceCanvas.Children)
             {
-                // Ensure the child is a valid snapping target (not the dragged block, the shadow itself, or already snapped)
                 if (child is DraggableElement targetBlock && targetBlock != block && targetBlock != SnapShadow)
                 {
                     double blockLeft = Canvas.GetLeft(block);
@@ -451,7 +382,169 @@ namespace XeryonMotionGUI.Views
             }
         }
 
-        // Check if the block is hovering over the trash area
+        // Ensure only one block can snap below a target
+        private void UpdateSnapConnections(DraggableElement block)
+        {
+            if (block.Block is RepeatBlock repeatBlock)
+            {
+                // Find the start block (topmost block in the sequence)
+                var startBlock = block.PreviousBlock?.Block;
+                while (startBlock?.PreviousBlock != null)
+                {
+                    startBlock = startBlock.PreviousBlock;
+                }
+
+                // Find the end block (block closest to the RepeatBlock)
+                var endBlock = block.PreviousBlock?.Block;
+
+                // Set the start and end blocks
+                repeatBlock.StartBlock = startBlock;
+                repeatBlock.EndBlock = endBlock;
+
+                Debug.WriteLine($"[RepeatBlock] StartBlock = {startBlock?.Text}, EndBlock = {endBlock?.Text}");
+            }
+            // If it's already snapped, skip
+            if (block.PreviousBlock != null) return;
+
+            foreach (var child in WorkspaceCanvas.Children)
+            {
+                if (child is DraggableElement targetBlock && targetBlock != block && targetBlock != SnapShadow)
+                {
+                    double blockLeft = Canvas.GetLeft(block);
+                    double blockTop = Canvas.GetTop(block);
+                    double targetLeft = Canvas.GetLeft(targetBlock);
+                    double targetTop = Canvas.GetTop(targetBlock);
+
+                    bool xSnapped = Math.Abs(blockLeft - targetLeft) <= SnapThreshold;
+                    bool ySnapped = Math.Abs(blockTop - (targetTop + targetBlock.ActualHeight)) <= SnapThreshold;
+
+                    if (xSnapped && ySnapped && targetBlock.NextBlock == null)
+                    {
+                        // 1) UI-level references
+                        block.PreviousBlock = targetBlock;
+                        targetBlock.NextBlock = block;
+
+                        // 2) Logic-level references
+                        block.Block.PreviousBlock = targetBlock.Block;
+                        targetBlock.Block.NextBlock = block.Block;
+
+                        Debug.WriteLine(
+                            $"Snapped '{block.Text}' to '{targetBlock.Text}'. " +
+                            $"UI References: {block.PreviousBlock?.Text}, {targetBlock.NextBlock?.Text}; " +
+                            $"Logic References: {block.Block.PreviousBlock?.Text}, {targetBlock.Block.NextBlock?.Text}");
+
+                        return;
+                    }
+                }
+            }
+
+            // If no snap found, ensure we clear references
+            if (block.PreviousBlock != null)
+            {
+                // 1) UI-level
+                block.PreviousBlock.NextBlock = null;
+                block.PreviousBlock = null;
+
+                // 2) Logic-level
+                block.Block.PreviousBlock = null;
+                // Assuming targetBlock.Block.NextBlock was already set to null above
+            }
+        }
+
+        private void MoveConnectedBlocks(DraggableElement block, double parentLeft, double parentTop)
+        {
+            if (block.NextBlock != null)
+            {
+                var nextBlock = block.NextBlock;
+
+                Debug.WriteLine($"Moving connected block: {nextBlock.Text}");
+                Debug.WriteLine($"Block '{nextBlock.Text}': PreviousBlock = {nextBlock.PreviousBlock?.Text}, NextBlock = {nextBlock.NextBlock?.Text}");
+
+                // Calculate the new position of the next block
+                double nextLeft = parentLeft;
+                double nextTop = parentTop + block.ActualHeight;
+
+                // Move the next block
+                Canvas.SetLeft(nextBlock, nextLeft);
+                Canvas.SetTop(nextBlock, nextTop);
+
+                // Recursively move blocks connected below
+                MoveConnectedBlocks(nextBlock, nextLeft, nextTop);
+            }
+        }
+
+        // Execution logic
+        private async void StartButton_Click(object sender, RoutedEventArgs e)
+        {
+            Debug.WriteLine("Start button clicked. Executing block actions...");
+
+            // Disable Start Button and enable Stop Button
+            StartButton.IsEnabled = false;
+            StopButton.IsEnabled = true;
+
+            // Initialize cancellation token
+            _cancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = _cancellationTokenSource.Token;
+            _isRunning = true;
+
+            try
+            {
+                // Execute the StartBlock first
+                if (GreenFlagBlock.Block != null)
+                {
+                    Debug.WriteLine("Executing StartBlock...");
+                    await GreenFlagBlock.Block.ExecuteAsync(cancellationToken);
+                }
+
+                // Traverse from the GreenFlag's NextBlock (logic chain)
+                var currentBlock = GreenFlagBlock.Block.NextBlock; // Use BlockBase references
+                while (currentBlock != null && !cancellationToken.IsCancellationRequested)
+                {
+                    Debug.WriteLine($"Executing block: {currentBlock.Text}");
+                    Debug.WriteLine($"Block '{currentBlock.Text}': PreviousBlock = {currentBlock.PreviousBlock?.Text ?? "null"}, NextBlock = {currentBlock.NextBlock?.Text ?? "null"}");
+
+                    // Highlight the block
+                    if (currentBlock.UiElement != null)
+                    {
+                        currentBlock.UiElement.HighlightBlock(true);
+                    }
+
+                    // Call the block's ExecuteAsync method
+                    await currentBlock.ExecuteAsync(cancellationToken);
+
+                    // Remove the highlight
+                    if (currentBlock.UiElement != null)
+                    {
+                        currentBlock.UiElement.HighlightBlock(false);
+                    }
+
+                    // Move to the next block in the chain
+                    currentBlock = currentBlock.NextBlock;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during execution: {ex.Message}");
+            }
+            finally
+            {
+                // Reset buttons after execution completes
+                StartButton.IsEnabled = true;
+                StopButton.IsEnabled = false;
+                _isRunning = false;
+                _cancellationTokenSource = null;
+            }
+        }
+
+        private void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isRunning && _cancellationTokenSource != null)
+            {
+                Debug.WriteLine("Stop button clicked. Stopping execution...");
+                _cancellationTokenSource.Cancel(); // Request cancellation
+            }
+        }
+
         private bool IsHoveringOverTrash(DraggableElement block)
         {
             // Get the block's position and size
@@ -471,18 +564,36 @@ namespace XeryonMotionGUI.Views
                    blockTop < trashBounds.Y + trashBounds.Height;
         }
 
-        // Check if the block is dropped in the trash area
         private bool IsDroppedInTrash(DraggableElement block)
         {
-            // Reuse IsHoveringOverTrash logic
+            Debug.WriteLine($"Checking if block '{block.Text}' is dropped in trash...");
             return IsHoveringOverTrash(block);
         }
 
-        // Reset the trash icon color to gray after a short delay
         private async void ResetTrashIconColorAfterDelay()
         {
             await Task.Delay(500); // 500ms delay
             TrashIcon.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray); // Reset to default
+        }
+
+        private void DebugBlockConnections()
+        {
+            Debug.WriteLine("Debugging block connections in the workspace:");
+
+            foreach (var child in WorkspaceCanvas.Children)
+            {
+                if (child is DraggableElement block && block != SnapShadow) // Exclude SnapShadow
+                {
+                    string uiPrev = block.PreviousBlock?.Text ?? "null";
+                    string uiNext = block.NextBlock?.Text ?? "null";
+                    string logicPrev = block.Block.PreviousBlock?.Text ?? "null";
+                    string logicNext = block.Block.NextBlock?.Text ?? "null";
+
+                    Debug.WriteLine($"Block '{block.Text}': UI Previous = {uiPrev}, UI Next = {uiNext}; Logic Previous = {logicPrev}, Logic Next = {logicNext}");
+                }
+            }
+
+            Debug.WriteLine("End of block connections debug.");
         }
     }
 }

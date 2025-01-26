@@ -5,15 +5,14 @@
     xmlns:local="using:XeryonMotionGUI">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="200" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <!-- Block Palette -->
-        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalAlignment="Left">
             <StackPanel x:Name="BlockPalette">
-                <TextBlock Text="Blocks" FontSize="16" FontWeight="Bold" Margin="10" />
-                <!-- Palette Blocks will be added dynamically -->
+                <TextBlock Text="Blocks" FontSize="16" FontWeight="Bold" Margin="10"/>
             </StackPanel>
         </ScrollViewer>
 
@@ -41,6 +40,7 @@
                         <local:DraggableElement x:Name="SnapShadow"
                             Text=""
                             Width="150"
+                            Height="100"
                             Opacity="0.5"
                             Visibility="Collapsed"
                             IsHitTestVisible="False"
@@ -86,12 +86,16 @@
 
                     <!-- Trash Icon -->
                     <FontIcon x:Name="TrashIcon"
-                        Glyph="&#xE74D;"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom"
-                        Margin="10"
-                        Foreground="Red"
-                        FontSize="24" />
+                          Glyph="&#xE74D;"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Bottom"
+                          Margin="10"
+                          Foreground="Gray"
+                          FontSize="24">
+                        <FontIcon.RenderTransform>
+                            <ScaleTransform ScaleX="1.0" ScaleY="1.0" />
+                        </FontIcon.RenderTransform>
+                    </FontIcon>
                 </Grid>
             </Grid>
         </Border>
