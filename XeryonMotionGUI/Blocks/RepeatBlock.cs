@@ -51,7 +51,7 @@ namespace XeryonMotionGUI.Blocks
             Text = "Repeat";
             RequiresAxis = false; // Repeat block doesn't need an axis
             Width = 150; // Custom width
-            Height = 200; // Default height
+            Height = 200; 
         }
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)
