@@ -1,13 +1,11 @@
-﻿using System;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
+﻿using System.Diagnostics;
 
 namespace XeryonMotionGUI.Blocks
 {
-    public class StepBlock : BlockBase
+    public class ScanBlock : BlockBase
     {
+        private readonly string _direction;
+
         private bool _isPositive = true; // Default direction (positive)
 
         public bool IsPositive
@@ -19,19 +17,18 @@ namespace XeryonMotionGUI.Blocks
                 OnPropertyChanged();
             }
         }
-
-        public StepBlock()
+        public ScanBlock()
         {
-            Text = "Step";
+            Text = "Scan";
+            RequiresAxis = true; // Requires an axis to operate
             Width = 140;
             Height = 200;
-            RequiresAxis = true; // Requires an axis to operate
         }
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)
         {
             string direction = IsPositive ? "positive" : "negative";
-            Debug.WriteLine($"[StepBlock] Stepping {SelectedAxis.FriendlyName} in the {direction} direction.");
+            Debug.WriteLine($"[ScanBlock] Scanning {SelectedAxis.FriendlyName} in the {direction} direction.");
 
             // Highlight the block
             if (this.UiElement != null)
@@ -41,14 +38,14 @@ namespace XeryonMotionGUI.Blocks
 
             try
             {
-                // Perform the step action
+                // Perform the scan action
                 if (IsPositive)
                 {
-                    SelectedAxis.StepPositive();
+                    SelectedAxis.ScanPositive();
                 }
                 else
                 {
-                    SelectedAxis.StepNegative();
+                    SelectedAxis.ScanNegative();
                 }
             }
             finally
@@ -60,7 +57,7 @@ namespace XeryonMotionGUI.Blocks
                 }
             }
 
-            Debug.WriteLine($"[StepBlock] Step completed.");
+            Debug.WriteLine($"[ScanBlock] Scan completed.");
         }
     }
- }
+}

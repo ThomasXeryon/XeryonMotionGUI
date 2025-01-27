@@ -56,49 +56,59 @@ namespace XeryonMotionGUI.Blocks
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)
         {
-            Debug.WriteLine($"[RepeatBlock] Repeating {RepeatCount} times.");
+            Debug.WriteLine($"[RepeatBlock] Repeating {RepeatCount} times for {BlocksToRepeat} blocks above.");
 
-            // Ensure the start and end blocks are set
-            if (StartBlock == null || EndBlock == null)
+            // Ensure the block above is set
+            if (PreviousBlock == null)
             {
-                Debug.WriteLine("[RepeatBlock] Error: StartBlock or EndBlock is not set.");
+                Debug.WriteLine("[RepeatBlock] Error: No blocks above to repeat.");
                 return;
             }
 
+            // Collect the blocks to repeat
+            var blocksToRepeat = new List<BlockBase>();
+            var currentBlock = PreviousBlock;
+
+            while (currentBlock != null && blocksToRepeat.Count < BlocksToRepeat)
+            {
+                blocksToRepeat.Add(currentBlock);
+                currentBlock = currentBlock.PreviousBlock;
+            }
+
+            // Reverse the list to execute from top to bottom
+            blocksToRepeat.Reverse();
+
+            Debug.WriteLine($"[RepeatBlock] Found {blocksToRepeat.Count} blocks to repeat: {string.Join(", ", blocksToRepeat.Select(b => b.Text))}");
+
+            // Repeat the blocks
             for (int i = 0; i < RepeatCount; i++)
             {
                 Debug.WriteLine($"[RepeatBlock] Iteration {i + 1} of {RepeatCount}.");
 
-                // Start from the first block in the repeat sequence
-                var currentBlock = StartBlock;
-
-                while (currentBlock != null && !cancellationToken.IsCancellationRequested)
+                foreach (var block in blocksToRepeat)
                 {
-                    Debug.WriteLine($"[RepeatBlock] Executing block: {currentBlock.Text}");
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        Debug.WriteLine("[RepeatBlock] Execution cancelled.");
+                        return;
+                    }
+
+                    Debug.WriteLine($"[RepeatBlock] Executing block: {block.Text}");
 
                     // Highlight the block
-                    if (currentBlock.UiElement != null)
+                    if (block.UiElement != null)
                     {
-                        currentBlock.UiElement.HighlightBlock(true);
+                        block.UiElement.HighlightBlock(true);
                     }
 
                     // Call the block's ExecuteAsync method
-                    await currentBlock.ExecuteAsync(cancellationToken);
+                    await block.ExecuteAsync(cancellationToken);
 
                     // Remove the highlight
-                    if (currentBlock.UiElement != null)
+                    if (block.UiElement != null)
                     {
-                        currentBlock.UiElement.HighlightBlock(false);
+                        block.UiElement.HighlightBlock(false);
                     }
-
-                    // Stop if we've reached the end block
-                    if (currentBlock == EndBlock)
-                    {
-                        break;
-                    }
-
-                    // Move to the next block in the chain
-                    currentBlock = currentBlock.NextBlock;
                 }
             }
 

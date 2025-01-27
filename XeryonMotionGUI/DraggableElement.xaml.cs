@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using Windows.Foundation;
 using XeryonMotionGUI.Blocks;
@@ -12,7 +13,7 @@ using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI
 {
-    public sealed partial class DraggableElement : UserControl
+    public sealed partial class DraggableElement : UserControl, INotifyPropertyChanged
     {
 
         private Point _dragStartOffset;
@@ -29,6 +30,12 @@ namespace XeryonMotionGUI
             // Set minimum size for the block
             this.MinWidth = 150;
             this.MinHeight = 50;
+        }
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         // Dependency properties
@@ -49,12 +56,23 @@ namespace XeryonMotionGUI
             }
         }
 
+        private ObservableCollection<Parameter> _parameters;
+        public ObservableCollection<Parameter> Parameters
+        {
+            get => _parameters;
+            set
+            {
+                _parameters = value;
+                OnPropertyChanged(nameof(Parameters));
+            }
+        }
+
         public static readonly DependencyProperty BlockProperty =
-        DependencyProperty.Register(
-            nameof(Block),
-            typeof(BlockBase),
-            typeof(DraggableElement),
-            new PropertyMetadata(null));
+            DependencyProperty.Register(
+                nameof(Block),
+                typeof(BlockBase),
+                typeof(DraggableElement),
+                new PropertyMetadata(null, OnBlockChanged));
 
         public static readonly DependencyProperty TextProperty =
             DependencyProperty.Register(
@@ -152,18 +170,24 @@ namespace XeryonMotionGUI
             set
             {
                 SetValue(BlockProperty, value);
+                OnPropertyChanged(nameof(Block));
+            }
+        }
 
-                if (value != null)
+        private static void OnBlockChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is DraggableElement draggableElement)
+            {
+                var newBlock = e.NewValue as BlockBase;
+                if (newBlock != null)
                 {
                     // Synchronize Block.Text with DraggableElement.Text
-                    Text = value.Text;
+                    draggableElement.Text = newBlock.Text;
 
                     // Set the UiElement property of the block to this DraggableElement
-                    value.UiElement = this;
+                    newBlock.UiElement = draggableElement;
 
-                    Debug.WriteLine($"Block set: Text = {Text}, SelectedController = {value.SelectedController}, SelectedAxis = {value.SelectedAxis}");
-                    Debug.WriteLine($"Block set: Text = {Text}, UiElement = {value.UiElement != null}");
-
+                    Debug.WriteLine($"Block set: Text = {draggableElement.Text}, SelectedController = {newBlock.SelectedController}, SelectedAxis = {newBlock.SelectedAxis}");
                 }
             }
         }

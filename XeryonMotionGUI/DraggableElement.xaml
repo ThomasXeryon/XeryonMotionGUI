@@ -16,12 +16,12 @@
     <Grid>
         <!-- Default Block Layout (for non-Repeat blocks) -->
         <Border x:Name="DefaultBlockLayout"
-            CornerRadius="5"
-            Padding="10"
-            Background="{Binding Background, ElementName=DraggableElementRoot}"
-            BorderThickness="1"
-            BorderBrush="Black"
-            Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step +|Step -|Wait'}">
+                CornerRadius="5"
+                Padding="10"
+                Background="{Binding Background, ElementName=DraggableElementRoot}"
+                BorderThickness="1"
+                BorderBrush="Black"
+                Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Wait|Step|Move|Scan|Home|Stop|Index|Index +|Index -'}">
             <StackPanel>
                 <TextBlock
                     Text="{Binding Text}"
@@ -29,29 +29,89 @@
                     Margin="0,0,0,5"
                     HorizontalAlignment="Center" />
 
+                <!-- Controller and Axis Selection -->
                 <ComboBox
                     ItemsSource="{Binding RunningControllers}"
                     SelectedItem="{Binding Block.SelectedController, Mode=TwoWay}"
                     DisplayMemberPath="FriendlyName"
-                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step +|Step -'}"
                     Margin="0,5,0,5"
-                    PlaceholderText="Select Controller" />
+                    PlaceholderText="Select Controller"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -'}" />
 
                 <ComboBox
                     ItemsSource="{Binding Block.SelectedController.Axes}"
                     SelectedItem="{Binding Block.SelectedAxis, Mode=TwoWay}"
                     DisplayMemberPath="FriendlyName"
-                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step +|Step -'}"
                     Margin="0,5,0,5"
-                    PlaceholderText="Select Axis" />
+                    PlaceholderText="Select Axis"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -'}" />
 
+                <!-- ToggleSwitch for Direction (Step, Move, Scan) -->
+                <ToggleSwitch
+                    Header="Direction"
+                    OnContent="Positive"
+                    OffContent="Negative"
+                    IsOn="{Binding Block.IsPositive, Mode=TwoWay}"
+                    Margin="0,5,0,5"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan'}" />
+
+                <!-- Wait Time Input (for WaitBlock) -->
                 <NumberBox
                     x:Name="WaitTimeInput"
                     Header="Wait time (ms)"
                     Value="{Binding Block.WaitTime, Mode=TwoWay}"
-                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Wait'}"
                     Margin="0,5,0,5"
-                    PlaceholderText="Enter wait time" />
+                    PlaceholderText="Enter wait time"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Wait'}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Parameter Edit Block Layout -->
+        <Border x:Name="ParameterEditBlockLayout"
+        CornerRadius="5"
+        Padding="10"
+        Background="{Binding Background, ElementName=DraggableElementRoot}"
+        BorderThickness="1"
+        BorderBrush="Black"
+        Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Edit Parameter'}">
+            <StackPanel>
+                <TextBlock
+            Text="{Binding Text}"
+            FontWeight="Bold"
+            Margin="0,0,0,5"
+            HorizontalAlignment="Center" />
+
+                <!-- Controller Selection -->
+                <ComboBox
+            ItemsSource="{Binding RunningControllers}"
+            SelectedItem="{Binding Block.SelectedController, Mode=TwoWay}"
+            DisplayMemberPath="FriendlyName"
+            Margin="0,5,0,5"
+            PlaceholderText="Select Controller" />
+
+                <!-- Axis Selection -->
+                <ComboBox
+            ItemsSource="{Binding Block.SelectedController.Axes}"
+            SelectedItem="{Binding Block.SelectedAxis, Mode=TwoWay}"
+            DisplayMemberPath="FriendlyName"
+            Margin="0,5,0,5"
+            PlaceholderText="Select Axis" />
+
+                <!-- Parameter Selection -->
+                <ComboBox
+            ItemsSource="{Binding Block.SelectedAxis.Parameters}"
+            DisplayMemberPath="Name"
+            SelectedValue="{Binding Block.SelectedParameter, Mode=TwoWay}"
+            SelectedValuePath="Command"
+                    Margin="0,5,0,5"
+            PlaceholderText="Select Parameter" />
+
+                    <!-- Value Input -->
+                    <NumberBox
+            Header="Value"
+            Value="{Binding Block.ParameterValue, Mode=TwoWay}"
+            Margin="0,5,0,5"
+            PlaceholderText="Enter value" />
             </StackPanel>
         </Border>
 
@@ -59,11 +119,10 @@
         <Border x:Name="RepeatBlockLayout"
                 CornerRadius="5"
                 Padding="10"
-                Background="LightGray"
+                Background="{Binding Background, ElementName=DraggableElementRoot}"
                 BorderThickness="1"
                 BorderBrush="Black"
                 Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Repeat'}">
-
             <StackPanel>
                 <TextBlock
                     Text="Repeat"
