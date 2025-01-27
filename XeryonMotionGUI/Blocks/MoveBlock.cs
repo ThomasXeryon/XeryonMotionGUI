@@ -20,7 +20,7 @@ namespace XeryonMotionGUI.Blocks
         public MoveBlock()
         {
             Text = "Move";
-            RequiresAxis = true; // Requires an axis to operate
+            RequiresAxis = true; // Requires an axis to operat
             Width = 140;
             Height = 200;
         }

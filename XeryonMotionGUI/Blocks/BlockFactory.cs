@@ -24,7 +24,7 @@ namespace XeryonMotionGUI.Blocks
                 _ => throw new ArgumentException($"Unknown block type: {blockType}")
             };
 
-            // Initialize the controller and axis
+            // Initialize the controller and axi
             block.InitializeControllerAndAxis(runningControllers);
 
             return block;

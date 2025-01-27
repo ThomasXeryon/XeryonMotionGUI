@@ -24,7 +24,7 @@ namespace XeryonMotionGUI.Blocks
 
             try
             {
-                // Perform the stop action
+                // Perform the stop actio
                 SelectedAxis.Stop();
             }
             finally

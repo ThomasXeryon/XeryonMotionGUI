@@ -25,7 +25,7 @@ namespace XeryonMotionGUI.Blocks
             Text = "Step";
             Width = 140;
             Height = 200;
-            RequiresAxis = true; // Requires an axis to operate
+            RequiresAxis = true; // Requires an axis to operat
         }
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)

@@ -10,7 +10,7 @@ namespace XeryonMotionGUI.Blocks
         {
             _direction = direction;
             Text = direction; // Set the block text (e.g., "Index", "Index +", or "Index -")
-            RequiresAxis = true; // Requires an axis to operate
+            RequiresAxis = true; // Requires an axis to operat
             Width = 140;
             Height = 140;
         }

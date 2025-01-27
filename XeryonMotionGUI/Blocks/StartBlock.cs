@@ -9,7 +9,7 @@ namespace XeryonMotionGUI.Blocks
         public StartBlock()
         {
             Text = "Start";
-            RequiresAxis = false; // Start block doesn't need an axis
+            RequiresAxis = false; // Start block doesn't need an axi
             Width = 120;  // Match GreenFlagBlock's width
             Height = 50;  // Match GreenFlagBlock's height
         }

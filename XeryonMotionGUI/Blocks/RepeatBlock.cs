@@ -49,7 +49,7 @@ namespace XeryonMotionGUI.Blocks
         public RepeatBlock()
         {
             Text = "Repeat";
-            RequiresAxis = false; // Repeat block doesn't need an axis
+            RequiresAxis = false; // Repeat block doesn't need an axi
             Width = 150; // Custom width
             Height = 200; 
         }
