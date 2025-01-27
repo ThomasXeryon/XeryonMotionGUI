@@ -24,7 +24,7 @@ namespace XeryonMotionGUI.Blocks
 
             try
             {
-                // Perform the home action
+                // Perform the home actio
                 SelectedAxis.Home();
             }
             finally

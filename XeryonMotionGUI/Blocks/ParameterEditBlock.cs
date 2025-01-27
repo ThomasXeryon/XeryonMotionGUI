@@ -55,7 +55,7 @@ public class ParameterEditBlock : BlockBase
     public ParameterEditBlock()
     {
         Text = "Edit Parameter";
-        RequiresAxis = true; // Requires an axis to operate
+        RequiresAxis = true; // Requires an axis to operat
         Width = 140;
         Height = 240;
     }

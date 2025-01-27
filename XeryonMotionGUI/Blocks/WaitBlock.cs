@@ -22,7 +22,7 @@ namespace XeryonMotionGUI.Blocks
         public WaitBlock()
         {
             Text = "Wait";
-            RequiresAxis = false; // Wait block doesn't need an axis
+            RequiresAxis = false; // Wait block doesn't need an axi
             Width = 150;
             Height = 120;
         }

@@ -60,7 +60,7 @@ public abstract class BlockBase : INotifyPropertyChanged
 
             if (SelectedController.Axes != null && SelectedController.Axes.Count > 0)
             {
-                // Set the first available axis
+                // Set the first available axi
                 SelectedAxis = SelectedController.Axes[0];
             }
         }

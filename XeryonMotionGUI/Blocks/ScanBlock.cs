@@ -38,7 +38,7 @@ namespace XeryonMotionGUI.Blocks
 
             try
             {
-                // Perform the scan action
+                // Perform the scan actio
                 if (IsPositive)
                 {
                     SelectedAxis.ScanPositive();
