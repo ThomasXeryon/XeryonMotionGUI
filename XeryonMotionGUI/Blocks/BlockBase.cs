@@ -51,6 +51,21 @@ public abstract class BlockBase : INotifyPropertyChanged
         }
     }
 
+    public void InitializeControllerAndAxis(ObservableCollection<Controller> runningControllers)
+    {
+        if (runningControllers != null && runningControllers.Count > 0)
+        {
+            // Set the first available controller
+            SelectedController = runningControllers[0];
+
+            if (SelectedController.Axes != null && SelectedController.Axes.Count > 0)
+            {
+                // Set the first available axis
+                SelectedAxis = SelectedController.Axes[0];
+            }
+        }
+    }
+
     public bool RequiresAxis { get; protected set; } = true; // Default to true, override in child classes if not needed
 
     public Axis SelectedAxis

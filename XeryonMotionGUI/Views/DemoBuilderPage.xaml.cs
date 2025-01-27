@@ -57,7 +57,7 @@ namespace XeryonMotionGUI.Views
                 // Create a DraggableElement for the palette
                 var block = new DraggableElement
                 {
-                    Block = BlockFactory.CreateBlock(blockType), // Use BlockFactory to create the block
+                    Block = BlockFactory.CreateBlock(blockType, this.RunningControllers), // Pass RunningControllers
                     Text = blockType,
                     Margin = new Thickness(10),
                     Background = new SolidColorBrush(Microsoft.UI.Colors.LightGray)
@@ -77,7 +77,7 @@ namespace XeryonMotionGUI.Views
             if (sender is DraggableElement paletteBlock)
             {
                 // 1. Create a brand-new block instance
-                var newBlockInstance = BlockFactory.CreateBlock(paletteBlock.Text);
+                var newBlockInstance = BlockFactory.CreateBlock(paletteBlock.Text, this.RunningControllers);
 
                 // 2. Clone it into a new DraggableElement
                 _draggedBlock = new DraggableElement

@@ -187,7 +187,10 @@ namespace XeryonMotionGUI
                     // Set the UiElement property of the block to this DraggableElement
                     newBlock.UiElement = draggableElement;
 
-                    Debug.WriteLine($"Block set: Text = {draggableElement.Text}, SelectedController = {newBlock.SelectedController}, SelectedAxis = {newBlock.SelectedAxis}");
+                    // Initialize the controller and axis
+                    newBlock.InitializeControllerAndAxis(draggableElement.RunningControllers);
+
+                    Debug.WriteLine($"Block set: Text = {draggableElement.Text}, SelectedController = {newBlock.SelectedController?.FriendlyName}, SelectedAxis = {newBlock.SelectedAxis?.FriendlyName}");
                 }
             }
         }

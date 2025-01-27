@@ -29,8 +29,8 @@
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" 
                               VerticalScrollBarVisibility="Auto"
                               ZoomMode="Enabled" 
-                              MinZoomFactor="0.5" 
-                              MaxZoomFactor="3.0">
+                              MinZoomFactor="0.1" 
+                              MaxZoomFactor="10.0">
                     <Canvas x:Name="WorkspaceCanvas"
                             Background="Transparent"
                             AllowDrop="True"
