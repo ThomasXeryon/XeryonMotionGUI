@@ -488,8 +488,8 @@ namespace XeryonMotionGUI.Classes
                 {
                     if (int.TryParse(part.Substring(5), out int eposValue))
                     {
-                        // Now pass the epos + the stopwatch-derived time to the Axis
                         Axes[0].OnEPOSUpdate(eposValue, timeStamp);
+                        Axes[0].EPOS = eposValue;
                     }
                 }
             }
