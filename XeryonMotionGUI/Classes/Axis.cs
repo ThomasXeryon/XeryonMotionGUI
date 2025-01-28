@@ -15,6 +15,7 @@ using OxyPlot.Series;
 using OxyPlot;
 using OxyPlot.Axes;
 using System.Collections.Concurrent;
+using OxyPlot.Legends;
 
 namespace XeryonMotionGUI.Classes
 {
@@ -252,6 +253,15 @@ namespace XeryonMotionGUI.Classes
 
             yAxis.Minimum = minEpos;
             yAxis.Maximum = maxEpos;
+
+            var xxAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom);
+            var yyAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left);
+
+            if (xxAxis != null && yyAxis != null)
+            {
+                xxAxis.Reset();
+                yyAxis.Reset();
+            }
         }
 
 
@@ -264,32 +274,56 @@ namespace XeryonMotionGUI.Classes
             _positionSeries = new LineSeries
             {
                 Title = "Position (mm)",
-                // Turn off markers
-                MarkerType = MarkerType.None,
-                // Make line thinner
-                StrokeThickness = 1.0,
-
-                // If you want a smooth curve (optional)
-                // InterpolationAlgorithm = InterpolationAlgorithms.CanonicalSpline,
-
-                Color = OxyColors.Blue
+                MarkerType = MarkerType.Circle, // Add markers
+                MarkerSize = 2, // Small size to prevent clutter
+                MarkerStroke = OxyColors.Transparent, // No border for subtlety
+                MarkerFill = OxyColor.Parse("#27b62d"), // Same as line color
+                StrokeThickness = 1.5, // Slightly thicker for better visibility
+                Color = OxyColor.Parse("#27b62d"),
+                LineStyle = LineStyle.Solid, // Ensure the line is solid
             };
-
-            //_positionSeries.InterpolationAlgorithm = InterpolationAlgorithms.CatmullRomSpline;
 
             _plotModel.Series.Add(_positionSeries);
 
+            // Add X Axis (Time)
             _plotModel.Axes.Add(new LinearAxis
             {
                 Position = AxisPosition.Bottom,
-                Title = "Time (s)"
+                Title = "Time (s)",
+                MajorGridlineStyle = LineStyle.Solid,
+                MinorGridlineStyle = LineStyle.Dot,
+                IsZoomEnabled = true,
+                IsPanEnabled = true
             });
 
+            // Add Y Axis (EPOS)
             _plotModel.Axes.Add(new LinearAxis
             {
                 Position = AxisPosition.Left,
-                Title = "EPOS (mm)"
+                Title = "EPOS (mm)",
+                MajorGridlineStyle = LineStyle.Solid,
+                MinorGridlineStyle = LineStyle.Dot,
+                IsZoomEnabled = true,
+                IsPanEnabled = true
             });
+
+            // Optional: Enhance interactivity
+            _plotModel.IsLegendVisible = true;
+            _plotModel.Axes[0].AxisChanged += OnAxisChanged;
+        }
+
+        private void OnAxisChanged(object sender, AxisChangedEventArgs e)
+        {
+            double zoomLevel = _plotModel.Axes[0].ActualMaximum - _plotModel.Axes[0].ActualMinimum;
+            if (zoomLevel > 1)
+            {
+                _positionSeries.MarkerType = MarkerType.None;
+            }
+            else
+            {
+                _positionSeries.MarkerType = MarkerType.Circle;
+            }
+            _plotModel.InvalidatePlot(false);
         }
 
         #endregion

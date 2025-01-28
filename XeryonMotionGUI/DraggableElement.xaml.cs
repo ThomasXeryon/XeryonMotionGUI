@@ -38,6 +38,13 @@ namespace XeryonMotionGUI
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+        public event EventHandler PositionChanged;
+
+        private void NotifyPositionChanged()
+        {
+            PositionChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         // Dependency properties
         public static readonly DependencyProperty RunningControllersProperty =
                 DependencyProperty.Register(
@@ -86,7 +93,7 @@ namespace XeryonMotionGUI
         nameof(Background),
         typeof(Brush),
         typeof(DraggableElement),
-        new PropertyMetadata(new SolidColorBrush(Colors.LightGray)));
+        new PropertyMetadata(new SolidColorBrush(Colors.Transparent)));
 
         public Brush Background
         {
@@ -232,6 +239,9 @@ namespace XeryonMotionGUI
                 Canvas.SetLeft(this, newLeft);
                 Canvas.SetTop(this, newTop);
 
+                this.NotifyPositionChanged();
+
+
                 // Move all connected blocks below this one
                 MoveConnectedBlocks(this, newLeft, newTop);
             }
@@ -322,6 +332,8 @@ namespace XeryonMotionGUI
                 // Update the position of the next block
                 Canvas.SetLeft(nextBlock, nextLeft);
                 Canvas.SetTop(nextBlock, nextTop);
+                nextBlock.NotifyPositionChanged();
+
 
                 // Recursively move blocks connected below
                 MoveConnectedBlocks(nextBlock, nextLeft, nextTop);
@@ -347,7 +359,7 @@ namespace XeryonMotionGUI
             else
             {
                 // Reset to the default background color
-                this.Background = new SolidColorBrush(Colors.LightGray);
+                this.Background = new SolidColorBrush(Colors.Transparent);
             }
         }
     }

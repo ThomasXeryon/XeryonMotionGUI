@@ -10,6 +10,7 @@ using Windows.Foundation;
 using XeryonMotionGUI.Classes;
 using XeryonMotionGUI.Blocks;
 using System.Threading;
+using System.ComponentModel;
 
 namespace XeryonMotionGUI.Views
 {
@@ -24,6 +25,8 @@ namespace XeryonMotionGUI.Views
         private Point _dragStartOffset;
 
         public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
+        private Dictionary<RepeatBlock, Arrow> _repeatArrows = new Dictionary<RepeatBlock, Arrow>();
+
 
         private readonly List<string> BlockTypes = new()
         {
@@ -60,16 +63,25 @@ namespace XeryonMotionGUI.Views
                     Block = BlockFactory.CreateBlock(blockType, this.RunningControllers), // Pass RunningControllers
                     Text = blockType,
                     Margin = new Thickness(10),
-                    Background = new SolidColorBrush(Microsoft.UI.Colors.LightGray)
+                    Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent)
                 };
 
                 // Attach pointer pressed for palette logic
                 block.PointerPressed += PaletteBlock_PointerPressed;
+                block.PositionChanged += Block_PositionChanged;
                 BlockPalette.Children.Add(block);
 
                 Debug.WriteLine($"Palette block '{blockType}' added.");
             }
         }
+
+        // Handle position changes to update arrow
+        private void Block_PositionChanged(object sender, EventArgs e)
+        {
+            UpdateAllArrows();
+
+        }
+
 
         // When user clicks a palette block to drag it out
         private void PaletteBlock_PointerPressed(object sender, PointerRoutedEventArgs e)
@@ -120,6 +132,12 @@ namespace XeryonMotionGUI.Views
         {
             // So we can drag existing blocks
             block.PointerPressed += WorkspaceBlock_PointerPressed;
+
+            // If it's a RepeatBlock, subscribe to PropertyChanged
+            if (block.Block is RepeatBlock repeatBlock)
+            {
+                repeatBlock.PropertyChanged += RepeatBlock_PropertyChanged;
+            }
         }
 
         // Start dragging an existing block
@@ -182,11 +200,124 @@ namespace XeryonMotionGUI.Views
 
                 // Move all connected blocks below the dragged block
                 MoveConnectedBlocks(_draggedBlock, newLeft, newTop);
+                UpdateAllArrows();
 
                 // Update SnapShadow
                 UpdateSnapShadow(_draggedBlock);
             }
         }
+
+        private void WorkspaceBlock_PointerMoved(object sender, PointerRoutedEventArgs e)
+        {
+            if (_draggedBlock != null)
+            {
+                var currentPosition = e.GetCurrentPoint(WorkspaceCanvas).Position;
+                double newLeft = currentPosition.X - _dragStartOffset.X;
+                double newTop = currentPosition.Y - _dragStartOffset.Y;
+
+                // Move the dragged block
+                Canvas.SetLeft(_draggedBlock, newLeft);
+                Canvas.SetTop(_draggedBlock, newTop);
+
+                // Update any repeat block arrows associated with this block
+                if (_draggedBlock.Block is RepeatBlock repeatBlock)
+                {
+                    UpdateArrowForRepeatBlock(repeatBlock);
+                }
+            }
+        }
+
+        private void UpdateArrowForRepeatBlock(RepeatBlock repeatBlock)
+        {
+            if (repeatBlock.EndBlock != null)
+            {
+                if (!_repeatArrows.ContainsKey(repeatBlock))
+                {
+                    // Create a new arrow
+                    var arrow = new Arrow();
+                    arrow.AddToCanvas(WorkspaceCanvas);
+                    _repeatArrows.Add(repeatBlock, arrow);
+                }
+
+                // Update the arrow's position
+                var arrowToUpdate = _repeatArrows[repeatBlock];
+                var sourceElement = WorkspaceCanvas.Children
+                    .OfType<DraggableElement>()
+                    .FirstOrDefault(de => de.Block == repeatBlock);
+
+                var endBlockElement = WorkspaceCanvas.Children
+                    .OfType<DraggableElement>()
+                    .FirstOrDefault(de => de.Block == repeatBlock.EndBlock);
+
+                if (sourceElement != null && endBlockElement != null)
+                {
+                    arrowToUpdate.UpdatePosition(sourceElement, endBlockElement);
+                }
+            }
+            else
+            {
+                // Remove the arrow if EndBlock is no longer valid
+                if (_repeatArrows.ContainsKey(repeatBlock))
+                {
+                    _repeatArrows[repeatBlock].RemoveFromCanvas(WorkspaceCanvas);
+                    _repeatArrows.Remove(repeatBlock);
+                }
+            }
+        }
+
+
+        private void RepeatBlock_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (sender is RepeatBlock repeatBlock && e.PropertyName == nameof(RepeatBlock.BlocksToRepeat))
+            {
+                Debug.WriteLine($"BlocksToRepeat changed for RepeatBlock: {repeatBlock.Text}");
+
+                // Recalculate StartBlock and EndBlock
+                repeatBlock.StartBlock = FindStartBlock(repeatBlock);
+                repeatBlock.EndBlock = FindEndBlock(repeatBlock);
+                UpdateArrowForRepeatBlock(repeatBlock);
+
+                Debug.WriteLine($"[RepeatBlock] Updated StartBlock = {repeatBlock.StartBlock?.Text}, EndBlock = {repeatBlock.EndBlock?.Text}");
+
+                // Update the arrow
+                if (repeatBlock.EndBlock != null)
+                {
+                    if (!_repeatArrows.ContainsKey(repeatBlock))
+                    {
+                        // Create a new arrow
+                        var arrow = new Arrow();
+                        arrow.AddToCanvas(WorkspaceCanvas);
+                        _repeatArrows.Add(repeatBlock, arrow);
+                    }
+
+                    // Update the arrow's position
+                    var arrowToUpdate = _repeatArrows[repeatBlock];
+                    var sourceElement = WorkspaceCanvas.Children
+                        .OfType<DraggableElement>()
+                        .FirstOrDefault(de => de.Block == repeatBlock);
+
+                    var endBlockElement = WorkspaceCanvas.Children
+                        .OfType<DraggableElement>()
+                        .FirstOrDefault(de => de.Block == repeatBlock.EndBlock);
+
+                    if (sourceElement != null && endBlockElement != null)
+                    {
+                        // Pass DraggableElement instances instead of Points
+                        arrowToUpdate.UpdatePosition(sourceElement, endBlockElement);
+                    }
+                }
+                else
+                {
+                    // Remove the arrow if EndBlock is no longer valid
+                    if (_repeatArrows.ContainsKey(repeatBlock))
+                    {
+                        _repeatArrows[repeatBlock].RemoveFromCanvas(WorkspaceCanvas);
+                        _repeatArrows.Remove(repeatBlock);
+                    }
+                }
+            }
+        }
+
 
         // Handle PointerReleased to delete the block if hovering over trash
         private void WorkspaceCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
@@ -198,6 +329,8 @@ namespace XeryonMotionGUI.Views
                 if (IsDroppedInTrash(_draggedBlock))
                 {
                     Debug.WriteLine($"Block '{_draggedBlock.Text}' dropped in trash.");
+                    RemoveArrowsForBlock(_draggedBlock);
+
                     // Remove from UI
                     WorkspaceCanvas.Children.Remove(_draggedBlock);
 
@@ -231,6 +364,51 @@ namespace XeryonMotionGUI.Views
 
             RemoveDuplicateBlocks();
         }
+
+        private void RemoveArrowsForBlock(DraggableElement block)
+        {
+            // Iterate through all RepeatBlocks to remove arrows pointing to or from the deleted block
+            var arrowsToRemove = _repeatArrows
+                .Where(kvp => kvp.Key.EndBlock?.UiElement == block ||
+                              kvp.Key.StartBlock?.UiElement == block)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var repeatBlock in arrowsToRemove)
+            {
+                _repeatArrows[repeatBlock].RemoveFromCanvas(WorkspaceCanvas);
+                _repeatArrows.Remove(repeatBlock);
+
+                // Unsubscribe from PropertyChanged
+                repeatBlock.PropertyChanged -= RepeatBlock_PropertyChanged;
+            }
+        }
+
+        // Function to update all arrows in the canvas
+        private void UpdateAllArrows()
+        {
+            // Loop through all RepeatBlocks
+            foreach (var repeatBlock in _repeatArrows.Keys.ToList())
+            {
+                // Update the arrow for each RepeatBlock
+                var arrowToUpdate = _repeatArrows[repeatBlock];
+                var sourceElement = WorkspaceCanvas.Children
+                    .OfType<DraggableElement>()
+                    .FirstOrDefault(de => de.Block == repeatBlock);
+
+                var endBlockElement = WorkspaceCanvas.Children
+                    .OfType<DraggableElement>()
+                    .FirstOrDefault(de => de.Block == repeatBlock.EndBlock);
+
+                if (sourceElement != null && endBlockElement != null)
+                {
+                    // Pass DraggableElement instances to update the arrow's position
+                    arrowToUpdate.UpdatePosition(sourceElement, endBlockElement);
+                }
+            }
+        }
+
+
 
         private void SnapToNearestBlock(DraggableElement block)
         {
@@ -387,25 +565,60 @@ namespace XeryonMotionGUI.Views
         {
             if (block.Block is RepeatBlock repeatBlock)
             {
-                // Find the start block (topmost block in the sequence)
-                var startBlock = block.PreviousBlock?.Block;
-                while (startBlock?.PreviousBlock != null)
+                // Recalculate StartBlock and EndBlock based on BlocksToRepeat
+                repeatBlock.StartBlock = FindStartBlock(repeatBlock);
+                repeatBlock.EndBlock = FindEndBlock(repeatBlock);
+
+                Debug.WriteLine($"[RepeatBlock] StartBlock = {repeatBlock.StartBlock?.Text}, EndBlock = {repeatBlock.EndBlock?.Text}");
+
+                // Subscribe to PropertyChanged if not already done
+                if (!_repeatArrows.ContainsKey(repeatBlock))
                 {
-                    startBlock = startBlock.PreviousBlock;
+                    repeatBlock.PropertyChanged += RepeatBlock_PropertyChanged;
                 }
 
-                // Find the end block (block closest to the RepeatBlock)
-                var endBlock = block.PreviousBlock?.Block;
+                // Draw or update the arrow if EndBlock is valid
+                if (repeatBlock.EndBlock != null)
+                {
+                    if (!_repeatArrows.ContainsKey(repeatBlock))
+                    {
+                        // Create a new arrow
+                        var arrow = new Arrow();
+                        arrow.AddToCanvas(WorkspaceCanvas);
+                        _repeatArrows.Add(repeatBlock, arrow);
+                    }
 
-                // Set the start and end blocks
-                repeatBlock.StartBlock = startBlock;
-                repeatBlock.EndBlock = endBlock;
+                    // Update the arrow's position
+                    var arrowToUpdate = _repeatArrows[repeatBlock];
+                    var sourceElement = WorkspaceCanvas.Children
+                        .OfType<DraggableElement>()
+                        .FirstOrDefault(de => de.Block == repeatBlock);
 
-                Debug.WriteLine($"[RepeatBlock] StartBlock = {startBlock?.Text}, EndBlock = {endBlock?.Text}");
+                    var endBlockElement = WorkspaceCanvas.Children
+                        .OfType<DraggableElement>()
+                        .FirstOrDefault(de => de.Block == repeatBlock.EndBlock);
+
+                    if (sourceElement != null && endBlockElement != null)
+                    {
+                        // **Corrected:** Pass DraggableElement instances instead of Points
+                        arrowToUpdate.UpdatePosition(sourceElement, endBlockElement);
+                    }
+                }
+                else
+                {
+                    // Remove the arrow if EndBlock is no longer valid
+                    if (_repeatArrows.ContainsKey(repeatBlock))
+                    {
+                        _repeatArrows[repeatBlock].RemoveFromCanvas(WorkspaceCanvas);
+                        _repeatArrows.Remove(repeatBlock);
+                    }
+                }
             }
-            // If it's already snapped, skip
+
+            // If the block already has a PreviousBlock (is snapped), skip the snapping logic
             if (block.PreviousBlock != null) return;
 
+            // Iterate through all children in the WorkspaceCanvas to find snapping targets
             foreach (var child in WorkspaceCanvas.Children)
             {
                 if (child is DraggableElement targetBlock && targetBlock != block && targetBlock != SnapShadow)
@@ -433,7 +646,43 @@ namespace XeryonMotionGUI.Views
                             $"UI References: {block.PreviousBlock?.Text}, {targetBlock.NextBlock?.Text}; " +
                             $"Logic References: {block.Block.PreviousBlock?.Text}, {targetBlock.Block.NextBlock?.Text}");
 
-                        return;
+                        // If the snapped block is a RepeatBlock, handle arrows
+                        if (block.Block is RepeatBlock repeatBlockk)
+                        {
+                            // Recalculate StartBlock and EndBlock based on BlocksToRepeat
+                            repeatBlockk.StartBlock = FindStartBlock(repeatBlockk);
+                            repeatBlockk.EndBlock = FindEndBlock(repeatBlockk);
+
+                            Debug.WriteLine($"[RepeatBlock] StartBlock = {repeatBlockk.StartBlock?.Text}, EndBlock = {repeatBlockk.EndBlock?.Text}");
+
+                            if (repeatBlockk.EndBlock != null)
+                            {
+                                if (!_repeatArrows.ContainsKey(repeatBlockk))
+                                {
+                                    // Create a new arrow
+                                    var arrow = new Arrow();
+                                    arrow.AddToCanvas(WorkspaceCanvas);
+                                    _repeatArrows.Add(repeatBlockk, arrow);
+                                }
+
+                                // Update the arrow's position
+                                var arrowToUpdate = _repeatArrows[repeatBlockk];
+                                var sourceElement = WorkspaceCanvas.Children
+                                    .OfType<DraggableElement>()
+                                    .FirstOrDefault(de => de.Block == repeatBlockk);
+
+                                var endBlockElement = WorkspaceCanvas.Children
+                                    .OfType<DraggableElement>()
+                                    .FirstOrDefault(de => de.Block == repeatBlockk.EndBlock);
+
+                                if (sourceElement != null && endBlockElement != null)
+                                {
+                                    // **Corrected:** Pass DraggableElement instances instead of Points
+                                    arrowToUpdate.UpdatePosition(sourceElement, endBlockElement);
+                                }
+                            }
+                        }
+                        return; // Exit after handling the first valid snap
                     }
                 }
             }
@@ -450,6 +699,64 @@ namespace XeryonMotionGUI.Views
                 // Assuming targetBlock.Block.NextBlock was already set to null above
             }
         }
+
+        private BlockBase FindStartBlock(RepeatBlock repeatBlock)
+        {
+            var startBlock = repeatBlock.PreviousBlock;
+            while (startBlock?.PreviousBlock != null)
+            {
+                startBlock = startBlock.PreviousBlock;
+            }
+            return startBlock;
+        }
+
+        private BlockBase FindEndBlock(RepeatBlock repeatBlock)
+        {
+            var endBlock = repeatBlock.PreviousBlock;
+            for (int i = 1; i < repeatBlock.BlocksToRepeat && endBlock?.PreviousBlock != null; i++)
+            {
+                endBlock = endBlock.PreviousBlock;
+            }
+            return endBlock;
+        }
+
+        private Point GetBlockCenter(DraggableElement block)
+        {
+            double left = Canvas.GetLeft(block);
+            double top = Canvas.GetTop(block);
+            double centerX = left + block.ActualWidth / 2;
+            double centerY = top + block.ActualHeight / 2;
+            return new Point(centerX, centerY);
+        }
+
+        private void UpdateArrowsForBlock(DraggableElement block)
+        {
+            // Iterate through all RepeatBlocks that might be connected to this block
+            foreach (var repeatBlock in _repeatArrows.Keys.ToList())
+            {
+                // If the RepeatBlock's start or end block is this one, update the arrow
+                if (repeatBlock.StartBlock?.UiElement == block || repeatBlock.EndBlock?.UiElement == block)
+                {
+                    var arrow = _repeatArrows[repeatBlock];
+                    // Get the source and target blocks
+                    var sourceElement = WorkspaceCanvas.Children
+                        .OfType<DraggableElement>()
+                        .FirstOrDefault(de => de.Block == repeatBlock.StartBlock);
+
+                    var targetElement = WorkspaceCanvas.Children
+                        .OfType<DraggableElement>()
+                        .FirstOrDefault(de => de.Block == repeatBlock.EndBlock);
+
+                    if (sourceElement != null && targetElement != null)
+                    {
+                        // Pass DraggableElement instances instead of Points for accurate updates
+                        arrow.UpdatePosition(sourceElement, targetElement);
+                    }
+                }
+            }
+        }
+
+
 
         private void MoveConnectedBlocks(DraggableElement block, double parentLeft, double parentTop)
         {

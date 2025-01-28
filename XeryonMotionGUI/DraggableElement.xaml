@@ -61,6 +61,9 @@
                     Header="Wait time (ms)"
                     Value="{Binding Block.WaitTime, Mode=TwoWay}"
                     Margin="0,5,0,5"
+                    SpinButtonPlacementMode="Inline"
+                    SmallChange="100"
+                    LargeChange="1000"
                     PlaceholderText="Enter wait time"
                     Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Wait'}" />
             </StackPanel>
@@ -135,6 +138,9 @@
                     Header="Repeat count"
                     Value="{Binding Block.RepeatCount, Mode=TwoWay}"
                     Margin="0,5,0,5"
+                    SpinButtonPlacementMode="Inline"
+                    SmallChange="1"
+                    LargeChange="1"
                     PlaceholderText="Enter repeat times" />
 
                 <NumberBox
@@ -142,6 +148,9 @@
                     Header="Blocks to repeat"
                     Value="{Binding Block.BlocksToRepeat, Mode=TwoWay}"
                     Margin="0,5,0,5"
+                    SpinButtonPlacementMode="Inline"
+                    SmallChange="1"
+                    LargeChange="1"
                     PlaceholderText="Enter number of blocks" />
             </StackPanel>
         </Border>

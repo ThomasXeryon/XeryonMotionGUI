@@ -34,11 +34,11 @@
 
             <!-- Controllers Section -->
             <ListView 
-                ItemsSource="{Binding RunningControllers}" 
-                SelectedItem="{Binding SelectedController, Mode=TwoWay}"
-                Grid.Column="0" 
-                Grid.Row="0" 
-                Margin="10,0,0,0">
+            ItemsSource="{Binding RunningControllers}" 
+            SelectedItem="{Binding SelectedController, Mode=TwoWay}"
+            Grid.Column="0" 
+            Grid.Row="0" 
+            Margin="10,0,0,0">
                 <ListView.ItemTemplate>
                     <DataTemplate>
                         <Grid Margin="10">
@@ -61,11 +61,11 @@
 
             <!-- Axes Section -->
             <ListView 
-                Grid.Column="1"
-                Grid.Row="0"
-                ItemsSource="{Binding SelectedController.Axes}"
-                SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
-                Margin="20,0,0,0">
+            Grid.Column="1"
+            Grid.Row="0"
+            ItemsSource="{Binding SelectedController.Axes}"
+            SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
+            Margin="20,0,0,0">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="classes:Axis">
                         <StackPanel>
@@ -74,137 +74,145 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="classes:InfoBarMessage">
                                         <controls:InfoBar
-                                            IsOpen="True"
-                                            Severity="{Binding Severity}"
-                                            Title="{Binding Title}"
-                                            Message="{Binding Message}"
-                                            Margin="0,0,0,10"
-                                            IsClosable="False" />
+                                        IsOpen="True"
+                                        Severity="{Binding Severity}"
+                                        Title="{Binding Title}"
+                                        Message="{Binding Message}"
+                                        Margin="0,0,0,10"
+                                        IsClosable="False" />
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-
                             <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                                <!-- Define sufficient rows to accommodate all elements including the Expander -->
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <!-- Row 0: Title -->
+                                    <RowDefinition Height="Auto" />
+                                    <!-- Row 1: EPOS, Speed, etc. -->
+                                    <RowDefinition Height="Auto" />
+                                    <!-- Row 2: DPOS Slider -->
+                                    <RowDefinition Height="Auto" />
+                                    <!-- Row 3: Button Box -->
+                                    <RowDefinition Height="Auto" />
 
-                            <!-- Title -->
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}" FontSize="16" FontWeight="Bold" Margin="5,10,0,0" MaxWidth="400" HorizontalAlignment="Left"/>
-
-                            <!-- 
-                                , Speed, Max Speed, and Time Display -->
-                            <Grid Grid.Row="1" Grid.Column="0" Margin="0,10,0,0">
+                                    <!-- Row 4: Expander -->
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <!-- EPOS -->
-                                <StackPanel Grid.Column="0" HorizontalAlignment="Center" Margin="10,5,0,0">
-                                    <TextBlock 
-                                    Text="Position" 
-                                    VerticalAlignment="Center" 
-                                    HorizontalAlignment="Center" 
-                                    TextAlignment="Center" 
-                                    Margin="0,0,0,5"/>
-                                                        <TextBox 
-                                    Text="{Binding EPOS}" 
-                                    Width="100" 
-                                    IsReadOnly="True" 
-                                    HorizontalAlignment="Center" 
-                                    TextAlignment="Center" 
-                                    Margin="0"/>            
-                                </StackPanel>
+                                <!-- Title -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}" FontSize="16" FontWeight="Bold" Margin="5,10,0,0" MaxWidth="400" HorizontalAlignment="Left"/>
 
-                                <!-- Speed -->
-                                <StackPanel Grid.Column="1" HorizontalAlignment="Center" Margin="10,5,0,0">
-                                    <TextBlock 
-                                    Text="Speed" 
-                                    VerticalAlignment="Center" 
-                                    HorizontalAlignment="Center" 
-                                    TextAlignment="Center" 
-                                    Margin="0,0,0,5"/>
-                                                        <TextBox 
-                                    Text="{Binding SPEED}" 
-                                    Width="100" 
-                                    IsReadOnly="True" 
-                                    HorizontalAlignment="Center" 
-                                    TextAlignment="Center" 
-                                    Margin="0"/>            
-                                </StackPanel>
+                                <!-- Speed, Max Speed, and Time Display -->
+                                <Grid Grid.Row="1" Grid.Column="0" Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                                <!-- Max Speed -->
-                                <StackPanel Grid.Column="2" HorizontalAlignment="Center" Margin="10,5,0,0">
-                                    <TextBlock 
-                                    Text="Top Speed" 
-                                    VerticalAlignment="Center" 
-                                    HorizontalAlignment="Center" 
-                                    TextAlignment="Center" 
-                                    Margin="0,0,0,5"/>
-                                                        <TextBox 
-                                    Text="{Binding MaxSpeed}" 
-                                    Width="100" 
-                                    IsReadOnly="True" 
-                                    HorizontalAlignment="Center" 
-                                    TextAlignment="Center" 
-                                    PointerEntered="TextBox_PointerEntered"
-                                    Margin="0"/>        
-                                </StackPanel>
+                                    <!-- EPOS -->
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center" Margin="10,5,0,0">
+                                        <TextBlock 
+                                        Text="Position" 
+                                        VerticalAlignment="Center" 
+                                        HorizontalAlignment="Center" 
+                                        TextAlignment="Center" 
+                                        Margin="0,0,0,5"/>
+                                        <TextBox 
+                                        Text="{Binding EPOS}" 
+                                        Width="100" 
+                                        IsReadOnly="True" 
+                                        HorizontalAlignment="Center" 
+                                        TextAlignment="Center" 
+                                        Margin="0"/>
+                                    </StackPanel>
 
-                                <!-- Time -->
-                                <StackPanel Grid.Column="3" HorizontalAlignment="Center" Margin="10,5,0,0">
-                                    <TextBlock 
-                                Text="Time" 
-                                VerticalAlignment="Center" 
-                                HorizontalAlignment="Center" 
-                                TextAlignment="Center" 
-                                Margin="0,0,0,5"/>
-                                                <TextBox 
-                                Text="{Binding PositionReachedElapsedMilliseconds}" 
-                                Width="100" 
-                                IsReadOnly="True" 
-                                HorizontalAlignment="Center" 
-                                TextAlignment="Center" 
-                                Margin="0"> 
-                                        <ToolTipService.ToolTip>
-                                            <ToolTip>
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding PositionReachedElapsedMilliseconds, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Movement time'}" />
-                                                    <TextBlock Text="{Binding CommandToPositionReachedMilliseconds, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Total time'}" />
-                                                </StackPanel>
-                                            </ToolTip>
-                                        </ToolTipService.ToolTip>
-                                    </TextBox>
-                                </StackPanel>
-                            </Grid>
+                                    <!-- Speed -->
+                                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" Margin="10,5,0,0">
+                                        <TextBlock 
+                                        Text="Speed" 
+                                        VerticalAlignment="Center" 
+                                        HorizontalAlignment="Center" 
+                                        TextAlignment="Center" 
+                                        Margin="0,0,0,5"/>
+                                        <TextBox 
+                                        Text="{Binding SPEED}" 
+                                        Width="100" 
+                                        IsReadOnly="True" 
+                                        HorizontalAlignment="Center" 
+                                        TextAlignment="Center" 
+                                        Margin="0"/>
+                                    </StackPanel>
 
+                                    <!-- Max Speed -->
+                                    <StackPanel Grid.Column="2" HorizontalAlignment="Center" Margin="10,5,0,0">
+                                        <TextBlock 
+                                        Text="Top Speed" 
+                                        VerticalAlignment="Center" 
+                                        HorizontalAlignment="Center" 
+                                        TextAlignment="Center" 
+                                        Margin="0,0,0,5"/>
+                                        <TextBox 
+                                        Text="{Binding MaxSpeed}" 
+                                        Width="100" 
+                                        IsReadOnly="True" 
+                                        HorizontalAlignment="Center" 
+                                        TextAlignment="Center" 
+                                        PointerEntered="TextBox_PointerEntered"
+                                        Margin="0"/>
+                                    </StackPanel>
 
+                                    <!-- Time -->
+                                    <StackPanel Grid.Column="3" HorizontalAlignment="Center" Margin="10,5,0,0">
+                                        <TextBlock 
+                                        Text="Time" 
+                                        VerticalAlignment="Center" 
+                                        HorizontalAlignment="Center" 
+                                        TextAlignment="Center" 
+                                        Margin="0,0,0,5"/>
+                                        <TextBox 
+                                        Text="{Binding PositionReachedElapsedMilliseconds}" 
+                                        Width="100" 
+                                        IsReadOnly="True" 
+                                        HorizontalAlignment="Center" 
+                                        TextAlignment="Center" 
+                                        Margin="0">
+                                            <ToolTipService.ToolTip>
+                                                <ToolTip>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding PositionReachedElapsedMilliseconds, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Movement time'}" />
+                                                        <TextBlock Text="{Binding CommandToPositionReachedMilliseconds, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Total time'}" />
+                                                    </StackPanel>
+                                                </ToolTip>
+                                            </ToolTipService.ToolTip>
+                                        </TextBox>
+                                    </StackPanel>
+                                </Grid>
 
-                            <!-- Status Bits -->
-                            <Grid Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Margin="10,10,0,0" HorizontalAlignment="Right">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
+                                <!-- Status Bits -->
+                                <Grid Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Margin="10,10,0,0" HorizontalAlignment="Right">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                                <TextBlock Text="Position Reached" VerticalAlignment="Center" Margin="5,0" Grid.Row="0" Grid.Column="1" />
-                                <Ellipse 
+                                    <TextBlock Text="Position Reached" VerticalAlignment="Center" Margin="5,0" Grid.Row="0" Grid.Column="1" />
+                                    <Ellipse 
                                     Width="15" 
                                     Height="15" 
                                     Fill="{Binding PositionReached, Converter={StaticResource BoolToColorConverter}}" 
@@ -215,8 +223,8 @@
                                     Grid.Row="0"
                                     Grid.Column="0" />
 
-                                <TextBlock Text="Index Found" VerticalAlignment="Center" Margin="5,0" Grid.Row="1" Grid.Column="1" />
-                                <Ellipse 
+                                    <TextBlock Text="Index Found" VerticalAlignment="Center" Margin="5,0" Grid.Row="1" Grid.Column="1" />
+                                    <Ellipse 
                                     Width="15" 
                                     Height="15" 
                                     Fill="{Binding EncoderValid, Converter={StaticResource BoolToColorConverter}}" 
@@ -226,28 +234,28 @@
                                     HorizontalAlignment="Right"
                                     Grid.Row="1"
                                     Grid.Column="0" />
-                                    
-                                <TextBlock Text="Motor on" VerticalAlignment="Center" Margin="5,0" Grid.Row="2" Grid.Column="1" />
-                                <Ellipse 
-                                Width="15" 
-                                Height="15" 
-                                Fill="{Binding MotorOn, Converter={StaticResource BoolToColorConverter}}" 
-                                Margin="5,0,0,0"
-                                Stroke="Gray"
-                                StrokeThickness="0.5"
-                                HorizontalAlignment="Right"
-                                Grid.Row="2"
-                                Grid.Column="0" />
+
+                                    <TextBlock Text="Motor on" VerticalAlignment="Center" Margin="5,0" Grid.Row="2" Grid.Column="1" />
+                                    <Ellipse 
+                                    Width="15" 
+                                    Height="15" 
+                                    Fill="{Binding MotorOn, Converter={StaticResource BoolToColorConverter}}" 
+                                    Margin="5,0,0,0"
+                                    Stroke="Gray"
+                                    StrokeThickness="0.5"
+                                    HorizontalAlignment="Right"
+                                    Grid.Row="2"
+                                    Grid.Column="0" />
                                 </Grid>
 
-                            <!-- DPOS Slider -->
-                            <Grid Grid.Row="2" Grid.Column="0" Margin="7,20,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                                <!-- DPOS Slider -->
+                                <Grid Grid.Row="2" Grid.Column="0" Margin="7,20,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                <Slider
+                                    <Slider
                                     x:Name="PositionSlider"
                                     Minimum="{Binding NegativeRange}"
                                     Maximum="{Binding PositiveRange}"
@@ -261,12 +269,11 @@
                                     HorizontalAlignment="Left"
                                     ValueChanged="PositionSlider_ValueChanged"
                                     Grid.Column="1">
-                                </Slider>
-                                
-                            </Grid>
-                            <!-- Button Box -->
+                                    </Slider>
+                                </Grid>
+
+                                <!-- Button Box -->
                                 <Grid Grid.Row="3" Grid.Column="0" Margin="65,5,50,0" HorizontalAlignment="Left">
-                                    <!-- Positioned to the right -->
                                     <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
                                         <!-- Layer 1 -->
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0">
@@ -293,6 +300,7 @@
                                             <Button Content="STOP" Command="{Binding StopCommand}" Width="100" FontWeight="Bold" Foreground="Red" Margin="10" />
                                             <Button Content="Move +" Command="{Binding MovePositiveCommand}" Width="100" Margin="0" />
                                         </StackPanel>
+                                        <!-- Progress Bars -->
                                         <Grid Grid.Row="3" Margin="0,5" HorizontalAlignment="Center">
                                             <Grid.RowDefinitions>
                                                 <!-- Row for Buttons -->
@@ -306,9 +314,9 @@
                                             </Grid.ColumnDefinitions>
 
                                             <SplitButton Content="Index"
-                                                 Width="100"
-                                                 Margin="5"
-                                                 Command="{Binding IndexCommand}">
+                                             Width="100"
+                                             Margin="5"
+                                             Command="{Binding IndexCommand}">
                                                 <SplitButton.Flyout>
                                                     <MenuFlyout>
                                                         <MenuFlyoutItem Text="Index Left" Command="{Binding IndexMinusCommand}" />
@@ -318,9 +326,9 @@
                                             </SplitButton>
 
                                             <SplitButton Content="Reset"
-                                                 Width="100" Margin="5" Grid.Row="0" Grid.Column="1"
-                                                 Command="{Binding ResetCommand}"
-                                                 IsEnabled="{Binding IsResetEnabled}">
+                                             Width="100" Margin="5" Grid.Row="0" Grid.Column="1"
+                                             Command="{Binding ResetCommand}"
+                                             IsEnabled="{Binding IsResetEnabled}">
                                                 <SplitButton.Flyout>
                                                     <MenuFlyout>
                                                         <MenuFlyoutItem Text="Reset All" Command="{Binding ResetCommand}" />
@@ -352,33 +360,34 @@
                                             Grid.Row="0"
                                             Grid.Column="1" 
                                             HorizontalAlignment="Left" />
+
+
                                         </Grid>
                                     </StackPanel>
                                 </Grid>
                             </Grid>
+                            <controls:Expander
+                                    Grid.Row="5"
+                                    Grid.Column="5"
+                                    Margin="-14,20,0,1"
+                                    Header="Advanced"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Bottom"
+                                    IsExpanded="False">
+                                <Grid>
+                                    <oxyplot:PlotView
+                                            Model="{Binding PlotModel}"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            Background="Transparent" 
+                                            MinHeight="300"
+                                            MinWidth="600"/>
+                                </Grid>
+                            </controls:Expander>
                         </StackPanel>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
-            <StackPanel 
-                Grid.Column="1" 
-                Grid.Row="1" 
-                Margin="20,10,20,10">
-                <TextBlock 
-                    Text="Axis Movement Over Time" 
-                    FontSize="18" 
-                    FontWeight="Bold" 
-                    Margin="0,0,0,10" />
-
-                <!-- Bind the PlotView to the PlotModel from the selected Axis -->
-                <oxyplot:PlotView
-                    Model="{Binding PlotModel}"
-                    Height="400"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Bottom"
-                    Background="Transparent">
-                </oxyplot:PlotView>
-            </StackPanel>
         </Grid>
     </ScrollViewer>
 </Page>

@@ -1,5 +1,8 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,15 +13,34 @@ namespace XeryonMotionGUI.Blocks
     {
         private int _repeatCount = 1;
         private int _blocksToRepeat = 1; // Number of blocks above to repeat
+
+        private BlockBase _startBlock;
         public BlockBase StartBlock
         {
-            get; set;
-        } // First block in the repeat sequence
+            get => _startBlock;
+            set
+            {
+                if (_startBlock != value)
+                {
+                    _startBlock = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private BlockBase _endBlock;
         public BlockBase EndBlock
         {
-            get; set;
-        }   // Last block in the repeat sequence
-
+            get => _endBlock;
+            set
+            {
+                if (_endBlock != value)
+                {
+                    _endBlock = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         public int RepeatCount
         {
@@ -50,9 +72,8 @@ namespace XeryonMotionGUI.Blocks
         {
             Text = "Repeat";
             RequiresAxis = false; // Repeat block doesn't need an axis
-            RequiresAxis = false; // Repeat block doesn't need an axis
             Width = 150; // Custom width
-            Height = 200; 
+            Height = 200;
         }
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)
@@ -115,8 +136,6 @@ namespace XeryonMotionGUI.Blocks
 
             Debug.WriteLine($"[RepeatBlock] Repeat completed.");
         }
-
-
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

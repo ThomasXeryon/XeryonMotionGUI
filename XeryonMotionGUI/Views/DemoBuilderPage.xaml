@@ -10,7 +10,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- Block Palette -->
-        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalAlignment="Left">
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Hidden" HorizontalAlignment="Left">
             <StackPanel x:Name="BlockPalette">
                 <TextBlock Text="Blocks" FontSize="16" FontWeight="Bold" Margin="10"/>
             </StackPanel>
@@ -26,16 +26,16 @@
             <!-- Single Grid as Child of Border -->
             <Grid>
                 <!-- Scrollable and Zoomable Workspace -->
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" 
-                              VerticalScrollBarVisibility="Auto"
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden" 
+                              VerticalScrollBarVisibility="Hidden"
                               ZoomMode="Enabled" 
                               MinZoomFactor="0.1" 
                               MaxZoomFactor="10.0">
                     <Canvas x:Name="WorkspaceCanvas"
                             Background="Transparent"
                             AllowDrop="True"
-                            Width="2000"
-                            Height="2000">
+                            Width="5000"
+                            Height="5000">
                         <!-- Shadow block for snapping preview -->
                         <local:DraggableElement x:Name="SnapShadow"
                             Text=""
@@ -44,7 +44,7 @@
                             Opacity="0.5"
                             Visibility="Collapsed"
                             IsHitTestVisible="False"
-                            Background="Gray" />
+                            Background="Transparent" />
                         <!-- Green Flag Start Block -->
                         <local:DraggableElement x:Name="GreenFlagBlock"
                             Text="Start"
@@ -52,7 +52,7 @@
                             Margin="10"
                             IsHitTestVisible="False">
                             <local:DraggableElement.Content>
-                                <Border CornerRadius="5" Padding="10" Background="LightGray" BorderThickness="1" BorderBrush="Black">
+                                <Border CornerRadius="5" Padding="10" Background="Transparent" BorderThickness="1" BorderBrush="Black">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <!-- Start Icon -->
                                         <FontIcon Glyph="&#xE768;" FontSize="16" Margin="0,0,5,0" Foreground="Green" />
