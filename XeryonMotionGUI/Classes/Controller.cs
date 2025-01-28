@@ -25,6 +25,7 @@ namespace XeryonMotionGUI.Classes
         #region Events
         public event PropertyChangedEventHandler PropertyChanged;
         #endregion
+        private static readonly Stopwatch _globalStopwatch = Stopwatch.StartNew();
 
         #region Backing Fields
         private ICommand _OpenPortCommand;
@@ -448,27 +449,54 @@ namespace XeryonMotionGUI.Classes
         #region Data Handling
         private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
         {
-            SerialPort sp = (SerialPort)sender;
-            try
+            var sp = (SerialPort)sender;
+            while (sp.BytesToRead > 0)
             {
-                string inData = sp.ReadExisting();
-                string[] dataParts = inData.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                string line;
+                try
+                {
+                    line = sp.ReadLine();
+                }
+                catch (TimeoutException)
+                {
+                    break;
+                }
 
-                if (Axes.Count == 1)
-                {
-                    HandleSingleAxisData(dataParts);
-                }
-                else
-                {
-                    HandleMultiAxisData(dataParts);
-                }
-                sp.DiscardInBuffer();
-            }
-            catch (Exception)
-            {
-                throw;
+                // We'll get time as a double from stopwatch
+                double timeSeconds = _globalStopwatch.Elapsed.TotalSeconds;
+
+                // parse line
+                ParseLine(line, timeSeconds);
             }
         }
+
+        private void ParseLine(string line, double timeStamp)
+        {
+            // Example line: "STAT=1024 EPOS=123456"
+            string[] parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var part in parts)
+            {
+                if (part.StartsWith("STAT=", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (int.TryParse(part.Substring(5), out int statValue))
+                    {
+                        Axes[0].STAT = statValue;
+                    }
+                }
+                else if (part.StartsWith("EPOS=", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (int.TryParse(part.Substring(5), out int eposValue))
+                    {
+                        // Now pass the epos + the stopwatch-derived time to the Axis
+                        Axes[0].OnEPOSUpdate(eposValue, timeStamp);
+                    }
+                }
+            }
+        }
+
+
+
 
         private void HandleSingleAxisData(string[] dataParts)
         {

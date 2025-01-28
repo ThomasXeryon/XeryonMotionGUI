@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:XeryonMotionGUI.Views"
     xmlns:helpers="using:XeryonMotionGUI.Helpers"
+    xmlns:oxyplot="using:OxyPlot"
     xmlns:classes="using:XeryonMotionGUI.Classes"
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     xmlns:viewmodels="using:XeryonMotionGUI.ViewModels">
@@ -263,13 +264,13 @@
                                 
                             </Grid>
                             <!-- Button Box -->
-                            <Grid Grid.Row="3" Grid.Column="0" Margin="65,5,50,0" HorizontalAlignment="Left">
-                                <!-- Positioned to the right -->
-                                <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-                                    <!-- Layer 1 -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0">
-                                        <Button Content="Step -" Command="{Binding StepNegativeCommand}" Width="100" Margin="0" />
-                                        <TextBox 
+                                <Grid Grid.Row="3" Grid.Column="0" Margin="65,5,50,0" HorizontalAlignment="Left">
+                                    <!-- Positioned to the right -->
+                                    <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                                        <!-- Layer 1 -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0">
+                                            <Button Content="Step -" Command="{Binding StepNegativeCommand}" Width="100" Margin="0" />
+                                            <TextBox 
                                             x:Name="StepSizeBox" 
                                             Text="{Binding StepSize, Mode=TwoWay}" 
                                             Width="100" 
@@ -277,31 +278,31 @@
                                             HorizontalAlignment="Center" 
                                             VerticalAlignment="Center" 
                                             Margin="10"/>
-                                        <Button Content="Step +" Command="{Binding StepPositiveCommand}" Width="100" Margin="0" />
-                                    </StackPanel>
-                                    <!-- Layer 2 -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0">
-                                        <Button Content="Scan -" Command="{Binding ScanNegativeCommand}" Width="100" Margin="0" />
-                                        <Button Content="Home" Command="{Binding HomeCommand}" Width="100" Margin="10" />
-                                        <Button Content="Scan +" Command="{Binding ScanPositiveCommand}" Width="100" Margin="0" />
-                                    </StackPanel>
-                                    <!-- Layer 3 -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0">
-                                        <Button Content="Move -" Command="{Binding MoveNegativeCommand}" Width="100" Margin="0" />
-                                        <Button Content="STOP" Command="{Binding StopCommand}" Width="100" FontWeight="Bold" Foreground="Red" Margin="10" />
-                                        <Button Content="Move +" Command="{Binding MovePositiveCommand}" Width="100" Margin="0" />
-                                    </StackPanel>
-                                    <Grid Grid.Row="3" Margin="0,5" HorizontalAlignment="Center">
-                                        <Grid.RowDefinitions>
-                                            <!-- Row for Buttons -->
-                                            <RowDefinition Height="Auto" />
-                                            <!-- Row for Progress Bars -->
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                            <Button Content="Step +" Command="{Binding StepPositiveCommand}" Width="100" Margin="0" />
+                                        </StackPanel>
+                                        <!-- Layer 2 -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0">
+                                            <Button Content="Scan -" Command="{Binding ScanNegativeCommand}" Width="100" Margin="0" />
+                                            <Button Content="Home" Command="{Binding HomeCommand}" Width="100" Margin="10" />
+                                            <Button Content="Scan +" Command="{Binding ScanPositiveCommand}" Width="100" Margin="0" />
+                                        </StackPanel>
+                                        <!-- Layer 3 -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0">
+                                            <Button Content="Move -" Command="{Binding MoveNegativeCommand}" Width="100" Margin="0" />
+                                            <Button Content="STOP" Command="{Binding StopCommand}" Width="100" FontWeight="Bold" Foreground="Red" Margin="10" />
+                                            <Button Content="Move +" Command="{Binding MovePositiveCommand}" Width="100" Margin="0" />
+                                        </StackPanel>
+                                        <Grid Grid.Row="3" Margin="0,5" HorizontalAlignment="Center">
+                                            <Grid.RowDefinitions>
+                                                <!-- Row for Buttons -->
+                                                <RowDefinition Height="Auto" />
+                                                <!-- Row for Progress Bars -->
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
 
                                             <SplitButton Content="Index"
                                                  Width="100"
@@ -328,7 +329,7 @@
                                             </SplitButton>
 
                                             <!-- Progress Bar for Index -->
-                                        <ProgressBar
+                                            <ProgressBar
                                             Value="100"
                                             IsIndeterminate="True"
                                             Visibility="{Binding SearchingIndex, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -339,8 +340,8 @@
                                             Grid.Column="0"
                                             HorizontalAlignment="Left" />
 
-                                        <!-- Progress Bar for Reset -->
-                                        <ProgressBar
+                                            <!-- Progress Bar for Reset -->
+                                            <ProgressBar
                                             Value="100"
                                             IsIndeterminate="True"
                                             Visibility="Collapsed"
@@ -350,15 +351,33 @@
                                             Grid.Row="0"
                                             Grid.Column="1" 
                                             HorizontalAlignment="Left" />
-                                    </Grid>
-                                </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
                             </Grid>
-
-                        </Grid>
                         </StackPanel>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+            <StackPanel 
+                Grid.Column="1" 
+                Grid.Row="1" 
+                Margin="20,10,20,10">
+                <TextBlock 
+                    Text="Axis Movement Over Time" 
+                    FontSize="18" 
+                    FontWeight="Bold" 
+                    Margin="0,0,0,10" />
+
+                <!-- Bind the PlotView to the PlotModel from the selected Axis -->
+                <oxyplot:PlotView
+                    Model="{Binding PlotModel}"
+                    Height="400"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Bottom"
+                    Background="Transparent">
+                </oxyplot:PlotView>
+            </StackPanel>
         </Grid>
     </ScrollViewer>
 </Page>

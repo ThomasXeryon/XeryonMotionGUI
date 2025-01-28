@@ -5,6 +5,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
+using OxyPlot;
 using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI.ViewModels
@@ -31,7 +32,7 @@ namespace XeryonMotionGUI.ViewModels
                 if (_selectedAxis != value)
                 {
                     SetProperty(ref _selectedAxis, value);
-
+                    OnPropertyChanged(nameof(PlotModel));
                     OnPropertyChanged(nameof(MoveNegativeCommand));
                     OnPropertyChanged(nameof(StepNegativeCommand));
                     OnPropertyChanged(nameof(HomeCommand));
@@ -49,6 +50,9 @@ namespace XeryonMotionGUI.ViewModels
                 }
             }
         }
+
+        public PlotModel PlotModel => SelectedAxis?.PlotModel;
+
 
         // Property to bind the selected controller
         public Controller SelectedController

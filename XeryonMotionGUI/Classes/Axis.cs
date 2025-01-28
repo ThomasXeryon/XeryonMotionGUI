@@ -11,12 +11,33 @@ using Microsoft.UI.Xaml;
 using Windows.UI;
 using Microsoft.UI.Xaml.Controls;
 using System.Diagnostics;
+using OxyPlot.Series;
+using OxyPlot;
+using OxyPlot.Axes;
+using System.Collections.Concurrent;
 
 namespace XeryonMotionGUI.Classes
 {
     public class Axis : INotifyPropertyChanged
     {
         #region Fields
+
+        private PlotModel _plotModel;
+        private LineSeries _positionSeries;
+        private ConcurrentQueue<(double EPOS, DateTime Time)> _dataQueue = new ConcurrentQueue<(double, DateTime)>();
+        private DispatcherTimer _updateTimer;
+        private object _lock = new object();
+
+        private double _minEpos = double.MaxValue;
+        private double _maxEpos = double.MinValue;
+        private DateTime _startTime = DateTime.MinValue;
+        private bool _previousPositionReached = false;
+        private bool _isLogging = false;
+        private DateTime _endTime = DateTime.MinValue;
+
+        private bool _positionReachedChanged = false;
+        private double _currentTime = 0;
+
 
         // General collections
         public ObservableCollection<InfoBarMessage> InfoBarMessages { get; set; } = new ObservableCollection<InfoBarMessage>();
@@ -45,6 +66,8 @@ namespace XeryonMotionGUI.Classes
             AxisLetter = axisLetter;
 
             InitializeParameters(axisType);
+            this.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
+
 
             // Initialize commands
             MoveNegativeCommand = new RelayCommand(MoveNegative);
@@ -68,6 +91,17 @@ namespace XeryonMotionGUI.Classes
                 parameter.ParentAxis = this;
                 parameter.ParentController = ParentController;
             }
+            InitializePlot();
+
+            // Start the update timer
+            /*_updateTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500) // Update every 50ms
+            };
+            _updateTimer.Tick += UpdatePlotFromQueue;
+            _updateTimer.Start();
+*/
+            _previousPositionReached = PositionReached;
         }
 
         #endregion
@@ -119,6 +153,230 @@ namespace XeryonMotionGUI.Classes
             return Parameters.FirstOrDefault(p => p.Name == name);
         }
 
+        #endregion
+
+        #region EPOS Update Method
+
+        public void OnEPOSUpdate(double epos, double timeStamp)
+        {
+            if (!_isLogging)
+                return;
+
+            // Enqueue (EPOS, timeStamp) rather than using DateTime.Now
+            _dataQueue.Enqueue((epos, DateTime.Now));
+            // or if you prefer, store the double or the ticks. For instance:
+            // _dataQueue.Enqueue((epos, timeStampAsDouble));
+
+            // Update min/max logic, etc.
+            if (epos < _minEpos) _minEpos = epos;
+            if (epos > _maxEpos) _maxEpos = epos;
+        }
+
+
+
+
+
+        #endregion
+
+        #region Plot Update Method
+
+        private void UpdatePlotFromQueue(object sender, object e)
+        {
+            // Dequeue all data points from the queue
+            List<(double EPOS, DateTime Time)> pointsToPlot = new List<(double, DateTime)>();
+            while (_dataQueue.TryDequeue(out var point))
+            {
+                pointsToPlot.Add(point);
+            }
+
+            // Enqueue the UI update even if we got zero points
+            _dispatcherQueue.TryEnqueue(() =>
+            {
+                // Plot new points (if any)
+                foreach (var point in pointsToPlot)
+                {
+                    double relativeTime = (point.Time - _startTime).TotalSeconds;
+                    _positionSeries.Points.Add(new DataPoint(relativeTime, point.EPOS));
+                }
+
+                // Always recalibrate axes
+                AdjustAxesBasedOnData();
+
+                // Refresh
+                _plotModel.InvalidatePlot(true);
+            });
+        }
+
+
+
+        private void AdjustAxesBasedOnData()
+        {
+            if (_positionSeries.Points.Count == 0)
+                return;
+
+            var xAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom) as LinearAxis;
+            var yAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left) as LinearAxis;
+            if (xAxis == null || yAxis == null)
+                return;
+
+            double minTime = _positionSeries.Points.Min(p => p.X);
+            double maxTime = _positionSeries.Points.Max(p => p.X);
+            double minEpos = _positionSeries.Points.Min(p => p.Y);
+            double maxEpos = _positionSeries.Points.Max(p => p.Y);
+
+            // Force time to start at zero
+            if (minTime < 0)
+                minTime = 0;
+
+            // If there's no range in time, give at least 1 second
+            if (maxTime <= minTime)
+                maxTime = minTime + 1.0;
+
+            xAxis.Minimum = minTime;
+            xAxis.Maximum = maxTime;
+
+            double eposRange = maxEpos - minEpos;
+            if (eposRange < 1e-6)
+            {
+                // If all EPOS values are nearly identical
+                minEpos -= 0.5;
+                maxEpos += 0.5;
+            }
+            else
+            {
+                // 5% padding
+                double padding = eposRange * 0.05;
+                minEpos -= padding;
+                maxEpos += padding;
+            }
+
+            yAxis.Minimum = minEpos;
+            yAxis.Maximum = maxEpos;
+        }
+
+
+        #region Plot Initialization
+
+        private void InitializePlot()
+        {
+            _plotModel = new PlotModel { Title = "Axis Movement Over Time" };
+
+            _positionSeries = new LineSeries
+            {
+                Title = "Position (mm)",
+                // Turn off markers
+                MarkerType = MarkerType.None,
+                // Make line thinner
+                StrokeThickness = 1.0,
+
+                // If you want a smooth curve (optional)
+                // InterpolationAlgorithm = InterpolationAlgorithms.CanonicalSpline,
+
+                Color = OxyColors.Blue
+            };
+
+            //_positionSeries.InterpolationAlgorithm = InterpolationAlgorithms.CatmullRomSpline;
+
+            _plotModel.Series.Add(_positionSeries);
+
+            _plotModel.Axes.Add(new LinearAxis
+            {
+                Position = AxisPosition.Bottom,
+                Title = "Time (s)"
+            });
+
+            _plotModel.Axes.Add(new LinearAxis
+            {
+                Position = AxisPosition.Left,
+                Title = "EPOS (mm)"
+            });
+        }
+
+        #endregion
+
+        #region X-Axis Adjustment
+
+        private void AdjustXAxis(double totalDuration)
+        {
+            // Define a minimum duration to prevent the axis from becoming too narrow
+            double minDuration = 1.0; // You can adjust this value based on your needs
+
+            if (totalDuration < minDuration)
+            {
+                totalDuration = minDuration;
+            }
+
+            // Get the current X-axis
+            var xAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom);
+            if (xAxis == null)
+            {
+                // If no X-axis exists, create one
+                xAxis = new LinearAxis
+                {
+                    Position = AxisPosition.Bottom,
+                    Title = "Time (s)",
+                    MajorGridlineStyle = LineStyle.Solid,
+                    MinorGridlineStyle = LineStyle.Dot
+                };
+                _plotModel.Axes.Add(xAxis);
+            }
+
+            // Update the X-axis range
+            xAxis.Minimum = 0;
+            xAxis.Maximum = totalDuration;
+        }
+
+        #endregion
+
+        #region Y-Axis Adjustment
+
+        private void AdjustYAxis()
+        {
+            double padding = 0.05; // 5% padding
+
+            double range = _maxEpos - _minEpos;
+            double paddedRange = range * (1 + 2 * padding); // Add padding on both sides
+            double paddedMin = _minEpos - range * padding;
+            double paddedMax = _maxEpos + range * padding;
+
+            // Ensure that the range is at least a certain minimum
+            double minRange = 100;
+            if (paddedMax - paddedMin < minRange)
+            {
+                double center = (_maxEpos + _minEpos) / 2;
+                paddedMin = center - minRange / 2;
+                paddedMax = center + minRange / 2;
+            }
+
+            // Get the current Y-axis
+            var yAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left);
+            if (yAxis == null)
+            {
+                // If no Y-axis exists, create one
+                yAxis = new LinearAxis
+                {
+                    Position = AxisPosition.Left,
+                    Title = "EPOS (mm)",
+                    MajorGridlineStyle = LineStyle.Solid,
+                    MinorGridlineStyle = LineStyle.Dot
+                };
+                _plotModel.Axes.Add(yAxis);
+            }
+
+            // Update the Y-axis range with padding
+            yAxis.Minimum = paddedMin;
+            yAxis.Maximum = paddedMax;
+        }
+
+
+        #endregion
+
+        #region PlotModel Property
+        public PlotModel PlotModel
+        {
+            get => _plotModel;
+            //private set => SetProperty(ref _plotModel, value);
+        }
         #endregion
 
         #region INotifyPropertyChanged
@@ -210,6 +468,8 @@ namespace XeryonMotionGUI.Classes
                     _EPOS = value;
                     OnPropertyChanged(nameof(EPOS));
                     CalculateSpeed();
+
+                    // Update the plot with the new EPOS and time
                 }
             }
         }
@@ -647,32 +907,42 @@ namespace XeryonMotionGUI.Classes
             get => _PositionReached;
             private set
             {
-                if (_PositionReached != value)
+                if (_PositionReached == value)
+                    return; // No change, do nothing
+
+                // PositionReached is changing
+                if (_PositionReached && !value)
                 {
-                    if (!_PositionReached && value)
-                    {
-                        // Transition from false to true
-                        if (_commandSentTime != default)
-                        {
-                            CommandToPositionReachedDelay = DateTime.Now - _commandSentTime;
-                        }
+                    // Transition from true → false (negative flank): movement started
+                    _positionReachedLastFalseTime = DateTime.Now;
 
-                        if (_positionReachedLastFalseTime != default)
-                            PositionReachedElapsedTime = DateTime.Now - _positionReachedLastFalseTime;
+                    // (Optional) Reset the plot so each new movement starts fresh
+                    ResetPlot();
 
-                        SPEED = 0;
-                    }
-                    else if (_PositionReached && !value)
-                    {
-                        // Transition from true to false
-                        _positionReachedLastFalseTime = DateTime.Now;
-                    }
-
-                    _PositionReached = value;
-                    OnPropertyChanged(nameof(PositionReached));
+                    // Start logging so new points go onto the graph
+                    _isLogging = true;
                 }
+                else if (!_PositionReached && value)
+                {
+                    // Transition from false → true (positive flank): movement ended
+                    if (_commandSentTime != default)
+                        CommandToPositionReachedDelay = DateTime.Now - _commandSentTime;
+
+                    if (_positionReachedLastFalseTime != default)
+                        PositionReachedElapsedTime = DateTime.Now - _positionReachedLastFalseTime;
+
+                    // Movement ended, speed is zero, and we stop logging
+                    UpdatePlotFromQueue(null, null);
+                    SPEED = 0;
+                    _isLogging = false;
+                }
+
+                // Update the underlying field and raise change notification
+                _PositionReached = value;
+                OnPropertyChanged(nameof(PositionReached));
             }
         }
+
 
         public TimeSpan PositionReachedElapsedTime
         {
@@ -1136,5 +1406,27 @@ namespace XeryonMotionGUI.Classes
         }
 
         #endregion
+
+        #region Plot Reset Method
+
+        private void ResetPlot()
+        {
+            _dispatcherQueue.TryEnqueue(() =>
+            {
+                // Reset the plot
+                _positionSeries.Points.Clear();
+                _minEpos = double.MaxValue;
+                _maxEpos = double.MinValue;
+                _startTime = DateTime.Now;
+                _endTime = _startTime;
+                _currentTime = 0;
+
+                // Refresh the plot
+                _plotModel.InvalidatePlot(true);
+            });
+        }
+
+        #endregion
     }
 }
+        #endregion
