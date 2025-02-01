@@ -10,12 +10,16 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Windows.UI;
 using Microsoft.UI.Xaml.Controls;
+using System.Threading.Tasks;
 using System.Diagnostics;
 using OxyPlot.Series;
 using OxyPlot;
 using OxyPlot.Axes;
 using System.Collections.Concurrent;
 using OxyPlot.Legends;
+using Microsoft.VisualBasic;
+using System.Reflection.Metadata;
+using Newtonsoft.Json.Linq;
 
 namespace XeryonMotionGUI.Classes
 {
@@ -32,29 +36,16 @@ namespace XeryonMotionGUI.Classes
         private double _minEpos = double.MaxValue;
         private double _maxEpos = double.MinValue;
         private DateTime _startTime = DateTime.MinValue;
-        private bool _previousPositionReached = false;
         private bool _isLogging = false;
         private DateTime _endTime = DateTime.MinValue;
-
-        private bool _positionReachedChanged = false;
         private double _currentTime = 0;
 
-
-        // General collections
         public ObservableCollection<InfoBarMessage> InfoBarMessages { get; set; } = new ObservableCollection<InfoBarMessage>();
-
-        // Dispatcher for thread-safe property change notifications
         private DispatcherQueue _dispatcherQueue;
-
-        // Speed and position tracking
         private double _PreviousEPOS;
         private DateTime _LastUpdateTime;
+        private bool _suppressSliderUpdate = false;
 
-        private DateTime _positionReachedLastFalseTime;
-        private TimeSpan _positionReachedElapsedTime;
-
-        private DateTime _commandSentTime;
-        private TimeSpan _commandToPositionReachedDelay;
 
         #endregion
 
@@ -100,9 +91,7 @@ namespace XeryonMotionGUI.Classes
                 Interval = TimeSpan.FromMilliseconds(500) // Update every 50ms
             };
             _updateTimer.Tick += UpdatePlotFromQueue;
-            _updateTimer.Start();
-*/
-            _previousPositionReached = PositionReached;
+            _updateTimer.Start();*/
         }
 
         #endregion
@@ -486,7 +475,23 @@ namespace XeryonMotionGUI.Classes
                 {
                     _DPOS = value;
                     OnPropertyChanged(nameof(DPOS));
+
+                    // Update the slider value.
+                    // Conversion: sliderValue (in mm) = DPOS * Resolution / 1,000,000.
+                    double newSliderValue = _DPOS * Resolution / 1000000.0;
+                    // Update the slider property without triggering SetDPOS again.
+                    UpdateSliderValue(newSliderValue);
                 }
+            }
+        }
+
+        // Use a helper method to update the slider's backing field directly.
+        private void UpdateSliderValue(double newValue)
+        {
+            if (_SliderValue != newValue)
+            {
+                _SliderValue = newValue;
+                OnPropertyChanged(nameof(SliderValue));
             }
         }
 
@@ -594,6 +599,36 @@ namespace XeryonMotionGUI.Classes
                     {
                         MaxSpeed = _SPEED;
                     }
+                }
+            }
+        }
+
+        private bool _WasManualDposExecuted ;
+        public bool WasManuaDposlExecuted
+        {
+            get => WasManuaDposlExecuted;
+            set
+            {
+                if (WasManuaDposlExecuted != value)
+                {
+                    WasManuaDposlExecuted = value;
+                    OnPropertyChanged(nameof(WasManuaDposlExecuted));
+                }
+            }
+        }
+
+
+        private TimeSpan _commandToPositionReachedDelay;
+        public TimeSpan CommandToPositionReachedDelayValue
+        {
+            get => _commandToPositionReachedDelay;
+            set
+            {
+                if (_commandToPositionReachedDelay != value)
+                {
+                    _commandToPositionReachedDelay = value;
+                    OnPropertyChanged(nameof(CommandToPositionReachedDelayValue));
+                    OnPropertyChanged(nameof(CommandToPositionReachedDelay));
                 }
             }
         }
@@ -941,74 +976,15 @@ namespace XeryonMotionGUI.Classes
             get => _PositionReached;
             private set
             {
-                if (_PositionReached == value)
-                    return; // No change, do nothing
-
-                // PositionReached is changing
-                if (_PositionReached && !value)
+                // Simply set to true only if both the incoming value and the tolerance check are true.
+                bool newValue = value && IsWithinTolerance(DPOS);
+                if (_PositionReached != newValue)
                 {
-                    // Transition from true → false (negative flank): movement started
-                    _positionReachedLastFalseTime = DateTime.Now;
-
-                    // (Optional) Reset the plot so each new movement starts fresh
-                    ResetPlot();
-
-                    // Start logging so new points go onto the graph
-                    _isLogging = true;
-                }
-                else if (!_PositionReached && value)
-                {
-                    // Transition from false → true (positive flank): movement ended
-                    if (_commandSentTime != default)
-                        CommandToPositionReachedDelay = DateTime.Now - _commandSentTime;
-
-                    if (_positionReachedLastFalseTime != default)
-                        PositionReachedElapsedTime = DateTime.Now - _positionReachedLastFalseTime;
-
-                    // Movement ended, speed is zero, and we stop logging
-                    UpdatePlotFromQueue(null, null);
-                    SPEED = 0;
-                    _isLogging = false;
-                }
-
-                // Update the underlying field and raise change notification
-                _PositionReached = value;
-                OnPropertyChanged(nameof(PositionReached));
-            }
-        }
-
-
-        public TimeSpan PositionReachedElapsedTime
-        {
-            get => _positionReachedElapsedTime;
-            private set
-            {
-                if (_positionReachedElapsedTime != value)
-                {
-                    _positionReachedElapsedTime = value;
-                    OnPropertyChanged(nameof(PositionReachedElapsedTime));
-                    OnPropertyChanged(nameof(PositionReachedElapsedMilliseconds));
+                    _PositionReached = newValue;
+                    OnPropertyChanged(nameof(PositionReached));
                 }
             }
         }
-
-        public double PositionReachedElapsedMilliseconds => PositionReachedElapsedTime.TotalMilliseconds;
-
-        public TimeSpan CommandToPositionReachedDelay
-        {
-            get => _commandToPositionReachedDelay;
-            private set
-            {
-                if (_commandToPositionReachedDelay != value)
-                {
-                    _commandToPositionReachedDelay = value;
-                    OnPropertyChanged(nameof(CommandToPositionReachedDelay));
-                    OnPropertyChanged(nameof(CommandToPositionReachedMilliseconds));
-                }
-            }
-        }
-
-        public double CommandToPositionReachedMilliseconds => CommandToPositionReachedDelay.TotalMilliseconds;
 
         private bool _ErrorCompensation;
         public bool ErrorCompensation
@@ -1187,6 +1163,34 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        private double _SliderValue;
+        public double SliderValue
+        {
+            get => _SliderValue;
+            set
+            {
+                if (_SliderValue != value)
+                {
+                    _SliderValue = value;
+                    OnPropertyChanged(nameof(SliderValue));
+                    // Only call SetDPOS if we're not suppressing updates.
+                    if (!_suppressSliderUpdate)
+                    {
+                        int newDpos = (int)(value * 1000000 / Resolution);
+                        SetDPOS(newDpos);
+                    }
+                }
+            }
+        }
+
+        private void UpdateSliderWithoutCommand(double newValue)
+        {
+            _suppressSliderUpdate = true;
+            SliderValue = newValue;  // This will update the backing field and fire OnPropertyChanged, but not call SetDPOS.
+            _suppressSliderUpdate = false;
+        }
+
+
         public bool IsResetEnabled => !SuppressEncoderError;
 
         #endregion
@@ -1238,6 +1242,29 @@ namespace XeryonMotionGUI.Classes
 
             UpdateInfoBar();
         }
+
+        public string CommandToPositionReachedDelay
+        {
+            get
+            {
+                int seconds = (int)_commandToPositionReachedDelay.TotalSeconds;
+                int milliseconds = _commandToPositionReachedDelay.Milliseconds;
+                int microseconds = (int)((_commandToPositionReachedDelay.Ticks % TimeSpan.TicksPerMillisecond) / 10);
+                return $"{seconds:D2}:{milliseconds:D3}:{microseconds:D3}";
+            }
+            set
+            {
+                if (TimeSpan.TryParse(value, out TimeSpan newDelay))
+                {
+                    CommandToPositionReachedDelayValue = newDelay;
+                }
+                else
+                {
+                    Debug.WriteLine("Failed to parse CommandToPositionReachedDelay value.");
+                }
+            }
+        }
+
 
         public void UpdateInfoBar()
         {
@@ -1331,29 +1358,42 @@ namespace XeryonMotionGUI.Classes
         public void MoveNegative()
         {
             ParentController.SendCommand("MOVE=-1");
-        }
-
-        public void StepNegative()
-        {
-            _commandSentTime = DateTime.Now;
-            ParentController.SendCommand($"STEP={Math.Floor(-StepSize)}");
-        }
-
-        public void Home()
-        {
-            ParentController.SendCommand("HOME");
-            DPOS = 0;
-        }
-
-        public void StepPositive()
-        {
-            _commandSentTime = DateTime.Now;
-            ParentController.SendCommand($"STEP={Math.Floor(StepSize)}");
+            // Set slider to the left extreme (assuming NegativeRange is in the same unit as the slider, e.g. mm)
+            UpdateSliderWithoutCommand(NegativeRange);
         }
 
         public void MovePositive()
         {
             ParentController.SendCommand("MOVE=1");
+            // Set slider to the right extreme.
+            UpdateSliderWithoutCommand(PositiveRange);
+        }
+
+        public void ScanNegative()
+        {
+            ParentController.SendCommand("SCAN=-1");
+            UpdateSliderWithoutCommand(NegativeRange);
+        }
+
+        public void ScanPositive()
+        {
+            ParentController.SendCommand("SCAN=1");
+            UpdateSliderWithoutCommand(PositiveRange);
+        }
+
+        public void StepNegative()
+        {
+            TakeStep(-StepSize);
+        }
+
+        public async void Home()
+        {
+            SetDPOS(0);
+        }
+
+        public void StepPositive()
+        {
+            TakeStep(StepSize);
         }
 
         public void Stop()
@@ -1361,30 +1401,116 @@ namespace XeryonMotionGUI.Classes
             ParentController.SendCommand("STOP");
         }
 
-        public void Index()
+        public Task Index()
         {
             ParentController.SendCommand("INDX=0");
+            return Task.CompletedTask;
         }
 
-        public void ScanPositive()
-        {
-            ParentController.SendCommand("SCAN=1");
-        }
-
-        public void ScanNegative()
-        {
-            ParentController.SendCommand("SCAN=-1");
-        }
-
-        public void IndexPlus()
+        public Task IndexPlus()
         {
             ParentController.SendCommand("INDX=1");
+            return Task.CompletedTask;
+
         }
 
-        public void IndexMinus()
+        public Task IndexMinus()
         {
             ParentController.SendCommand("INDX=0");
+            return Task.CompletedTask;
         }
+
+        public Task SetDPOS(double value)
+        {
+            // Retrieve HLIM and LLIM parameters (stored in mm)
+            var hlimParam = Parameters.FirstOrDefault(p => p.Command == "HLIM");
+            var llimParam = Parameters.FirstOrDefault(p => p.Command == "LLIM");
+            double hlim_mm = hlimParam != null ? Convert.ToDouble(hlimParam.Value) : double.PositiveInfinity;
+            double llim_mm = llimParam != null ? Convert.ToDouble(llimParam.Value) : double.NegativeInfinity;
+
+            // Convert HLIM and LLIM from mm to encoder units.
+            double hlimEnc = hlim_mm * 1000000 / Resolution;
+            double llimEnc = llim_mm * 1000000 / Resolution;
+
+            // Clamp the incoming value to within the limits (in encoder units)
+            if (value > hlimEnc)
+            {
+                Debug.WriteLine($"Value {value} is greater than HLIM (converted) {hlimEnc}, adjusting to HLIM.");
+                value = hlimEnc;
+            }
+            if (value < llimEnc)
+            {
+                Debug.WriteLine($"Value {value} is less than LLIM (converted) {llimEnc}, adjusting to LLIM.");
+                value = llimEnc;
+            }
+
+            _isLogging = true;
+            ResetPlot();
+
+            // Set DPOS (in encoder units) and notify bindings.
+            DPOS = value;
+
+            DateTime commandSentTime = DateTime.Now;
+            ParentController.SendCommand($"DPOS={value}");
+
+            if (IsWithinTolerance(value) && PositionReached)
+            {
+                var duration = DateTime.Now - commandSentTime;
+                Debug.WriteLine($"SetDPOS executed in {duration.TotalMilliseconds} ms (immediate).");
+                CommandToPositionReachedDelayValue = duration;
+                return Task.CompletedTask;
+            }
+
+            var tcs = new TaskCompletionSource<bool>();
+
+            // Define a PropertyChanged event handler.
+            PropertyChangedEventHandler handler = null;
+            handler = (sender, args) =>
+            {
+                if (IsWithinTolerance(value) && PositionReached)
+                {
+                    this.PropertyChanged -= handler;
+                    var duration = DateTime.Now - commandSentTime;
+                    Debug.WriteLine($"SetDPOS executed in {duration.TotalMilliseconds} ms.");
+                    CommandToPositionReachedDelayValue = duration;
+                    UpdatePlotFromQueue(null, null);
+                    SPEED = 0;
+                    _isLogging = false;
+                    tcs.TrySetResult(true);
+                }
+            };
+
+            this.PropertyChanged += handler;
+            return tcs.Task;
+        }
+
+
+
+
+        public async Task TakeStep(double value)
+        {
+
+            DPOS += value;
+            await SetDPOS(DPOS);
+        }
+
+        private bool IsWithinTolerance(double targetDpos)
+        {
+            double diff = Math.Abs(targetDpos - EPOS);
+
+            if (!Linear)
+            {
+                //double fullRevolution = UnitHelpers.ConvertUnitsToEncoder(360.0, Units.deg, Stage);
+                //int iFullRevolution = (int)fullRevolution;
+                //double diffWrapAdd = Math.Abs((targetDpos + iFullRevolution) - EPOS);
+                //double diffWrapSub = Math.Abs((targetDpos - iFullRevolution) - EPOS);
+                //diff = Math.Min(diff, Math.Min(diffWrapAdd, diffWrapSub));
+            }
+
+            // Define a fixed tolerance (in encoder units); adjust this value as needed.
+            return diff <= Convert.ToInt32(Parameters.FirstOrDefault(p => p.Command == "HLIM").Value);
+        }
+
 
         #endregion
 

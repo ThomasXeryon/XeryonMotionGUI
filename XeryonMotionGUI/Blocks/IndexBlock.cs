@@ -30,15 +30,15 @@ namespace XeryonMotionGUI.Blocks
                 // Perform the index action
                 if (_direction == "Index +")
                 {
-                    SelectedAxis.IndexPlus();
+                    await SelectedAxis.IndexPlus();
                 }
                 else if (_direction == "Index -")
                 {
-                    SelectedAxis.IndexMinus();
+                    await SelectedAxis.IndexMinus();
                 }
                 else
                 {
-                    SelectedAxis.Index();
+                    await SelectedAxis.Index();
                 }
             }
             finally

@@ -25,7 +25,7 @@ namespace XeryonMotionGUI.Blocks
             try
             {
                 // Perform the home actio
-                SelectedAxis.Home();
+                await SelectedAxis.SetDPOS(0);
             }
             finally
             {

@@ -181,7 +181,7 @@
                                         TextAlignment="Center" 
                                         Margin="0,0,0,5"/>
                                         <TextBox 
-                                        Text="{Binding PositionReachedElapsedMilliseconds}" 
+                                        Text="{Binding CommandToPositionReachedDelay}" 
                                         Width="100" 
                                         IsReadOnly="True" 
                                         HorizontalAlignment="Center" 
@@ -190,8 +190,8 @@
                                             <ToolTipService.ToolTip>
                                                 <ToolTip>
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding PositionReachedElapsedMilliseconds, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Movement time'}" />
-                                                        <TextBlock Text="{Binding CommandToPositionReachedMilliseconds, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Total time'}" />
+                                                        <TextBlock Text="{Binding CommandToPositionReachedDelay, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Movement time'}" />
+                                                        <TextBlock Text="{Binding CommandToPositionReachedDelay, Converter={StaticResource TooltipValueFormatter}, ConverterParameter='Total time'}" />
                                                     </StackPanel>
                                                 </ToolTip>
                                             </ToolTipService.ToolTip>
@@ -259,7 +259,7 @@
                                     x:Name="PositionSlider"
                                     Minimum="{Binding NegativeRange}"
                                     Maximum="{Binding PositiveRange}"
-                                    Value="{Binding DPOS, Mode=TwoWay}"
+                                    Value="{Binding SliderValue , Mode=TwoWay}"
                                     Margin="4,0,0,0" 
                                     TickFrequency="1"
                                     TickPlacement="Inline"
@@ -267,7 +267,6 @@
                                     Width="428"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Left"
-                                    ValueChanged="PositionSlider_ValueChanged"
                                     Grid.Column="1">
                                     </Slider>
                                 </Grid>

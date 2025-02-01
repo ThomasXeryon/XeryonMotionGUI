@@ -14,7 +14,7 @@ namespace XeryonMotionGUI.Classes
         {
             switch (controllerType)
             {
-                case "OEM":
+                case "XD-OEM":
                     return CreateOEMParameters(axisType);
                 case "XD-C":
                     return CreateXDCParameters(axisType);

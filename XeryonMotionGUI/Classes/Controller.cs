@@ -516,13 +516,6 @@ namespace XeryonMotionGUI.Classes
                         Axes[0].EPOS = eposValue;
                     }
                 }
-                else if (part.StartsWith("DPOS="))
-                {
-                    if (int.TryParse(part.Substring(5), out int dposValue))
-                    {
-                        //Axes[0].DPOS = dposValue;
-                    }
-                }
             }
         }
 

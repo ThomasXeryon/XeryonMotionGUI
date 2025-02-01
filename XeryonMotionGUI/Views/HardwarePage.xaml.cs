@@ -158,7 +158,7 @@ public sealed partial class HardwarePage : Page
                 catch (TimeoutException)
                 {
                     Debug.WriteLine(port + " IS OEM");
-                    controller.Type = "OEM";
+                    controller.Type = "XD-OEM";
                     controller.Name = "XD-OEM Single Axis Controller";
                     controller.FriendlyName = "XD-OEM";
                     axesResponse = "AXES=1";

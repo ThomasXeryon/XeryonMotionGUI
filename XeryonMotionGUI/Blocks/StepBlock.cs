@@ -9,6 +9,7 @@ namespace XeryonMotionGUI.Blocks
     public class StepBlock : BlockBase
     {
         private bool _isPositive = true; // Default direction (positive)
+        int StepSize = 50000;
 
         public bool IsPositive
         {
@@ -41,19 +42,19 @@ namespace XeryonMotionGUI.Blocks
 
             try
             {
-                // Perform the step action
+                // Await the step command so that the block stays highlighted until it finishes.
                 if (IsPositive)
                 {
-                    SelectedAxis.StepPositive();
+                    await SelectedAxis.TakeStep(SelectedAxis.StepSize);
                 }
                 else
                 {
-                    SelectedAxis.StepNegative();
+                    await SelectedAxis.TakeStep(-SelectedAxis.StepSize);
                 }
             }
             finally
             {
-                // Remove the highlight
+                // Remove the highlight once the asynchronous step is complete.
                 if (this.UiElement != null)
                 {
                     this.UiElement.HighlightBlock(false);
@@ -62,5 +63,6 @@ namespace XeryonMotionGUI.Blocks
 
             Debug.WriteLine($"[StepBlock] Step completed.");
         }
+
     }
  }

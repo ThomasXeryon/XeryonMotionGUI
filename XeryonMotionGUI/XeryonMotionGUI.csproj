@@ -96,6 +96,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Assets\NewFolder\" />
     <Folder Include="Windows\" />
   </ItemGroup>
   
