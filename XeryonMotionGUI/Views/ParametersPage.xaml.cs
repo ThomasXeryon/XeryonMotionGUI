@@ -1,16 +1,14 @@
-﻿using System.Collections.ObjectModel;
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using Windows.Storage.Pickers;
 using Windows.Storage;
 using XeryonMotionGUI.Classes;
-using Microsoft.UI.Xaml.Media;
 using XeryonMotionGUI.ViewModels;
-using Windows.UI;
-using Microsoft.UI;
-using System.Threading.Tasks;
-using Microsoft.UI.Xaml.Documents;
-using System.Diagnostics;
+using WinRT.Interop;
 
 namespace XeryonMotionGUI.Views
 {
@@ -20,10 +18,8 @@ namespace XeryonMotionGUI.Views
 
         public ParametersPage()
         {
-            InitializeComponent();
+            this.InitializeComponent();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
-
-            // Setting the DataContext if it's not already set
             if (this.DataContext == null)
             {
                 this.DataContext = new ParametersViewModel();
@@ -32,21 +28,18 @@ namespace XeryonMotionGUI.Views
 
         private async void OnFilePickerButtonClick(object sender, RoutedEventArgs e)
         {
-            var senderButton = sender as Button;
-            if (senderButton == null)
+            if (sender is not Button senderButton)
                 return;
             senderButton.IsEnabled = false;
-
             try
             {
                 var openPicker = new FileOpenPicker();
                 var window = App.MainWindow;
-                var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-                WinRT.Interop.InitializeWithWindow.Initialize(openPicker, hWnd);
+                var hWnd = WindowNative.GetWindowHandle(window);
+                InitializeWithWindow.Initialize(openPicker, hWnd);
                 openPicker.ViewMode = PickerViewMode.Thumbnail;
                 openPicker.SuggestedStartLocation = PickerLocationId.PicturesLibrary;
                 openPicker.FileTypeFilter.Add(".txt");
-
                 var file = await openPicker.PickSingleFileAsync();
                 if (file != null && file.FileType == ".txt")
                 {
@@ -56,7 +49,6 @@ namespace XeryonMotionGUI.Views
                         await FileIO.WriteTextAsync(file, editedContent);
                         SendSettingsToDriver(editedContent);
                     });
-
                     await UpdateButtonWithIconAsync(senderButton, Symbol.Accept, 1000);
                 }
                 else
@@ -73,15 +65,12 @@ namespace XeryonMotionGUI.Views
 
         private async Task UpdateButtonWithIconAsync(Button button, Symbol newSymbol, int delayMs)
         {
-            var icon = button.Content as SymbolIcon;
-            if (icon == null) return;
-
+            if (button.Content is not SymbolIcon icon)
+                return;
             var originalIcon = icon.Symbol;
             button.IsEnabled = false;
             icon.Symbol = newSymbol;
-
             await Task.Delay(delayMs);
-
             icon.Symbol = originalIcon;
             button.IsEnabled = true;
         }
@@ -95,7 +84,6 @@ namespace XeryonMotionGUI.Views
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Primary
             };
-
             var textBox = new TextBox
             {
                 AcceptsReturn = true,
@@ -105,48 +93,39 @@ namespace XeryonMotionGUI.Views
                 Height = 500,
                 Width = 400
             };
-
             popup.Content = new ScrollViewer
             {
                 Content = textBox,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
-
             popup.XamlRoot = App.MainWindow.Content.XamlRoot;
-
             popup.PrimaryButtonClick += (s, e) =>
             {
                 string editedContent = textBox.Text;
                 sendSettingsToDriver(editedContent);
             };
-
             popup.ShowAsync();
         }
 
         private void SendSettingsToDriver(string settings)
         {
-            var viewModel = this.DataContext as ParametersViewModel;
-            var selectedController = viewModel?.SelectedController;
-            selectedController.UploadSettings(settings);
-            //Debug.WriteLine("Settings sent to driver:");
-            //Debug.WriteLine(settings);
+            if (this.DataContext is ParametersViewModel viewModel)
+            {
+                var selectedController = viewModel.SelectedController;
+                selectedController?.UploadSettings(settings);
+            }
         }
 
         private async void OnSaveButtonClick(object sender, RoutedEventArgs e)
         {
-            var viewModel = this.DataContext as ParametersViewModel;
-            var selectedController = viewModel?.SelectedController;
-
-            var button = sender as Button;
-            if (button == null || !button.IsEnabled)
+            if (this.DataContext is not ParametersViewModel viewModel)
                 return;
-
-            var icon = button.Content as SymbolIcon;
-            if (icon == null)
+            var selectedController = viewModel.SelectedController;
+            if (sender is not Button button || !button.IsEnabled)
                 return;
-
+            if (button.Content is not SymbolIcon icon)
+                return;
             await UpdateButtonWithIconAsync(button, Symbol.Accept, 500);
-
             selectedController?.SaveSettings();
         }
     }

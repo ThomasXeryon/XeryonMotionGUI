@@ -86,32 +86,42 @@ public sealed partial class ShellPage : Page
 
     private void PopOutButton_Click(object sender, RoutedEventArgs e)
     {
-        // Check if the current content of the NavigationFrame is a Page
         if (NavigationFrame.Content is Page currentPage)
         {
-            // Create a new instance of the current page
+            // Get the type of the current page.
             var pageType = currentPage.GetType();
-            if (Activator.CreateInstance(pageType) is Page newPage)
-            {
-                var newWindow = new Window
-                {
-                    Title = currentPage.Name
-                };
-                newWindow.Content = newPage;
-                newWindow.Activate();
 
+            // Create a new window.
+            var newWindow = new Window();
+
+            // Create an instance of NavigationRootPage (the navigation container).
+            var navRootPage = new NavigationRootPage();
+
+            // Copy the RequestedTheme from the current page to ensure consistency.
+            if (currentPage is FrameworkElement fe)
+            {
+                navRootPage.RequestedTheme = fe.RequestedTheme;
             }
             else
             {
-                ShowErrorDialog("Unable to create a new instance of the page.");
+                navRootPage.RequestedTheme = ElementTheme.Default;
             }
+
+            // Set the NavigationRootPage as the content for the new window.
+            newWindow.Content = navRootPage;
+
+            // Activate the new window.
+            newWindow.Activate();
+
+            // Navigate to the target page using the container's frame.
+            navRootPage.Navigate(pageType, null);
         }
         else
         {
-            // Handle case where the current content is not a Page
             ShowErrorDialog("The current content is not a valid page.");
         }
     }
+
 
     // Show an error dialog
     private async void ShowErrorDialog(string message)

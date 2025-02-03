@@ -16,12 +16,20 @@ namespace XeryonMotionGUI.Classes
             get; set;
         }
 
+        public string Category
+        {
+            get; set;
+        }      
+        public string Explanation
+        {
+            get; set;
+        }
 
         private double? _min;
         private double? _max;
-        private double _value;
 
-        // Optional minimum value
+
+
         public double? Min
         {
             get => _min;
@@ -31,14 +39,11 @@ namespace XeryonMotionGUI.Classes
                 {
                     _min = value;
                     OnPropertyChanged(nameof(Min));
-
-                    // Revalidate value within updated bounds
-                    Value = Math.Clamp(_value, _min ?? double.MinValue, _max ?? double.MaxValue);
+                    OnPropertyChanged(nameof(EffectiveMin));
                 }
             }
         }
 
-        // Optional maximum value
         public double? Max
         {
             get => _max;
@@ -48,12 +53,14 @@ namespace XeryonMotionGUI.Classes
                 {
                     _max = value;
                     OnPropertyChanged(nameof(Max));
-
-                    // Revalidate value within updated bounds
-                    Value = Math.Clamp(_value, _min ?? double.MinValue, _max ?? double.MaxValue);
+                    OnPropertyChanged(nameof(EffectiveMax));
                 }
             }
         }
+
+        // Provide read-only "effective" doubles for binding to Slider
+        public double EffectiveMin => Min ?? 0.0;
+        public double EffectiveMax => Max ?? 100.0;
 
         public double Increment
         {
@@ -77,6 +84,7 @@ namespace XeryonMotionGUI.Classes
             set => _parentController = value;
         }
 
+        public double _value;
         public double Value
         {
             get => _value;
@@ -108,7 +116,9 @@ namespace XeryonMotionGUI.Classes
             get;
         }
 
-        public Parameter(double? min, double? max, double increment, double defaultValue, string name = "", string command = null)
+        public Parameter(double? min, double? max, double increment, double defaultValue,
+                        string name = "", string command = null,
+                        string category = null, string explanation = null)
         {
             Min = min;
             Max = max;
@@ -116,6 +126,8 @@ namespace XeryonMotionGUI.Classes
             Value = defaultValue;
             Name = name;
             Command = command;
+            Category = category;
+            Explanation = explanation;
 
             IncrementCommand = new RelayCommand(_ => IncrementValue());
             DecrementCommand = new RelayCommand(_ => DecrementValue());
@@ -133,7 +145,6 @@ namespace XeryonMotionGUI.Classes
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-
         protected void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

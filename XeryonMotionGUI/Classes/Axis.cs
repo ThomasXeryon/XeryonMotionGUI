@@ -70,12 +70,11 @@ namespace XeryonMotionGUI.Classes
             StopCommand = new RelayCommand(Stop);
             ResetCommand = new RelayCommand(async () => await ResetAsync());
             ResetEncoderCommand = new RelayCommand(async () => await ResetEncoderAsync());
-
-            IndexCommand = new RelayCommand(Index);
+            IndexCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(Index);
             ScanPositiveCommand = new RelayCommand(ScanPositive);
             ScanNegativeCommand = new RelayCommand(ScanNegative);
-            IndexMinusCommand = new RelayCommand(IndexMinus);
-            IndexPlusCommand = new RelayCommand(IndexPlus);
+            IndexMinusCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(IndexMinus);
+            IndexPlusCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(IndexPlus);
 
             // Assign the ParentController to each Parameter
             foreach (var parameter in Parameters)

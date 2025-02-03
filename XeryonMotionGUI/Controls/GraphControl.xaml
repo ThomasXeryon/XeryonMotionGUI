@@ -1,0 +1,11 @@
+
+<UserControl
+    x:Class="XeryonMotionGUI.Controls.OxyPlotGraphControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:oxy="using:OxyPlot">
+    <Grid Background="Transparent">
+        <!-- The PlotView control from OxyPlot -->
+        <oxy:PlotView x:Name="plotView" Height="200" Width="300"/>
+    </Grid>
+</UserControl>

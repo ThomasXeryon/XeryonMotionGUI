@@ -18,6 +18,19 @@ public class ThemeSelectorService : IThemeSelectorService
         _localSettingsService = localSettingsService;
     }
 
+    event EventHandler<ElementTheme> IThemeSelectorService.ThemeChanged
+    {
+        add
+        {
+            //throw new NotImplementedException();
+        }
+
+        remove
+        {
+            //throw new NotImplementedException();
+        }
+    }
+
     public async Task InitializeAsync()
     {
         Theme = await LoadThemeFromSettingsAsync();
@@ -43,6 +56,8 @@ public class ThemeSelectorService : IThemeSelectorService
 
         await Task.CompletedTask;
     }
+
+    
 
     private async Task<ElementTheme> LoadThemeFromSettingsAsync()
     {

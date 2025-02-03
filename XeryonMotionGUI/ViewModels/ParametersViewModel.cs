@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using XeryonMotionGUI.Classes;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
+using System.Linq;
+using static XeryonMotionGUI.Views.ParametersPage;
 
 namespace XeryonMotionGUI.ViewModels
 {
@@ -19,8 +21,8 @@ namespace XeryonMotionGUI.ViewModels
                 if (_selectedController != value)
                 {
                     _selectedController = value;
-                    OnPropertyChanged(nameof(SelectedController)); // Notify property change
-                    SelectedAxis = null; // Clear selected axis when controller changes
+                    OnPropertyChanged(nameof(SelectedController));
+                    SelectedAxis = null; // clear selected axis when controller changes
                 }
             }
         }
@@ -34,14 +36,31 @@ namespace XeryonMotionGUI.ViewModels
                 if (_selectedAxis != value)
                 {
                     _selectedAxis = value;
-                    OnPropertyChanged(nameof(SelectedAxis)); // Notify property change
+                    OnPropertyChanged(nameof(SelectedAxis));
+                    UpdateGroupedParameters();
                 }
             }
         }
 
-        public ICommand SaveParametersCommand { get; }
-        public ICommand IncrementCommand { get; }
-        public ICommand DecrementCommand { get; }
+        private ObservableCollection<ParameterGroup> _groupedParameters;
+        public ObservableCollection<ParameterGroup> GroupedParameters
+        {
+            get => _groupedParameters;
+            set => SetProperty(ref _groupedParameters, value);
+        }
+
+        public ICommand SaveParametersCommand
+        {
+            get;
+        }
+        public ICommand IncrementCommand
+        {
+            get;
+        }
+        public ICommand DecrementCommand
+        {
+            get;
+        }
 
         private ObservableCollection<Parameter> _parameters;
         public ObservableCollection<Parameter> Parameters
@@ -54,8 +73,6 @@ namespace XeryonMotionGUI.ViewModels
             }
         }
 
-
-
         public ParametersViewModel()
         {
             SaveParametersCommand = new RelayCommand(SaveParameters);
@@ -67,13 +84,44 @@ namespace XeryonMotionGUI.ViewModels
             {
                 SelectedController = RunningControllers.First();
 
-                // Select the first axis of the first controller if available
                 if (SelectedController.Axes?.Any() == true)
                 {
                     SelectedAxis = SelectedController.Axes.First();
                 }
             }
         }
+
+        private void UpdateGroupedParameters()
+        {
+            if (SelectedAxis?.Parameters != null)
+            {
+                // Define your custom order here.
+                var categoryOrder = new Dictionary<string, int>
+        {
+            { "Advanced tuning", 2 },
+            { "Motion", 1 },
+            { "Time outs and error handling", 3 },
+            { "GPIO", 4 },
+            { "Triggering", 5 }
+            // Add any other categories and order as needed.
+        };
+
+                var groups = SelectedAxis.Parameters
+                    .GroupBy(p => p.Category)
+                    .OrderBy(g => categoryOrder.ContainsKey(g.Key) ? categoryOrder[g.Key] : int.MaxValue)
+                    .Select(g => new ParameterGroup
+                    {
+                        Category = g.Key,
+                        Parameters = new ObservableCollection<Parameter>(g)
+                    });
+                GroupedParameters = new ObservableCollection<ParameterGroup>(groups);
+            }
+            else
+            {
+                GroupedParameters = new ObservableCollection<ParameterGroup>();
+            }
+        }
+
 
         private void IncrementParameter(string parameterName)
         {
@@ -85,7 +133,7 @@ namespace XeryonMotionGUI.ViewModels
                     var parameter = property.GetValue(SelectedAxis) as Parameter;
                     if (parameter != null)
                     {
-                        parameter.IncrementValue(); // Call IncrementValue method on the Parameter class
+                        parameter.IncrementValue();
                         OnPropertyChanged(parameterName);
                     }
                 }
@@ -102,7 +150,7 @@ namespace XeryonMotionGUI.ViewModels
                     var parameter = property.GetValue(SelectedAxis) as Parameter;
                     if (parameter != null)
                     {
-                        parameter.DecrementValue(); // Call DecrementValue method on the Parameter class
+                        parameter.DecrementValue();
                         OnPropertyChanged(parameterName);
                     }
                 }
@@ -113,7 +161,7 @@ namespace XeryonMotionGUI.ViewModels
         {
             if (SelectedAxis != null)
             {
-                // Implement logic to save the parameters of selected axis
+                // Implement your logic to save the parameters for the selected axis.
             }
         }
     }

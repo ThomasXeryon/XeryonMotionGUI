@@ -1,17 +1,21 @@
 ﻿using Microsoft.UI.Xaml;
 
-namespace XeryonMotionGUI.Contracts.Services;
-
-public interface IThemeSelectorService
+namespace XeryonMotionGUI.Contracts.Services
 {
-    ElementTheme Theme
+    public interface IThemeSelectorService
     {
-        get;
+        ElementTheme Theme
+        {
+            get;
+        }
+
+        // Add the ThemeChanged event.
+        event EventHandler<ElementTheme> ThemeChanged;
+
+        Task InitializeAsync();
+
+        Task SetThemeAsync(ElementTheme theme);
+
+        Task SetRequestedThemeAsync();
     }
-
-    Task InitializeAsync();
-
-    Task SetThemeAsync(ElementTheme theme);
-
-    Task SetRequestedThemeAsync();
 }
