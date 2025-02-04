@@ -26,7 +26,6 @@ namespace XeryonMotionGUI.Classes
     public class Axis : INotifyPropertyChanged
     {
         #region Fields
-
         private PlotModel _plotModel;
         private LineSeries _positionSeries;
         private ConcurrentQueue<(double EPOS, DateTime Time)> _dataQueue = new ConcurrentQueue<(double, DateTime)>();
@@ -45,8 +44,6 @@ namespace XeryonMotionGUI.Classes
         private double _PreviousEPOS;
         private DateTime _LastUpdateTime;
         private bool _suppressSliderUpdate = false;
-
-
         #endregion
 
         #region Constructor
@@ -59,7 +56,6 @@ namespace XeryonMotionGUI.Classes
 
             InitializeParameters(axisType);
             this.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
-
 
             // Initialize commands
             MoveNegativeCommand = new RelayCommand(MoveNegative);
@@ -83,14 +79,6 @@ namespace XeryonMotionGUI.Classes
                 parameter.ParentController = ParentController;
             }
             InitializePlot();
-
-            // Start the update timer
-            /*_updateTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(500) // Update every 50ms
-            };
-            _updateTimer.Tick += UpdatePlotFromQueue;
-            _updateTimer.Start();*/
         }
 
         #endregion
@@ -288,7 +276,7 @@ namespace XeryonMotionGUI.Classes
             _plotModel.Axes.Add(new LinearAxis
             {
                 Position = AxisPosition.Left,
-                Title = "EPOS (mm)",
+                Title = "Position (enc)",
                 MajorGridlineStyle = LineStyle.Solid,
                 MinorGridlineStyle = LineStyle.Dot,
                 IsZoomEnabled = true,
@@ -444,6 +432,99 @@ namespace XeryonMotionGUI.Classes
             get; set;
         }
 
+        private Units _selectedUnit = Units.Encoder;
+        public Units SelectedUnit
+        {
+            get => _selectedUnit;
+            set
+            {
+                if (_selectedUnit != value)
+                {
+                    _selectedUnit = value;
+                    OnPropertyChanged(nameof(SelectedUnit));
+                    OnPropertyChanged(nameof(EPOSDisplay));
+                    OnPropertyChanged(nameof(SPEEDDisplay));
+                    OnPropertyChanged(nameof(MaxSpeedDisplay));
+                    OnPropertyChanged(nameof(GraphYAxisTitle));
+                    UpdateGraphYAxisTitle();
+                }
+            }
+        }
+
+
+        public string GraphYAxisTitle
+        {
+            get
+            {
+                switch (SelectedUnit)
+                {
+                    case Units.Encoder: return "EPOS (Encoder Units)";
+                    case Units.mm: return "EPOS (mm)";
+                    case Units.mu: return "EPOS (mu)";
+                    case Units.nm: return "EPOS (nm)";
+                    case Units.inch: return "EPOS (inches)";
+                    case Units.minch: return "EPOS (milli inches)";
+                    case Units.rad: return "EPOS (radians)";
+                    case Units.mrad: return "EPOS (mrad)";
+                    case Units.deg: return "EPOS (degrees)";
+                    default: return "EPOS";
+                }
+            }
+        }
+
+        private void UpdateGraphYAxisTitle()
+        {
+            if (_plotModel != null)
+            {
+                var yAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left);
+                if (yAxis != null)
+                {
+                    yAxis.Title = GraphYAxisTitle;
+                    _plotModel.InvalidatePlot(false);
+                }
+            }
+        }
+
+
+
+        public double MaxSpeedDisplay
+        {
+            get
+            {
+                double mmSpeed = MaxSpeed;
+                switch (SelectedUnit)
+                {
+                    case Units.mm: return mmSpeed;
+                    case Units.mu: return mmSpeed * 1000.0;
+                    case Units.nm: return mmSpeed * 1e6;
+                    case Units.inch: return mmSpeed / 25.4;
+                    case Units.minch: return mmSpeed / 25.4 * 1000.0;
+                    default: return mmSpeed;
+                }
+            }
+        }
+
+        public double SPEEDDisplay
+        {
+            get
+            {
+                double mmSpeed = SPEED;
+                switch (SelectedUnit)
+                {
+                    case Units.mm: return mmSpeed;
+                    case Units.mu: return mmSpeed * 1000.0;
+                    case Units.nm: return mmSpeed * 1e6;
+                    case Units.inch: return mmSpeed / 25.4;
+                    case Units.minch: return mmSpeed / 25.4 * 1000.0;
+                    default: return mmSpeed;
+                }
+            }
+        }
+
+        public IEnumerable<Units> UnitsList => Enum.GetValues(typeof(Units)).Cast<Units>();
+        public double EPOSDisplay => UnitConversion.FromEncoder(EPOS, SelectedUnit, Resolution);
+
+
         private string _AxisLetter;
         public string AxisLetter
         {
@@ -505,6 +586,8 @@ namespace XeryonMotionGUI.Classes
                     _PreviousEPOS = _EPOS;
                     _EPOS = value;
                     OnPropertyChanged(nameof(EPOS));
+                    OnPropertyChanged(nameof(EPOSDisplay));
+
                     CalculateSpeed();
 
                     // Update the plot with the new EPOS and time
@@ -593,11 +676,12 @@ namespace XeryonMotionGUI.Classes
                 {
                     _SPEED = value;
                     OnPropertyChanged(nameof(SPEED));
-
                     if (_SPEED > MaxSpeed)
                     {
                         MaxSpeed = _SPEED;
+                        OnPropertyChanged(nameof(MaxSpeedDisplay));
                     }
+                    OnPropertyChanged(nameof(SPEEDDisplay));
                 }
             }
         }
@@ -642,6 +726,7 @@ namespace XeryonMotionGUI.Classes
                 {
                     _MaxSpeed = value;
                     OnPropertyChanged(nameof(MaxSpeed));
+                    OnPropertyChanged(nameof(MaxSpeedDisplay));
                 }
             }
         }
@@ -688,9 +773,21 @@ namespace XeryonMotionGUI.Classes
                 {
                     _Linear = value;
                     OnPropertyChanged(nameof(Linear));
+                    // Notify that the available units have changed.
+                    OnPropertyChanged(nameof(AvailableUnits));
+                    // Optionally, reset the selected unit if it is not valid for the new type.
+                    if (!AvailableUnits.Contains(SelectedUnit))
+                    {
+                        SelectedUnit = Units.Encoder;
+                    }
                 }
             }
         }
+
+        public IEnumerable<Units> AvailableUnits =>
+            Linear
+                ? new Units[] { Units.Encoder, Units.mm, Units.mu, Units.nm, Units.inch, Units.minch }
+                : new Units[] { Units.Encoder, Units.rad, Units.mrad, Units.deg };
 
         private int _Resolution;
         public int Resolution
@@ -1488,8 +1585,9 @@ namespace XeryonMotionGUI.Classes
 
         public async Task TakeStep(double value)
         {
-
-            DPOS += value;
+            // Convert the step value (in the selected unit) to encoder units
+            double stepEnc = UnitConversion.ToEncoder(value, SelectedUnit, Resolution);
+            DPOS += stepEnc;
             await SetDPOS(DPOS);
         }
 

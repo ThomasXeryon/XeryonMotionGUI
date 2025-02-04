@@ -9,6 +9,8 @@ using Microsoft.UI.Xaml;
 using System.Windows.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
+using Windows.System;
+using XeryonMotionGUI.Helpers;
 
 namespace XeryonMotionGUI.Views;
 
@@ -23,6 +25,7 @@ public sealed partial class MotionPage : Page
         InitializeComponent();
         this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
         this.DataContext = new MotionViewModel();  // Set DataContext here
+
     }
 
     private void PositionSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
@@ -61,5 +64,44 @@ public sealed partial class MotionPage : Page
         e.Handled = true; // Mark the event as handled
     }
 
+    private async void EPOSTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        // Check if the user pressed Enter
+        if (e.Key == VirtualKey.Enter)
+        {
+            var textBox = sender as TextBox;
+            if (textBox != null && double.TryParse(textBox.Text, out double displayValue))
+            {
+                // Get the view model and selected axis.
+                if (this.DataContext is MotionViewModel vm && vm.SelectedAxis != null)
+                {
+                    // Convert the value from the current display unit to encoder units.
+                    double encoderValue = UnitConversion.ToEncoder(displayValue, vm.SelectedAxis.SelectedUnit, vm.SelectedAxis.Resolution);
+                    await vm.SelectedAxis.SetDPOS(encoderValue);
+                }
+            }
+        }
+    }
 
+    private async void StepSizeNumberBox_DragLeave(object sender, DragEventArgs e)
+    {
+        if (sender is NumberBox nb)
+        {
+            // Temporarily disable the NumberBox to force it to lose focus.
+            nb.IsEnabled = false;
+            await Task.Delay(50);
+            nb.IsEnabled = true;
+        }
+    }
+
+    private async void StepSizeNumberBox_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is NumberBox nb)
+        {
+
+            nb.IsEnabled = false;
+            await Task.Delay(50);
+            nb.IsEnabled = true;
+        }
+    }
 }
