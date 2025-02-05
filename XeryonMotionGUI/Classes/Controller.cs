@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -63,6 +64,21 @@ namespace XeryonMotionGUI.Classes
         #endregion
 
         #region Public Properties
+
+        public string _Label;
+
+        public string Label
+        {
+            get => _Label;
+            set
+            {
+                if (_Label != value)
+                {
+                    _Label = value;
+                    OnPropertyChanged(nameof(Label));
+                }
+            }
+        }
 
         public string DeviceId
         {
@@ -472,60 +488,55 @@ namespace XeryonMotionGUI.Classes
 
         private void ParseLine(string line, double timeStamp)
         {
-            // Example line: "STAT=1024 EPOS=123456"
+            // Split the incoming line on spaces and tabs.
             string[] parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var part in parts)
             {
-                if (part.StartsWith("STAT=", StringComparison.OrdinalIgnoreCase))
+                // Check if the part contains a colon.
+                string axisLetter = "";
+                string remainder = part;
+                if (part.Contains(":"))
                 {
-                    if (int.TryParse(part.Substring(5), out int statValue))
+                    // Split at the first colon.
+                    var tokens = part.Split(new char[] { ':' }, 2);
+                    axisLetter = tokens[0].Trim();
+                    remainder = tokens[1].Trim();
+                }
+
+                // Determine the target axis:
+                // If an axis letter was provided, try to find that axis;
+                // otherwise, use the first axis in the collection.
+                var targetAxis = !string.IsNullOrEmpty(axisLetter)
+                    ? Axes.FirstOrDefault(a => a.AxisLetter.Equals(axisLetter, StringComparison.OrdinalIgnoreCase))
+                    : (Axes.Count > 0 ? Axes[0] : null);
+
+                if (targetAxis == null)
+                {
+                    Debug.WriteLine($"No target axis found for part: {part}");
+                    continue;
+                }
+
+                // Process the command in the remainder of the part.
+                if (remainder.StartsWith("STAT=", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (int.TryParse(remainder.Substring(5), out int statValue))
                     {
-                        Axes[0].STAT = statValue;
+                        targetAxis.STAT = statValue;
                     }
                 }
-                else if (part.StartsWith("EPOS=", StringComparison.OrdinalIgnoreCase))
+                else if (remainder.StartsWith("EPOS=", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (int.TryParse(part.Substring(5), out int eposValue))
+                    if (int.TryParse(remainder.Substring(5), out int eposValue))
                     {
-                        Axes[0].OnEPOSUpdate(eposValue, timeStamp);
-                        Axes[0].EPOS = eposValue;
+                        targetAxis.OnEPOSUpdate(eposValue, timeStamp);
+                        targetAxis.EPOS = eposValue;
                     }
                 }
             }
         }
 
 
-
-
-        private void HandleSingleAxisData(string[] dataParts)
-        {
-            foreach (var part in dataParts)
-            {
-                if (part.StartsWith("STAT="))
-                {
-                    if (int.TryParse(part.Substring(5), out int statValue))
-                    {
-                        Axes[0].STAT = statValue;
-                    }
-                }
-                else if (part.StartsWith("EPOS="))
-                {
-                    if (int.TryParse(part.Substring(5), out int eposValue))
-                    {
-                        Axes[0].EPOS = eposValue;
-                    }
-                }
-            }
-        }
-
-        private void HandleMultiAxisData(string[] dataParts)
-        {
-            foreach (var part in dataParts)
-            {
-                Debug.WriteLine("Multi-Axis Controller data parsing not yet implemented.");
-            }
-        }
         #endregion
 
         #region Parameter / Settings Methods
@@ -538,10 +549,11 @@ namespace XeryonMotionGUI.Classes
             await LoadParametersFromController();
         }
 
-        public void SendSetting(string commandName, double value, int resolution)
+        public void SendSetting(string commandName, double value, int resolution, string axisLetter = "")
         {
             if (Port.IsOpen)
             {
+                // Apply any command-specific conversion.
                 switch (commandName)
                 {
                     case "SSPD":
@@ -553,7 +565,7 @@ namespace XeryonMotionGUI.Classes
                     case "HLIM":
                     case "ZON1":
                     case "ZON2":
-                        value = Math.Round(value * 1000000 / resolution, 0); // Convert and round to 3 decimal points
+                        value = Math.Round(value * 1000000 / resolution, 0); // Convert and round
                         break;
                     case "CFRQ":
                         value = value * 10;
@@ -562,7 +574,9 @@ namespace XeryonMotionGUI.Classes
                         break;
                 }
 
-                string command = $"{commandName}={value}";
+                // If an axis letter is provided, use it as a prefix.
+                string prefix = string.IsNullOrEmpty(axisLetter) ? "" : axisLetter + ":";
+                string command = $"{prefix}{commandName}={value}";
                 Debug.WriteLine($"Sending Command: {command}");
                 Port.Write(command);
             }
@@ -571,6 +585,7 @@ namespace XeryonMotionGUI.Classes
                 Debug.WriteLine("Serial port not open. Command not sent.");
             }
         }
+
 
         public void SaveSettings()
         {
@@ -591,15 +606,15 @@ namespace XeryonMotionGUI.Classes
         {
             Debug.WriteLine("Uploading settings...");
 
+            // Split settings text into lines, ignoring empty lines.
             var lines = settings.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var line in lines)
             {
                 try
                 {
-                    // Remove comments after '%' (if any)
+                    // Remove comments after '%' (if any) and trim.
                     var cleanLine = line.Split('%')[0].Trim();
-
                     if (string.IsNullOrWhiteSpace(cleanLine))
                     {
                         continue; // Skip empty or comment-only lines
@@ -612,51 +627,54 @@ namespace XeryonMotionGUI.Classes
                     // Check if the line has an axis letter prefix (e.g., A:SSPD=200)
                     if (cleanLine.Contains(":"))
                     {
+                        // Split into two parts at the first colon.
                         var axisParts = cleanLine.Split(new[] { ':' }, 2);
                         if (axisParts.Length == 2)
                         {
-                            axisLetter = axisParts[0].Trim(); // Extract axis letter (e.g., "A")
+                            // The first part is the axis letter.
+                            axisLetter = axisParts[0].Trim();
+                            // The second part should contain the command and value.
                             var commandParts = axisParts[1].Split('=');
                             if (commandParts.Length == 2 && double.TryParse(commandParts[1], out rawValue))
                             {
-                                command = commandParts[0].Trim(); // Extract command (e.g., "SSPD")
+                                command = commandParts[0].Trim();
                             }
                         }
                     }
                     else
                     {
-                        // For single-axis controllers without prefix (e.g., SSPD=200)
+                        // For single-axis controllers (e.g., SSPD=200)
                         var commandParts = cleanLine.Split('=');
                         if (commandParts.Length == 2 && double.TryParse(commandParts[1], out rawValue))
                         {
-                            command = commandParts[0].Trim(); // Extract command (e.g., "SSPD")
+                            command = commandParts[0].Trim();
                         }
                     }
 
                     if (!string.IsNullOrEmpty(command))
                     {
-                        // Determine the target axis
+                        // Determine the target axis.
                         Axis targetAxis = null;
-
                         if (!string.IsNullOrEmpty(axisLetter))
                         {
-                            // Multi-axis case: Find axis by letter
+                            // Multi-axis: select the axis matching the provided letter.
                             targetAxis = Axes.FirstOrDefault(a => a.AxisLetter.Equals(axisLetter, StringComparison.OrdinalIgnoreCase));
                         }
                         else if (Axes.Count == 1)
                         {
-                            // Single-axis case: Use the only available axis
+                            // Single-axis: use the only available axis.
                             targetAxis = Axes[0];
                         }
 
                         if (targetAxis != null)
                         {
-                            // Find the parameter by command in the target axis
+                            // Find the parameter (by its command name) within the target axis.
                             var parameter = targetAxis.Parameters.FirstOrDefault(p => p.Command == command);
                             if (parameter != null)
                             {
-                                // Update the parameter value
+                                // Update the parameter value.
                                 parameter.Value = rawValue;
+                                Debug.WriteLine($"Axis {targetAxis.AxisLetter}: Updated {parameter.Name} to {rawValue}");
                             }
                             else
                             {
@@ -677,11 +695,14 @@ namespace XeryonMotionGUI.Classes
                 {
                     Debug.WriteLine($"Error processing line '{line}': {ex.Message}");
                 }
+
+                // Small delay before processing the next line.
                 await Task.Delay(10);
             }
 
             Debug.WriteLine("Settings upload complete.");
         }
+
 
         public async Task LoadParametersFromController()
         {
@@ -701,16 +722,17 @@ namespace XeryonMotionGUI.Classes
                     {
                         try
                         {
-                            // Send the command with =?
-                            string command = $"{parameter.Command}=?";
+                            // Construct the command using the axis letter prefix if available.
+                            string prefix = string.IsNullOrEmpty(axis.AxisLetter) ? "" : axis.AxisLetter + ":";
+                            string command = $"{prefix}{parameter.Command}=?";
                             Debug.WriteLine($"Sending command: {command}");
                             Port.WriteLine(command);
 
-                            // Wait for the response
+                            // Wait for the response.
                             string response = string.Empty;
                             try
                             {
-                                response = Port.ReadLine(); // Read response
+                                response = Port.ReadLine();
                                 Debug.WriteLine($"Received response: {response}");
                             }
                             catch (TimeoutException)
@@ -719,14 +741,19 @@ namespace XeryonMotionGUI.Classes
                                 continue; // Skip to the next parameter
                             }
 
-                            if (response.StartsWith(parameter.Command, StringComparison.OrdinalIgnoreCase))
+                            // Build expected command prefix for response comparison.
+                            string expectedCommand = string.IsNullOrEmpty(axis.AxisLetter)
+                                ? parameter.Command
+                                : $"{axis.AxisLetter}:{parameter.Command}";
+
+                            if (response.StartsWith(expectedCommand, StringComparison.OrdinalIgnoreCase))
                             {
                                 var parts = response.Split('=');
                                 if (parts.Length == 2 && double.TryParse(parts[1], out var rawValue))
                                 {
                                     double convertedValue = rawValue;
 
-                                    // Apply command-specific conversions
+                                    // Apply command-specific conversions.
                                     switch (parameter.Command)
                                     {
                                         case "SSPD":
@@ -738,10 +765,11 @@ namespace XeryonMotionGUI.Classes
                                         case "HLIM":
                                         case "ZON1":
                                         case "ZON2":
+                                            // Conversion: encoder units to mm.
                                             convertedValue = Math.Round(rawValue / 1000000 * axis.Resolution, 3);
                                             break;
                                         case "CFRQ":
-                                            convertedValue = rawValue / 10; // Convert Hz to kHz
+                                            convertedValue = rawValue / 10; // Hz to kHz conversion.
                                             break;
                                         default:
                                             break;
@@ -765,7 +793,7 @@ namespace XeryonMotionGUI.Classes
                             Debug.WriteLine($"Error loading parameter {parameter.Name}: {ex.Message}");
                         }
 
-                        // Small delay before the next command
+                        // Small delay before the next command.
                         await Task.Delay(0);
                     }
                 }
@@ -780,21 +808,27 @@ namespace XeryonMotionGUI.Classes
                 Port.WriteLine("INFO=3");
             }
         }
+
         #endregion
 
         #region Command Sending
-        public async Task SendCommand(string command)
+        public async Task SendCommand(string command, string axisLetter = "")
         {
+            // Determine the command prefix if an axis letter is provided.
+            string prefix = string.IsNullOrEmpty(axisLetter) ? "" : axisLetter + ":";
+            string commandToSend = prefix + command;
+
             if (Port.IsOpen)
             {
-                Port.Write(command);
-                Debug.WriteLine($"Sending Command: {command}");
+                Port.Write(commandToSend);
+                Debug.WriteLine($"Sending Command: {commandToSend}");
             }
             else
             {
                 Debug.WriteLine("Serial port not open. Command not sent.");
             }
         }
+
         #endregion
 
         #region Static Methods

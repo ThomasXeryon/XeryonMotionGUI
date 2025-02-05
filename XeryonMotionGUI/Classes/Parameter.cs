@@ -100,7 +100,7 @@ namespace XeryonMotionGUI.Classes
                     {
                         // Retrieve the Resolution from ParentAxis
                         int resolution = ParentAxis?.Resolution ?? 1;
-                        ParentController.SendSetting(Command, _value, resolution);
+                        ParentController.SendSetting(Command, _value, resolution, ParentAxis.AxisLetter);
                     }
                 }
             }

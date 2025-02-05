@@ -1453,27 +1453,27 @@ namespace XeryonMotionGUI.Classes
 
         public void MoveNegative()
         {
-            ParentController.SendCommand("MOVE=-1");
+            ParentController.SendCommand("MOVE=-1", AxisLetter);
             // Set slider to the left extreme (assuming NegativeRange is in the same unit as the slider, e.g. mm)
             UpdateSliderWithoutCommand(NegativeRange);
         }
 
         public void MovePositive()
         {
-            ParentController.SendCommand("MOVE=1");
+            ParentController.SendCommand("MOVE=1", AxisLetter);
             // Set slider to the right extreme.
             UpdateSliderWithoutCommand(PositiveRange);
         }
 
         public void ScanNegative()
         {
-            ParentController.SendCommand("SCAN=-1");
+            ParentController.SendCommand("SCAN=-1", AxisLetter);
             UpdateSliderWithoutCommand(NegativeRange);
         }
 
         public void ScanPositive()
         {
-            ParentController.SendCommand("SCAN=1");
+            ParentController.SendCommand("SCAN=1", AxisLetter);
             UpdateSliderWithoutCommand(PositiveRange);
         }
 
@@ -1494,25 +1494,25 @@ namespace XeryonMotionGUI.Classes
 
         public void Stop()
         {
-            ParentController.SendCommand("STOP");
+            ParentController.SendCommand("STOP", AxisLetter);
         }
 
         public Task Index()
         {
-            ParentController.SendCommand("INDX=0");
+            ParentController.SendCommand("INDX=0", AxisLetter);
             return Task.CompletedTask;
         }
 
         public Task IndexPlus()
         {
-            ParentController.SendCommand("INDX=1");
+            ParentController.SendCommand("INDX=1", AxisLetter);
             return Task.CompletedTask;
 
         }
 
         public Task IndexMinus()
         {
-            ParentController.SendCommand("INDX=0");
+            ParentController.SendCommand("INDX=0", AxisLetter);
             return Task.CompletedTask;
         }
 
@@ -1547,7 +1547,7 @@ namespace XeryonMotionGUI.Classes
             DPOS = value;
 
             DateTime commandSentTime = DateTime.Now;
-            ParentController.SendCommand($"DPOS={value}");
+            ParentController.SendCommand($"DPOS={value}", AxisLetter);
 
             if (IsWithinTolerance(value) && PositionReached)
             {
@@ -1616,7 +1616,7 @@ namespace XeryonMotionGUI.Classes
         private async Task ResetAsync()
         {
             ParentController.LoadingSettings = true;
-            ParentController.SendCommand("RSET");
+            ParentController.SendCommand("RSET", AxisLetter);
             await Task.Delay(100);
             await ParentController.LoadParametersFromController();
             ParentController.LoadingSettings = false;
@@ -1633,7 +1633,7 @@ namespace XeryonMotionGUI.Classes
                 EncoderError = false;
 
                 // Send the reset command
-                ParentController.SendCommand("ENCR");
+                ParentController.SendCommand("ENCR", AxisLetter);
 
                 // Retrieve the PollingInterval from the Parameters
                 var pollingIntervalParameter = Parameters.FirstOrDefault(p => p.Command == "POLI");

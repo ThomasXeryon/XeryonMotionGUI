@@ -1,350 +1,458 @@
-﻿using Microsoft.UI;
-using System.Collections.ObjectModel;
-using Microsoft.UI.Xaml.Controls;
-using XeryonMotionGUI.Models;
-using XeryonMotionGUI.ViewModels;
-using Microsoft.UI.Xaml.Media;
-using XeryonMotionGUI.Classes;
-using System.IO.Ports;
+﻿using System;
 using System.Diagnostics;
+using System.IO.Ports;
+using System.Linq;
 using System.Text.RegularExpressions;
-using System;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Data;
-using WinUIEx.Messaging;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Dispatching;
 using Windows.Devices.Enumeration;
+using System.Collections.ObjectModel;
+using XeryonMotionGUI.Classes; // Assumes Controller, Axis, etc.
+using XeryonMotionGUI.Helpers;
+using System.Reflection.Emit; // Assumes ControllerType, ControllerIdentificationResult, etc.
 
-namespace XeryonMotionGUI.Views;
-
-public sealed partial class HardwarePage : Page
+namespace XeryonMotionGUI.Views
 {
-    public ObservableCollection<Controller> FoundControllers => Controller.FoundControllers;
-    private DeviceWatcher deviceWatcher;
-
-
-    public HardwarePage()
+    public sealed partial class HardwarePage : Page
     {
-        InitializeComponent();
-        DataContext = this;
-        this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
-        //_ = CheckForControllers();
-        StartDeviceWatcher();
-    }
+        public ObservableCollection<Controller> FoundControllers => Controller.FoundControllers;
+        private DeviceWatcher deviceWatcher;
 
-    private void StartDeviceWatcher()
-    {
-        string selector = "System.Devices.InterfaceClassGuid:=\"{A5DCBF10-6530-11D2-901F-00C04FB951ED}\""; // USB GUID
-
-        deviceWatcher = DeviceInformation.CreateWatcher(selector);
-
-        // Subscribe to events
-        deviceWatcher.Added += DeviceWatcher_Added;
-        deviceWatcher.Removed += DeviceWatcher_Removed;
-        deviceWatcher.Updated += DeviceWatcher_Updated;
-        deviceWatcher.EnumerationCompleted += DeviceWatcher_EnumerationCompleted;
-        deviceWatcher.Stopped += DeviceWatcher_Stopped;
-
-        Debug.WriteLine("Starting DeviceWatcher...");
-        deviceWatcher.Start();
-    }
-
-    private void StopDeviceWatcher()
-    {
-        if (deviceWatcher != null && deviceWatcher.Status == DeviceWatcherStatus.Started)
+        public HardwarePage()
         {
-            Debug.WriteLine("Stopping DeviceWatcher...");
-            deviceWatcher.Stop();
+            this.InitializeComponent();
+            DataContext = this;
+            this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
+            StartDeviceWatcher();
         }
-    }
 
-    private void RestartDeviceWatcher()
-    {
-        if (deviceWatcher != null && deviceWatcher.Status == DeviceWatcherStatus.Stopped)
+        #region DeviceWatcher Setup
+
+        private void StartDeviceWatcher()
         {
-            Debug.WriteLine("Restarting DeviceWatcher...");
+            string selector = "System.Devices.InterfaceClassGuid:=\"{A5DCBF10-6530-11D2-901F-00C04FB951ED}\""; // USB GUID
+
+            deviceWatcher = DeviceInformation.CreateWatcher(selector);
+            deviceWatcher.Added += DeviceWatcher_Added;
+            deviceWatcher.Removed += DeviceWatcher_Removed;
+            deviceWatcher.Updated += DeviceWatcher_Updated;
+            deviceWatcher.EnumerationCompleted += DeviceWatcher_EnumerationCompleted;
+            deviceWatcher.Stopped += DeviceWatcher_Stopped;
+
+            Debug.WriteLine("Starting DeviceWatcher...");
             deviceWatcher.Start();
         }
-    }
 
-    private void DeviceWatcher_Added(DeviceWatcher sender, DeviceInformation args)
-    {
-        if (args.Name.Contains("COM") || args.Id.Contains("COM"))
+        private void DeviceWatcher_Added(DeviceWatcher sender, DeviceInformation args)
         {
-            Debug.WriteLine($"Device with COM Port Detected: {args.Name} - ID: {args.Id}");
-
-            // Only handle new devices after enumeration is complete
-            if (deviceWatcher.Status == DeviceWatcherStatus.EnumerationCompleted)
+            if (args.Name.Contains("COM") || args.Id.Contains("COM"))
             {
-                DispatcherQueue.TryEnqueue(() => CheckForControllers());
-            }
-        }
-    }
-
-    private void DeviceWatcher_Removed(DeviceWatcher sender, DeviceInformationUpdate args)
-    {
-        Debug.WriteLine($"Device removed: {args.Id}");
-        DispatcherQueue.TryEnqueue(() => CheckForControllers());
-    }
-
-    private void DeviceWatcher_Updated(DeviceWatcher sender, DeviceInformationUpdate args)
-    {
-        Debug.WriteLine($"Device updated: {args.Id}");
-        DispatcherQueue.TryEnqueue(() => CheckForControllers());
-    }
-
-    private void DeviceWatcher_EnumerationCompleted(DeviceWatcher sender, object args)
-    {
-        Debug.WriteLine("Device enumeration completed. Calling CheckForControllers...");
-        DispatcherQueue.TryEnqueue(() => CheckForControllers());
-    }
-
-    private void DeviceWatcher_Stopped(DeviceWatcher sender, object args)
-    {
-        Debug.WriteLine("DeviceWatcher stopped.");
-    }
-
-    void CheckForControllersButton_Click(object sender, RoutedEventArgs e)
-    {
-        _ = CheckForControllers();
-    }
-
-    private async Task CheckForControllers()
-    {
-        await Task.Delay(10);
-        RefreshProgressBar.Visibility = Visibility.Visible;
-        Debug.WriteLine("Searching for controllers");
-
-        string[] ports = System.IO.Ports.SerialPort.GetPortNames();
-
-        for (int i = Controller.FoundControllers.Count - 1; i >= 0; i--)
-        {
-            if (!Controller.FoundControllers[i].Running)
-            {
-                Controller.FoundControllers.RemoveAt(i);
+                Debug.WriteLine($"Device with COM Port Detected: {args.Name} - ID: {args.Id}");
+                if (deviceWatcher.Status == DeviceWatcherStatus.EnumerationCompleted)
+                {
+                    DispatcherQueue.TryEnqueue(() => CheckForControllers());
+                }
             }
         }
 
-        foreach (var port in ports)
+        private void DeviceWatcher_Removed(DeviceWatcher sender, DeviceInformationUpdate args)
         {
-            var (isXeryon, response) = CheckIfXeryon(port);
+            Debug.WriteLine($"Device removed: {args.Id}");
+            DispatcherQueue.TryEnqueue(() => CheckForControllers());
+        }
 
-            if (isXeryon)
+        private void DeviceWatcher_Updated(DeviceWatcher sender, DeviceInformationUpdate args)
+        {
+            Debug.WriteLine($"Device updated: {args.Id}");
+            DispatcherQueue.TryEnqueue(() => CheckForControllers());
+        }
+
+        private void DeviceWatcher_EnumerationCompleted(DeviceWatcher sender, object args)
+        {
+            Debug.WriteLine("Device enumeration completed. Calling CheckForControllers...");
+            DispatcherQueue.TryEnqueue(() => CheckForControllers());
+        }
+
+        private void DeviceWatcher_Stopped(DeviceWatcher sender, object args)
+        {
+            Debug.WriteLine("DeviceWatcher stopped.");
+        }
+
+        void CheckForControllersButton_Click(object sender, RoutedEventArgs e)
+        {
+            _ = CheckForControllers();
+        }
+
+        #endregion
+
+        #region Main Function and Local Identification Function
+
+        private async Task CheckForControllers()
+        {
+            await Task.Delay(10);
+            RefreshProgressBar.Visibility = Visibility.Visible;
+            string[] ports = SerialPort.GetPortNames();
+
+            // Remove non-running controllers from the FoundControllers collection.
+            for (int i = Controller.FoundControllers.Count - 1; i >= 0; i--)
             {
-                SerialPort serialPort = new SerialPort(port)
+                if (!Controller.FoundControllers[i].Running)
+                {
+                    Controller.FoundControllers.RemoveAt(i);
+                }
+            }
+
+            foreach (var portName in ports)
+            {
+                // Configure and open the serial port.
+                using (var port = new SerialPort(portName)
                 {
                     BaudRate = 115200,
-                    ReadTimeout = 200
-                };
-                serialPort.Open();
+                    ReadTimeout = 500  // Adjust as needed.
+                })
+                {
+                    try
+                    {
+                        port.Open();
 
-                // Temporarily create the controller without a defined type
-                var controller = new Controller("DefaultController", 1, "Unknown");
+                        // Call the separate identification function.
+                        ControllerIdentificationResult idResult = GetControllerIdentificationResult(port);
+                        if (idResult.Type == ControllerType.Unknown)
+                        {
+                            Debug.WriteLine($"{portName} did not respond with a valid SRNO. Skipping.");
+                            continue;
+                        }
+                        Debug.WriteLine($"{portName} identified as {idResult.FriendlyName} with {idResult.AxisCount} axis.");
 
-                controller.Port = serialPort;
-                serialPort.Write("INFO=0");
-                await Task.Delay(100);
-                serialPort.DiscardInBuffer();
+                        // If no label was returned, assign default letters.
+                        // For single-axis controllers, leave the label empty.
+                        // For multi-axis controllers, assign letters "A", "B", "C", etc.
+                        if (string.IsNullOrEmpty(idResult.Label))
+                        {
+                            if (idResult.AxisCount == 1)
+                            {
+                                idResult.Label = ""; // No prefix for single-axis.
+                            }
+                            else
+                            {
+                                idResult.Label = new string("ABCDEFGHIJKLMNOPQRSTUVWXYZ".Take(idResult.AxisCount).ToArray());
+                            }
+                        }
 
-                var axesResponse = "";
-                controller.Type = "";
+                        // Create the Controller instance.
+                        var controller = new Controller("DefaultController", idResult.AxisCount, idResult.FriendlyName)
+                        {
+                            Port = port,
+                            Type = idResult.FriendlyName,
+                            Name = idResult.Name,
+                            FriendlyPort = portName,
+                            Serial = idResult.Serial,
+                            Soft = idResult.Soft,
+                            AxisCount = idResult.AxisCount,
+                            Label = idResult.Label,
+                            Status = "Connect"
+                        };
+
+                        // Create an Axis object for each axis using the corresponding character from controller.Label.
+                        controller.Axes = new System.Collections.ObjectModel.ObservableCollection<Axis>();
+                        for (int i = 0; i < idResult.AxisCount; i++)
+                        {
+                            // If the label is empty, use an empty prefix; otherwise, use the corresponding character.
+                            string axisLetter = !string.IsNullOrEmpty(controller.Label) && controller.Label.Length > i
+                                                  ? controller.Label[i].ToString()
+                                                  : "";
+                            var axis = new Axis(controller, "Placeholder", axisLetter);
+                            controller.Axes.Add(axis);
+                        }
+
+                        // Send commands to refresh info and then read the full response.
+                        port.Write("INFO=1");
+                        port.Write("POLI=25");
+                        await Task.Delay(100);
+                        var response = port.ReadExisting();
+                        response = string.Join("\n", response.Split('\n').TakeLast(120));
+                        Debug.WriteLine("Response from controller: " + response);
+                        port.Write("INFO=0");
+                        await Task.Delay(100);
+                        port.DiscardInBuffer();
+
+                        // For each axis, use the AxisIdentifier helper to extract parameters.
+                        foreach (var axis in controller.Axes)
+                        {
+                            var axisResult = AxisIdentifier.IdentifyAxis(port, axis.AxisLetter, response);
+                            axis.Name = axisResult.Name;
+                            axis.Resolution = axisResult.Resolution;
+                            axis.Type = axisResult.AxisType;
+                            axis.Range = axisResult.Range;
+                            axis.Linear = axisResult.Linear;
+                            axis.FriendlyName = axisResult.FriendlyName;
+                            axis.StepSize = axisResult.StepSize;
+                        }
+
+                        port.Write("INFO=3");
+                        port.Close();
+
+                        Controller.FoundControllers.Add(controller);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error processing port {portName}: {ex.Message}");
+                    }
+                    // The using block ensures the port is closed if not needed further.
+                }
+            }
+            RefreshProgressBar.Visibility = Visibility.Collapsed;
+        }
+
+
+        /// <summary>
+        /// This function identifies the controller type, axis count, and sets some friendly names.
+        /// </summary>
+        /// <param name="port">An opened SerialPort.</param>
+        /// <returns>A ControllerIdentificationResult containing identification details.</returns>
+        private ControllerIdentificationResult GetControllerIdentificationResult(SerialPort port)
+        {
+            var result = new ControllerIdentificationResult();
+
+            try
+            {
+                port.DiscardInBuffer();
+                port.Write("INFO=1");
+                port.Write("POLI=25");
+                System.Threading.Thread.Sleep(100);
+
+                // Read the available response.
+                string fullResponse = port.ReadExisting();
+                // Optionally, take the last several lines.
+                string[] responseLines = fullResponse.Split('\n');
+                string infoResponse = string.Join("\n", responseLines.TakeLast(12));
+
+                // Read a line that should contain SRNO.
+                string srnoResponse = port.ReadLine();
+                if (!srnoResponse.Contains("SRNO"))
+                {
+                    Debug.WriteLine("No SRNO response found.");
+                    result.Type = ControllerType.Unknown;
+                    return result;
+                }
+                result.SRNOResponse = srnoResponse;
+
+                // Attempt to get the AXES response.
+                string axesResponse = "";
                 try
                 {
-                    serialPort.Write("AXES=?");
-                    axesResponse = serialPort.ReadLine().Trim();
+                    port.DiscardInBuffer();
+                    port.WriteLine("AXES=?");
+                    axesResponse = port.ReadLine();
                 }
                 catch (TimeoutException)
                 {
-                    Debug.WriteLine(port + " IS OEM");
-                    controller.Type = "XD-OEM";
-                    controller.Name = "XD-OEM Single Axis Controller";
-                    controller.FriendlyName = "XD-OEM";
-                    axesResponse = "AXES=1";
+                    Debug.WriteLine("AXES command timed out; assuming XD_OEM.");
                 }
 
-                var axes = Convert.ToInt32(Regex.Match(axesResponse, @"AXES[:=](\d+)").Groups[1].Value);
-                Debug.WriteLine($"Axis count: {axes}");
-
-                if (axes == 1) // Single axis controller
+                var serMatch = Regex.Match(srnoResponse, @"SRNO=(\d+)");
+                var softMatch = Regex.Match(srnoResponse, @"SOFT=(\d+)");
+                if (serMatch.Success)
                 {
-                    if (string.IsNullOrEmpty(controller.Type))
+                    result.Serial = serMatch.Groups[1].Value;
+                }
+                if (softMatch.Success)
+                {
+                    result.Soft = softMatch.Groups[1].Value;
+                }
+
+                try
+                {
+                    port.DiscardInBuffer();
+                    port.WriteLine("LABL=?");
+                    string rawLabel = port.ReadLine().Replace("LABL=", "").Trim();
+                    int colonPos = rawLabel.IndexOf(':');
+                    if (colonPos >= 0)
                     {
-                        Debug.WriteLine(port + " IS XD-C");
-                        controller.Type = "XD-C";
-                        controller.Name = "XD-C Single Axis Controller";
-                        controller.FriendlyName = "XD-C Controller";
+                        rawLabel = rawLabel.Substring(colonPos + 1);
+                    }
+                    // If the label is only 1 character, treat it as empty.
+                    if (rawLabel.Length == 1)
+                    {
+                        result.Label = "";
+                    }
+                    else
+                    {
+                        result.Label = rawLabel;
+                    }
+                    Debug.WriteLine($"Label: {result.Label}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("Error reading label: " + ex.Message);
+                    result.Label = "";
+                }
+
+                if (string.IsNullOrEmpty(axesResponse) || !axesResponse.Contains("AXES"))
+                {
+                    // No AXES response; assume OEM controller.
+                    result.Type = ControllerType.XD_OEM;
+                    result.AxisCount = 1;
+                    result.Name = "XD-OEM Single Axis Controller";
+                    result.FriendlyName = "XD-OEM";
+                }
+                else
+                {
+                    // Parse the axis count.
+                    var match = Regex.Match(axesResponse, @"AXES[:=](\d+)");
+                    if (match.Success)
+                    {
+                        result.AxisCount = int.Parse(match.Groups[1].Value);
+                    }
+                    else
+                    {
+                        result.AxisCount = 1;
                     }
 
-                    var ser = Regex.Match(response, @"SRNO=(\d+)");
-                    var soft = Regex.Match(response, @"SOFT=(\d+)");
-                    var dev = Regex.Match(response, @"SOFT=\d+\s+(.*?)\s+STAT=", RegexOptions.Singleline);
-
-                    var axis = new Axis(controller, "Linear", "");
-
-                    if (ser.Success)
+                    // Determine type based on axis count.
+                    if (result.AxisCount == 1)
                     {
-                        controller.Serial = ser.Groups[1].Value;
-                        controller.Status = "Connect";
+                        result.Type = ControllerType.XD_C;
+                        result.Name = "XD-C Single Axis Controller";
+                        result.FriendlyName = "XD-C";
                     }
-                    if (soft.Success)
+                    else if (result.AxisCount <= 6)
                     {
-                        controller.Soft = soft.Groups[1].Value;
+                        result.Type = ControllerType.XD_M;
+                        result.Name = "XD-M Multi Axis Controller";
+                        result.FriendlyName = "XD-M";
                     }
-                    if (dev.Success)
+                    else
                     {
-                        axis.Resolution = Convert.ToInt32(dev.Groups[1].Value.Contains('=') ? dev.Groups[1].Value.Split('=')[1] : dev.Groups[1].Value);
-                        axis.Type = dev.Groups[1].Value.Contains('=') ? dev.Groups[1].Value.Split('=')[0] : dev.Groups[1].Value;
+                        result.Type = ControllerType.XD_19;
+                        result.Name = "XD-19 Multi Axis Controller";
+                        result.FriendlyName = "XD-19";
                     }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error identifying controller: {ex.Message}");
+                result.Type = ControllerType.Unknown;
+            }
 
-                    serialPort.Write("INFO=0");
-                    await Task.Delay(50);
-                    serialPort.DiscardInBuffer();
-                    serialPort.Write("LLIM=?");
-                    var LLIM = serialPort.ReadLine().Replace("LLIM=", "").Trim();
-                    Debug.WriteLine(LLIM);
-                    serialPort.Write("HLIM=?");
-                    var HLIM = serialPort.ReadLine().Replace("HLIM=", "").Trim();
-                    Debug.WriteLine(HLIM);
+            return result;
+        }
 
-                    axis.Range = Math.Round(((Convert.ToInt32(HLIM) + -Convert.ToDouble(LLIM)) * Convert.ToDouble(axis.Resolution) / 1000000), 2);
+        /// <summary>
+        /// Queries LLIM and HLIM from the device and computes the axis range.
+        /// </summary>
+        /// <param name="port">An opened SerialPort.</param>
+        /// <param name="axis">The axis to update.</param>
+        private void QueryAxisParameters(SerialPort port, Axis axis)
+        {
+            // Query LLIM.
+            port.Write("LLIM=?");
+            string llimResponse = port.ReadLine().Replace("LLIM=", "").Trim();
+            Debug.WriteLine("LLIM: " + llimResponse);
 
-                    serialPort.Write("INFO=3");
+            // Query HLIM.
+            port.Write("HLIM=?");
+            string hlimResponse = port.ReadLine().Replace("HLIM=", "").Trim();
+            Debug.WriteLine("HLIM: " + hlimResponse);
+
+            // Convert responses to double.
+            double llim = Convert.ToDouble(llimResponse);
+            double hlim = Convert.ToDouble(hlimResponse);
+
+            // Ensure resolution is nonzero.
+            if (axis.Resolution == 0)
+            {
+                axis.Resolution = 1000; // Default value; adjust as needed.
+                Debug.WriteLine("Axis resolution was 0; defaulting to 1000.");
+            }
+
+            // Calculate the axis range.
+            axis.Range = Math.Round((hlim - llim) * axis.Resolution / 1000000.0, 2);
+            Debug.WriteLine("Axis Range set to: " + axis.Range);
+        }
+
+        #endregion
+
+        #region UI Animations (Unchanged)
+
+        private void AnimateItemsIn()
+        {
+            foreach (var item in AvailableControllersList.Items)
+            {
+                var container = AvailableControllersList.ContainerFromItem(item) as UIElement;
+                if (container != null)
+                {
+                    Storyboard storyboard = Resources["StaggeredFadeInAnimation"] as Storyboard;
+                    if (storyboard != null)
+                    {
+                        storyboard.BeginTime = TimeSpan.FromMilliseconds(100 * AvailableControllersList.Items.IndexOf(item));
+                        Storyboard.SetTarget(storyboard, container);
+                        storyboard.Begin();
+                    }
+                }
+            }
+        }
+
+        private void Border_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            var border = sender as Border;
+            var hoverInStoryboard = this.Resources["HoverInStoryboard"] as Storyboard;
+            if (hoverInStoryboard != null && border != null)
+            {
+                hoverInStoryboard.Stop();
+                Storyboard.SetTarget(hoverInStoryboard, border);
+                hoverInStoryboard.Begin();
+            }
+        }
+
+        private void Border_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            var border = sender as Border;
+            var hoverOutStoryboard = this.Resources["HoverOutStoryboard"] as Storyboard;
+            if (hoverOutStoryboard != null && border != null)
+            {
+                hoverOutStoryboard.Stop();
+                Storyboard.SetTarget(hoverOutStoryboard, border);
+                hoverOutStoryboard.Begin();
+            }
+        }
+
+        #endregion
+
+        private (bool isXeryon, string response) CheckIfXeryon(string portName)
+        {
+            SerialPort serialPort = new SerialPort(portName);
+            string response = string.Empty;
+            try
+            {
+                Debug.WriteLine("Checking for: " + portName);
+                serialPort.BaudRate = 115200;
+                serialPort.ReadTimeout = 2000;
+                serialPort.Open();
+                serialPort.Write("INFO=1");
+                serialPort.Write("POLI=25");
+                System.Threading.Thread.Sleep(100);
+                response = serialPort.ReadExisting();
+                response = string.Join("\n", response.Split('\n').TakeLast(6));
+                Debug.WriteLine("Response from controller: " + response);
+                bool isXeryon = response.Contains("SRNO");
+                Debug.WriteLine(portName + (isXeryon ? " Is Xeryon" : " Is NOT Xeryon"));
+                return (isXeryon, response);
+            }
+            catch (Exception)
+            {
+                Debug.WriteLine(portName + " Is NOT Xeryon");
+                return (false, response);
+            }
+            finally
+            {
+                if (serialPort.IsOpen)
                     serialPort.Close();
-
-                    axis.AxisLetter = "None";
-                    axis.FriendlyName = "Test XLA";
-                    axis.Name = $"XLS-3/5-X-{axis.Resolution}";
-                    axis.Linear = true;
-                    axis.StepSize = 25;
-
-                    controller.Axes = new ObservableCollection<Axis> { axis };
-                    axis.SetDispatcherQueue(DispatcherQueue);
-                }
-                else // Multi-axis controllers
-                {
-                    if (string.IsNullOrEmpty(controller.Type))
-                    {
-                        Debug.WriteLine(port + " IS XD-M");
-                        controller.Type = "XD-M";
-                        controller.Name = "XD-M Multi-Axis Controller";
-                    }
-
-                    // Add logic to initialize multiple axes
-                }
-
-                controller.FriendlyPort = port;
-                controller.Status = "Connect";
-                Controller.FoundControllers.Add(controller);
-            }
-            else
-            {
-                Debug.WriteLine(port + " Response: " + response);
-            }
-        }
-        RefreshProgressBar.Visibility = Visibility.Collapsed;
-    }
-
-
-
-
-    public (bool isXeryon, string response) CheckIfXeryon(string port)
-    {
-        SerialPort serialPort = new SerialPort(port);
-        string response = string.Empty;
-        try
-        {
-            Debug.WriteLine("Checking for: " + port);
-            serialPort.BaudRate = 115200;
-            serialPort.ReadTimeout = 2000;
-            serialPort.Open();
-            serialPort.Write("INFO=1");
-            serialPort.Write("POLI=25");
-            System.Threading.Thread.Sleep(100);
-            response = serialPort.ReadExisting();
-            response = string.Join("\n", response.Split('\n').TakeLast(6));
-            Debug.WriteLine("Response from controller: " + response);
-            bool isXeryon = response.Contains("SRNO");
-            Debug.WriteLine(port + (isXeryon ? " Is Xeryon" : " Is NOT Xeryon"));
-            return (isXeryon, response);
-        }
-        catch (Exception)
-        {
-            Debug.WriteLine(port + " Is NOT Xeryon");
-            return (false, response);
-        }
-        finally
-        {
-            if (serialPort.IsOpen)
-            {
-                serialPort.Close();
             }
         }
     }
-
-    private void ConnectCToController(Controller controller)
-    {
-
-    }
-
-    private async Task ShowMessage(string title, string message)
-    {
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = message,
-            CloseButtonText = "OK",
-            XamlRoot = this.Content.XamlRoot // Set XamlRoot to the root of the page
-        };
-
-        await dialog.ShowAsync();
-    }
-
-    private void AnimateItemsIn()
-    {
-        foreach (var item in AvailableControllersList.Items)
-        {
-            var container = AvailableControllersList.ContainerFromItem(item) as UIElement;
-            if (container != null)
-            {
-                Storyboard storyboard = Resources["StaggeredFadeInAnimation"] as Storyboard;
-                if (storyboard != null)
-                {
-                    // Add a delay for staggered effect
-                    storyboard.BeginTime = TimeSpan.FromMilliseconds(100 * AvailableControllersList.Items.IndexOf(item));
-                    Storyboard.SetTarget(storyboard, container);
-                    storyboard.Begin();
-                }
-            }
-        }
-    }
-
-    private void Border_PointerEntered(object sender, PointerRoutedEventArgs e)
-    {
-        var border = sender as Border;
-        var hoverInStoryboard = this.Resources["HoverInStoryboard"] as Storyboard;
-
-        if (hoverInStoryboard != null && border != null)
-        {
-            hoverInStoryboard.Stop(); // Stop the animation if it's already running
-            Storyboard.SetTarget(hoverInStoryboard, border);
-            hoverInStoryboard.Begin();
-        }
-    }
-
-    private void Border_PointerExited(object sender, PointerRoutedEventArgs e)
-    {
-        var border = sender as Border;
-        var hoverOutStoryboard = this.Resources["HoverOutStoryboard"] as Storyboard;
-
-        if (hoverOutStoryboard != null && border != null)
-        {
-            hoverOutStoryboard.Stop(); // Stop the animation if it's already running
-            Storyboard.SetTarget(hoverOutStoryboard, border);
-            hoverOutStoryboard.Begin();
-        }
-    }
-
-
 }
