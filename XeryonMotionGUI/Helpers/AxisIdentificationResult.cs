@@ -29,6 +29,71 @@ namespace XeryonMotionGUI.Helpers
     public static class AxisIdentifier
     {
         /// <summary>
+        /// Adjusts the reported resolution based on the axis type.
+        /// For XLS series, if reported value is slightly off, we adjust it.
+        /// For XRT series, we use a different mapping.
+        /// For XLA and XRTA series, we leave the value unchanged.
+        /// </summary>
+        /// <param name="axisType">The axis type string (e.g., "XLS1", "XRT1", "XLA1", etc.).</param>
+        /// <param name="reportedResolution">The resolution as reported by the controller.</param>
+        /// <returns>The adjusted (real) resolution.</returns>
+        private static int AdjustResolution(string axisType, int reportedResolution)
+        {
+            // Normalize the axis type.
+            string type = axisType.ToUpperInvariant();
+
+            // For XLA and XRTA series, just return the reported value.
+            if (type.StartsWith("XLA") || type.StartsWith("XRTA"))
+            {
+                return reportedResolution;
+            }
+
+            // For XLS series (e.g. XLS1, XLS3):
+            if (type.StartsWith("XLS"))
+            {
+                // Mapping:
+                // XLS1=1251 -> 1250, XLS1=1250 -> 1250, XLS1=313 -> 312, XLS1=312 -> 312,
+                // XLS1=5 -> 5, XLS1=1 -> 1.
+                if (reportedResolution == 1251) return 1250;
+                if (reportedResolution == 1250) return 1250;
+                if (reportedResolution == 313) return 312;
+                if (reportedResolution == 312) return 312;
+                if (reportedResolution == 5) return 5;
+                if (reportedResolution == 1) return 1;
+                return reportedResolution;
+            }
+
+            // For XRT series:
+            if (type.StartsWith("XRT"))
+            {
+                // If not the "3" series (we assume "XRT1" if not XRT3)
+                if (!type.StartsWith("XRT3"))
+                {
+                    if (reportedResolution == 110) return 109;
+                    if (reportedResolution == 109) return 109;
+                    if (reportedResolution == 73) return 109; 
+                    if (reportedResolution == 50) return 49;
+                    if (reportedResolution == 49) return 49;
+                    if (reportedResolution == 47) return 49;
+                    if (reportedResolution == 20) return 19;
+                    if (reportedResolution == 19) return 19;
+                    if (reportedResolution == 18) return 18;
+                    if (reportedResolution == 4) return 3;
+                    if (reportedResolution == 3) return 3;
+                    if (reportedResolution == 2) return 3;
+                    return reportedResolution;
+                }
+                else // XRT3 series
+                {
+                    // For XRT3, the reported value is acceptable.
+                    return reportedResolution;
+                }
+            }
+
+            // If axis type doesn't match any mapping, return the reported value.
+            return reportedResolution;
+        }
+        /// <summary>
         /// Identifies the axis parameters by querying LLIM and HLIM with the appropriate axis-letter prefix,
         /// then parses the provided full response for the device info corresponding to the given axis letter.
         /// </summary>
@@ -97,17 +162,6 @@ namespace XeryonMotionGUI.Helpers
                     Debug.WriteLine($"{(string.IsNullOrEmpty(prefix) ? "" : prefix)}HLIM line not found.");
                 }
 
-                // If the device does not supply a resolution, assign a default.
-                if (result.Resolution == 0)
-                {
-                    result.Resolution = 1000; // Default value; adjust if needed.
-                    Debug.WriteLine("Axis resolution was not provided; defaulting to 1000.");
-                }
-
-                // --- Calculate the Axis Range ---
-                result.Range = Math.Round((result.HLIM - result.LLIM) * result.Resolution / 1000000.0, 2);
-                Debug.WriteLine("Calculated Axis Range: " + result.Range);
-
                 // --- Parse Device Info from the Full Response ---
                 // Build a regex pattern using the prefix.
                 string pattern = $@"{Regex.Escape(prefix)}SOFT=\d+\s+(?:{Regex.Escape(prefix)})?(.*?)\s+{Regex.Escape(prefix)}STAT=";
@@ -121,13 +175,24 @@ namespace XeryonMotionGUI.Helpers
                     if (parts.Length >= 2 && int.TryParse(parts[1], out int res))
                     {
                         result.AxisType = parts[0].Trim();
-                        result.Resolution = res; // Overwrite default if device provides resolution.
+                        result.Resolution = AdjustResolution(result.AxisType, res);
                         Debug.WriteLine($"{prefix}Axis Type set to: {result.AxisType}, Resolution set to: {result.Resolution}");
                     }
                     else
                     {
                         result.AxisType = "XLS";
                         Debug.WriteLine($"{prefix}Axis Type defaulted to: {result.AxisType}");
+                    }
+                    // Check if the device info contains "XRT". If yes, assume rotary (Linear = false); otherwise, linear.
+                    if (devInfo.Contains("XRT"))
+                    {
+                        result.Linear = false;
+                        Debug.WriteLine($"{prefix}Axis set to Rotary (Linear = false).");
+                    }
+                    else
+                    {
+                        result.Linear = true;
+                        Debug.WriteLine($"{prefix}Axis set to Linear (Linear = true).");
                     }
                 }
                 else
@@ -136,10 +201,13 @@ namespace XeryonMotionGUI.Helpers
                     result.AxisType = "XLS";
                 }
 
+                // --- Calculate the Axis Range ---
+                result.Range = Math.Round((result.HLIM - result.LLIM) * result.Resolution / 1000000.0, 2);
+                Debug.WriteLine("Calculated Axis Range: " + result.Range);
+
                 // Set additional default parameters.
                 result.Name = "DefaultAxis";
                 result.FriendlyName = "Test Axis";
-                result.Linear = true;
                 result.StepSize = 1;
             }
             catch (Exception ex)

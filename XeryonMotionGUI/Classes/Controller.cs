@@ -431,6 +431,7 @@ namespace XeryonMotionGUI.Classes
                     UpdateRunningControllers();
                     InitializeAsync();
                     Debug.WriteLine("Controller Connected");
+                    SendCommand("ENBL=1");
                 }
                 else
                 {
