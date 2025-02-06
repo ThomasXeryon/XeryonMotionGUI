@@ -20,6 +20,7 @@ namespace XeryonMotionGUI.Blocks
                 "Index" => new IndexBlock(),
                 "Index +" => new IndexBlock("Index +"),
                 "Index -" => new IndexBlock("Index -"),
+                "Log" => new LoggingBlock(),
                 "Edit Parameter" => new ParameterEditBlock(),
                 _ => throw new ArgumentException($"Unknown block type: {blockType}")
             };

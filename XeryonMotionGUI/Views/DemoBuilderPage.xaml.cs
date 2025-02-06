@@ -30,7 +30,7 @@ namespace XeryonMotionGUI.Views
 
         private readonly List<string> BlockTypes = new()
         {
-            "Step", "Wait", "Repeat", "Move", "Home", "Stop", "Scan", "Index", "Index +", "Index -", "Edit Parameter"
+            "Step", "Wait", "Repeat", "Move", "Home", "Stop", "Scan", "Index", "Index +", "Index -", "Log", "Edit Parameter"
         };
 
         public DemoBuilderPage()

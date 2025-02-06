@@ -13,6 +13,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
+using Newtonsoft.Json.Linq;
 
 namespace XeryonMotionGUI.Classes
 {
@@ -467,25 +468,22 @@ namespace XeryonMotionGUI.Classes
         private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
         {
             var sp = (SerialPort)sender;
-            while (sp.BytesToRead > 0)
-            {
-                string line;
-                try
-                {
-                    line = sp.ReadLine();
-                }
-                catch (TimeoutException)
-                {
-                    break;
-                }
+            string receivedData = sp.ReadExisting(); // Read all available bytes at once
 
-                // We'll get time as a double from stopwatch
+            if (!string.IsNullOrEmpty(receivedData))
+            {
+                // Get time as a double from stopwatch
                 double timeSeconds = _globalStopwatch.Elapsed.TotalSeconds;
 
-                // parse line
-                ParseLine(line, timeSeconds);
+                // Process each line separately
+                string[] lines = receivedData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    ParseLine(line, timeSeconds);
+                }
             }
         }
+
 
         private void ParseLine(string line, double timeStamp)
         {
@@ -494,9 +492,9 @@ namespace XeryonMotionGUI.Classes
 
             foreach (var part in parts)
             {
-                // Check if the part contains a colon.
                 string axisLetter = "";
                 string remainder = part;
+
                 if (part.Contains(":"))
                 {
                     // Split at the first colon.
@@ -506,8 +504,6 @@ namespace XeryonMotionGUI.Classes
                 }
 
                 // Determine the target axis:
-                // If an axis letter was provided, try to find that axis;
-                // otherwise, use the first axis in the collection.
                 var targetAxis = !string.IsNullOrEmpty(axisLetter)
                     ? Axes.FirstOrDefault(a => a.AxisLetter.Equals(axisLetter, StringComparison.OrdinalIgnoreCase))
                     : (Axes.Count > 0 ? Axes[0] : null);
@@ -530,13 +526,19 @@ namespace XeryonMotionGUI.Classes
                 {
                     if (int.TryParse(remainder.Substring(5), out int eposValue))
                     {
-                        targetAxis.OnEPOSUpdate(eposValue, timeStamp);
                         targetAxis.EPOS = eposValue;
+                        targetAxis.OnEPOSUpdate(eposValue, timeStamp);
+                    }
+                }
+                else if (remainder.StartsWith("TIME=", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (int.TryParse(remainder.Substring(5), out int timeValue))
+                    {
+                        targetAxis.TIME = timeValue;
                     }
                 }
             }
         }
-
 
         #endregion
 
@@ -550,7 +552,7 @@ namespace XeryonMotionGUI.Classes
             await LoadParametersFromController();
         }
 
-        public void SendSetting(string commandName, double value, int resolution, string axisLetter = "")
+        public void SendSetting(string commandName, double value, int resolution, string axisLetter = "", bool isLinear = true)
         {
             if (Port.IsOpen)
             {
@@ -561,6 +563,10 @@ namespace XeryonMotionGUI.Classes
                     case "MSPD":
                     case "ISPD":
                         value = value * 1000;
+                        if (!isLinear)
+                        {
+                            value = value / 10;
+                        }
                         break;
                     case "LLIM":
                     case "HLIM":
@@ -761,6 +767,10 @@ namespace XeryonMotionGUI.Classes
                                         case "MSPD":
                                         case "ISPD":
                                             convertedValue = rawValue / 1000;
+                                            if (!axis.Linear)
+                                            {
+                                                convertedValue = convertedValue / 10;
+                                            }
                                             break;
                                         case "LLIM":
                                         case "HLIM":
@@ -806,7 +816,7 @@ namespace XeryonMotionGUI.Classes
                     Port.DataReceived += DataReceivedHandler;
                 }
                 LoadingSettings = false;
-                Port.WriteLine("INFO=3");
+                Port.WriteLine("INFO=7");
             }
         }
 

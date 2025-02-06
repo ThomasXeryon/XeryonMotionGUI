@@ -17,6 +17,7 @@
         <helpers:AxisTypeToVisibilityConverter x:Key="AxisTypeToVisibilityConverter" />
         <helpers:BoolToColorConverter x:Key="BoolToColorConverter" />
         <helpers:TooltipValueFormatter x:Key="TooltipValueFormatter" />
+        <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
         <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Page.Resources>
 
@@ -296,6 +297,32 @@
                                                   SelectedItem="{Binding SelectedUnit, Mode=TwoWay}"
                                                   Width="150"
                                                   Margin="5, 0, 0, 30"/>
+
+                                        <!-- Logging Mode Section -->
+                                        <StackPanel Orientation="Vertical" Margin="10">
+                                            <!-- Logging Mode Toggle -->
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="Logging Mode:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <ToggleSwitch x:Name="LoggingModeSwitch" 
+                                                  IsOn="{Binding AutoLogging, Mode=TwoWay}"
+                                                  OnContent="Auto"
+                                                  OffContent="Manual" />
+                                                <!-- Manual Logging Buttons: Visible only when AutoLogging is off -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,5,0,0"
+                                                    Visibility="{Binding AutoLogging, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                    <Button Content="Start Logging" Command="{Binding StartManualLoggingCommand}" Margin="0,0,5,0"/>
+                                                    <Button Content="Stop Logging" Command="{Binding StopManualLoggingCommand}"/>
+                                                </StackPanel>
+
+                                            </StackPanel>
+                                            <!-- ... -->
+                                        </StackPanel>
+
+
+
+
+
+
                                         <!-- The PlotView remains here -->
                                         <oxyplot:PlotView Model="{Binding PlotModel}" 
                                                             HorizontalAlignment="Stretch" 

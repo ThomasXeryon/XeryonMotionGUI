@@ -47,6 +47,8 @@ namespace XeryonMotionGUI.ViewModels
                     OnPropertyChanged(nameof(SelectedAxis));
                     OnPropertyChanged(nameof(IndexMinusCommand));
                     OnPropertyChanged(nameof(IndexPlusCommand));
+                    OnPropertyChanged(nameof(SelectedAxis));
+
                 }
             }
         }
@@ -75,6 +77,21 @@ namespace XeryonMotionGUI.ViewModels
                     {
                         SelectedAxis = null;
                     }
+                }
+            }
+        }
+
+        private bool _autoLogging = true;
+        public bool AutoLogging
+        {
+            get => _autoLogging;
+            set
+            {
+                if (_autoLogging != value)
+                {
+                    _autoLogging = value;
+                    OnPropertyChanged();
+                    Debug.WriteLine($"AutoLogging changed to: {_autoLogging}");
                 }
             }
         }
@@ -112,5 +129,11 @@ namespace XeryonMotionGUI.ViewModels
                 }
             }
         }
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
     }
 }

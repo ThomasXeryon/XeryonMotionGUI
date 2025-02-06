@@ -192,7 +192,7 @@ namespace XeryonMotionGUI.Views
                             axis.StepSize = axisResult.StepSize;
                         }
 
-                        port.Write("INFO=3");
+                        port.Write("INFO=7");
                         port.Close();
 
                         Controller.FoundControllers.Add(controller);

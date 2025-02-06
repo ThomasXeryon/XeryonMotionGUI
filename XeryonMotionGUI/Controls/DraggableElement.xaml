@@ -21,7 +21,7 @@
                 Background="{Binding Background, ElementName=DraggableElementRoot}"
                 BorderThickness="1"
                 BorderBrush="Black"
-                Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Wait|Step|Move|Scan|Home|Stop|Index|Index +|Index -'}">
+                Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Wait|Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}">
             <StackPanel>
                 <TextBlock
                     Text="{Binding Text}"
@@ -36,7 +36,7 @@
                     DisplayMemberPath="FriendlyName"
                     Margin="0,5,0,5"
                     PlaceholderText="Select Controller"
-                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -'}" />
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" />
 
                 <ComboBox
                     ItemsSource="{Binding Block.SelectedController.Axes}"
@@ -44,7 +44,7 @@
                     DisplayMemberPath="FriendlyName"
                     Margin="0,5,0,5"
                     PlaceholderText="Select Axis"
-                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -'}" />
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" />
 
                 <!-- ToggleSwitch for Direction (Step, Move, Scan) -->
                 <ToggleSwitch
@@ -54,6 +54,14 @@
                     IsOn="{Binding Block.IsPositive, Mode=TwoWay}"
                     Margin="0,5,0,5"
                     Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan'}" />
+
+                <ToggleSwitch
+                    Header="Logging"
+                    OnContent="Start"
+                    OffContent="Stop"
+                    IsOn="{Binding Block.IsStart, Mode=TwoWay}"
+                    Margin="0,5,0,5"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Log'}" />
 
                 <!-- Wait Time Input (for WaitBlock) -->
                 <NumberBox
