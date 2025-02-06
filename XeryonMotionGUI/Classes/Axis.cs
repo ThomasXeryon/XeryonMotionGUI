@@ -29,7 +29,7 @@ namespace XeryonMotionGUI.Classes
         #region Fields
         private PlotModel _plotModel;
         private LineSeries _positionSeries;
-        private ConcurrentQueue<(double EPOS, DateTime Time)> _dataQueue = new ConcurrentQueue<(double, DateTime)>();
+        private ConcurrentQueue<(double EPOS, double SyncTime)> _dataQueue = new ConcurrentQueue<(double, double)>();
         private DispatcherTimer _updateTimer;
         private object _lock = new object();
 
@@ -39,6 +39,12 @@ namespace XeryonMotionGUI.Classes
         private bool _isLogging = false;
         private DateTime _endTime = DateTime.MinValue;
         private double _currentTime = 0;
+        private double _startSyncTime = 0;
+        private int _lastTime = 0;
+        private double _timeOffset = 0; // in seconds
+
+
+
 
         public ObservableCollection<InfoBarMessage> InfoBarMessages { get; set; } = new ObservableCollection<InfoBarMessage>();
         private DispatcherQueue _dispatcherQueue;
@@ -136,13 +142,36 @@ namespace XeryonMotionGUI.Classes
 
         #region EPOS Update Method
 
-        public void OnEPOSUpdate(double epos, double timeStamp)
+        public void OnEPOSUpdate(double epos, double dummy)
         {
             if (!_isLogging)
                 return;
 
-            _dataQueue.Enqueue((epos, DateTime.Now));
+            double t;
+            if (UseControllerTime)
+            {
+                // Use the controller's TIME (in ms) converted to seconds,
+                // with any additional wrap-around logic already applied.
+                t = this.TIME / 1000.0;  // (plus any offset adjustments if needed)
+            }
+            else
+            {
+                // Use system time from the Controller's global stopwatch.
+                t = ParentController.GlobalTimeSeconds;
+            }
+            _dataQueue.Enqueue((epos, t));
+
+            // Update min/max values as needed.
+            if (epos < _minEpos) _minEpos = epos;
+            if (epos > _maxEpos) _maxEpos = epos;
         }
+
+
+
+
+
+
+
 
         #endregion
 
@@ -150,30 +179,31 @@ namespace XeryonMotionGUI.Classes
 
         private void UpdatePlotFromQueue(object sender, object e)
         {
-            // Dequeue all data points from the queue
-            List<(double EPOS, DateTime Time)> pointsToPlot = new List<(double, DateTime)>();
+            List<(double EPOS, double SyncTime)> pointsToPlot = new List<(double, double)>();
             while (_dataQueue.TryDequeue(out var point))
             {
                 pointsToPlot.Add(point);
             }
 
-            // Enqueue the UI update even if we got zero points
             _dispatcherQueue.TryEnqueue(() =>
             {
-                // Plot new points (if any)
                 foreach (var point in pointsToPlot)
                 {
-                    double relativeTime = (point.Time - _startTime).TotalSeconds;
+                    // Compute relative time: subtract the baseline.
+                    double relativeTime = point.SyncTime - _startSyncTime;
                     _positionSeries.Points.Add(new DataPoint(relativeTime, point.EPOS));
                 }
 
-                // Always recalibrate axes
                 AdjustAxesBasedOnData();
-
-                // Refresh
                 _plotModel.InvalidatePlot(true);
             });
         }
+
+
+
+
+
+
 
 
         public ICommand StartManualLoggingCommand => new RelayCommand(() => StartManualLogging());
@@ -599,6 +629,34 @@ namespace XeryonMotionGUI.Classes
                 OnPropertyChanged(nameof(SliderValue));
             }
         }
+
+        private bool _useControllerTime = false;
+        public bool UseControllerTime
+        {
+            get => _useControllerTime;
+            set
+            {
+                if (_useControllerTime != value)
+                {
+                    _useControllerTime = value;
+                    OnPropertyChanged(nameof(UseControllerTime));
+                    // When switching, send the appropriate command:
+                    SetTimeMode(_useControllerTime);
+                }
+            }
+        }
+
+      private async void SetTimeMode(bool useController)
+        {
+            // If using controller time, send INFO=4; otherwise, for system time send INFO=7.
+            string command = useController ? "INFO=4" : "INFO=7";
+            await ParentController.SendCommand(command, AxisLetter);
+            Debug.WriteLine($"Time mode set to {(useController ? "Controller" : "System")}, sent command {command}");
+        }
+
+
+
+
 
         private double _EPOS;
         public double EPOS
@@ -1697,22 +1755,28 @@ namespace XeryonMotionGUI.Classes
 
         #region Plot Reset Method
 
+        // Add a field to store the baseline (in seconds)
         private void ResetPlot()
         {
             _dispatcherQueue.TryEnqueue(() =>
             {
-                // Reset the plot
+                // Clear the plot data.
                 _positionSeries.Points.Clear();
                 _minEpos = double.MaxValue;
                 _maxEpos = double.MinValue;
-                _startTime = DateTime.Now;
-                _endTime = _startTime;
-                _currentTime = 0;
 
-                // Refresh the plot
+                // Reset the time baseline based on the current time source.
+                _startSyncTime = UseControllerTime ? (this.TIME / 1000.0) : ParentController.GlobalTimeSeconds;
+
+                // Invalidate the plot to force a redraw.
                 _plotModel.InvalidatePlot(true);
             });
         }
+
+
+
+
+
 
         #endregion
     }

@@ -313,6 +313,9 @@
                                                     <Button Content="Start Logging" Command="{Binding StartManualLoggingCommand}" Margin="0,0,5,0"/>
                                                     <Button Content="Stop Logging" Command="{Binding StopManualLoggingCommand}"/>
                                                 </StackPanel>
+                                                <ToggleSwitch x:Name="TimeSourceToggle"
+                                                  Header="Use Controller Time"
+                                                  IsOn="{Binding UseControllerTime, Mode=TwoWay}" />
 
                                             </StackPanel>
                                             <!-- ... -->

@@ -50,6 +50,8 @@ namespace XeryonMotionGUI.Classes
         private string _Serial;
         private string _Soft;
         private string _Fgpa;
+        public double GlobalTimeSeconds => _globalStopwatch.Elapsed.TotalSeconds;
+
         #endregion
 
         #region Constructor
