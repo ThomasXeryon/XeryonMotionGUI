@@ -138,7 +138,7 @@ namespace XeryonMotionGUI.Classes
 
         public void OnEPOSUpdate(double epos, double timeStamp)
         {
-            if (!AutoLogging && !_isLogging)
+            if (!_isLogging)
                 return;
 
             _dataQueue.Enqueue((epos, DateTime.Now));
@@ -148,35 +148,29 @@ namespace XeryonMotionGUI.Classes
 
         #region Plot Update Method
 
-        private async Task UpdatePlotFromQueueAsync()
+        private void UpdatePlotFromQueue(object sender, object e)
         {
-            // Dequeue all data points from the queue asynchronously
+            // Dequeue all data points from the queue
             List<(double EPOS, DateTime Time)> pointsToPlot = new List<(double, DateTime)>();
-
-            await Task.Run(() =>
+            while (_dataQueue.TryDequeue(out var point))
             {
-                while (_dataQueue.TryDequeue(out var point))
-                {
-                    pointsToPlot.Add(point);
-                }
-            });
+                pointsToPlot.Add(point);
+            }
 
-            // Ensure UI updates are done on the main thread
-            await _dispatcherQueue.EnqueueAsync(() =>
+            // Enqueue the UI update even if we got zero points
+            _dispatcherQueue.TryEnqueue(() =>
             {
-                if (pointsToPlot.Count > 0)
+                // Plot new points (if any)
+                foreach (var point in pointsToPlot)
                 {
-                    foreach (var point in pointsToPlot)
-                    {
-                        double relativeTime = (point.Time - _startTime).TotalSeconds;
-                        _positionSeries.Points.Add(new DataPoint(relativeTime, point.EPOS));
-                    }
-
-                    // Always recalibrate axes
-                    Task.Run(AdjustAxesBasedOnDataAsync);
+                    double relativeTime = (point.Time - _startTime).TotalSeconds;
+                    _positionSeries.Points.Add(new DataPoint(relativeTime, point.EPOS));
                 }
 
-                // Refresh the plot
+                // Always recalibrate axes
+                AdjustAxesBasedOnData();
+
+                // Refresh
                 _plotModel.InvalidatePlot(true);
             });
         }
@@ -203,68 +197,59 @@ namespace XeryonMotionGUI.Classes
         }
 
 
-        private async Task AdjustAxesBasedOnDataAsync()
+        private void AdjustAxesBasedOnData()
         {
             if (_positionSeries.Points.Count == 0)
                 return;
 
             var xAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom) as LinearAxis;
             var yAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left) as LinearAxis;
-
             if (xAxis == null || yAxis == null)
                 return;
 
-            // Run calculations asynchronously
-            var stats = await Task.Run(() =>
+            double minTime = _positionSeries.Points.Min(p => p.X);
+            double maxTime = _positionSeries.Points.Max(p => p.X);
+            double minEpos = _positionSeries.Points.Min(p => p.Y);
+            double maxEpos = _positionSeries.Points.Max(p => p.Y);
+
+            // Force time to start at zero
+            if (minTime < 0)
+                minTime = 0;
+
+            // If there's no range in time, give at least 1 second
+            if (maxTime <= minTime)
+                maxTime = minTime + 1.0;
+
+            xAxis.Minimum = minTime;
+            xAxis.Maximum = maxTime;
+
+            double eposRange = maxEpos - minEpos;
+            if (eposRange < 1e-6)
             {
-                double minTime = _positionSeries.Points.Min(p => p.X);
-                double maxTime = _positionSeries.Points.Max(p => p.X);
-                double minEpos = _positionSeries.Points.Min(p => p.Y);
-                double maxEpos = _positionSeries.Points.Max(p => p.Y);
-
-                // Force time to start at zero
-                if (minTime < 0) minTime = 0;
-
-                // If there's no range in time, give at least 1 second
-                if (maxTime <= minTime) maxTime = minTime + 1.0;
-
-                double eposRange = maxEpos - minEpos;
-                if (eposRange < 1e-6)
-                {
-                    // If all EPOS values are nearly identical
-                    minEpos -= 0.5;
-                    maxEpos += 0.5;
-                }
-                else
-                {
-                    // 5% padding
-                    double padding = eposRange * 0.05;
-                    minEpos -= padding;
-                    maxEpos += padding;
-                }
-
-                return (minTime, maxTime, minEpos, maxEpos);
-            });
-
-            // Update UI elements on the dispatcher
-            await _dispatcherQueue.EnqueueAsync(() =>
+                // If all EPOS values are nearly identical
+                minEpos -= 0.5;
+                maxEpos += 0.5;
+            }
+            else
             {
-                xAxis.Minimum = stats.minTime;
-                xAxis.Maximum = stats.maxTime;
-                yAxis.Minimum = stats.minEpos;
-                yAxis.Maximum = stats.maxEpos;
+                // 5% padding
+                double padding = eposRange * 0.05;
+                minEpos -= padding;
+                maxEpos += padding;
+            }
 
-                var xxAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom);
-                var yyAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left);
+            yAxis.Minimum = minEpos;
+            yAxis.Maximum = maxEpos;
 
-                if (xxAxis != null && yyAxis != null)
-                {
-                    xxAxis.Reset();
-                    yyAxis.Reset();
-                }
-            });
+            var xxAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom);
+            var yyAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left);
+
+            if (xxAxis != null && yyAxis != null)
+            {
+                xxAxis.Reset();
+                yyAxis.Reset();
+            }
         }
-
 
 
         #region Plot Initialization
@@ -1612,7 +1597,7 @@ namespace XeryonMotionGUI.Classes
                     var duration = DateTime.Now - commandSentTime;
                     Debug.WriteLine($"SetDPOS executed in {duration.TotalMilliseconds} ms.");
                     CommandToPositionReachedDelayValue = duration;
-                    Task.Run(UpdatePlotFromQueueAsync);
+                    UpdatePlotFromQueue(null, null);
                     SPEED = 0;
                     if (AutoLogging)
                     {
