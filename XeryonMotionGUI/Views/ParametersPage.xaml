@@ -152,7 +152,11 @@
                                                 </StackPanel>
                                                 <!-- Parameter controls (TextBox, Slider, and increment/decrement Buttons) -->
                                                 <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,10">
-                                                    <TextBox Text="{x:Bind Value, Mode=TwoWay}" Width="100"/>
+                                                    <!-- Here we add InputScope="Number" so that only numeric input is allowed -->
+                                                    <TextBox Text="{x:Bind Value, Mode=TwoWay}" 
+                                                             Width="100"
+                                                             InputScope="Number"
+                                                             />
                                                     <Slider Minimum="{x:Bind EffectiveMin}" 
                                                             Maximum="{x:Bind EffectiveMax}" 
                                                             Value="{x:Bind Value, Mode=TwoWay}" 

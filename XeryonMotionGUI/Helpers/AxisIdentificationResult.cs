@@ -41,19 +41,18 @@ namespace XeryonMotionGUI.Helpers
         {
             // Normalize the axis type.
             string type = axisType.ToUpperInvariant();
+            Debug.WriteLine($"[AdjustResolution] AxisType: {axisType}, ReportedResolution: {reportedResolution}");
 
             // For XLA and XRTA series, just return the reported value.
             if (type.StartsWith("XLA") || type.StartsWith("XRTA"))
             {
+                Debug.WriteLine($"[AdjustResolution] Returning reported resolution for {type}: {reportedResolution}");
                 return reportedResolution;
             }
 
             // For XLS series (e.g. XLS1, XLS3):
             if (type.StartsWith("XLS"))
             {
-                // Mapping:
-                // XLS1=1251 -> 1250, XLS1=1250 -> 1250, XLS1=313 -> 312, XLS1=312 -> 312,
-                // XLS1=5 -> 5, XLS1=1 -> 1.
                 if (reportedResolution == 1251) return 1250;
                 if (reportedResolution == 1250) return 1250;
                 if (reportedResolution == 313) return 312;
@@ -66,12 +65,11 @@ namespace XeryonMotionGUI.Helpers
             // For XRT series:
             if (type.StartsWith("XRT"))
             {
-                // If not the "3" series (we assume "XRT1" if not XRT3)
                 if (!type.StartsWith("XRT3"))
                 {
                     if (reportedResolution == 110) return 109;
                     if (reportedResolution == 109) return 109;
-                    if (reportedResolution == 73) return 109; 
+                    if (reportedResolution == 73) return 109;
                     if (reportedResolution == 50) return 49;
                     if (reportedResolution == 49) return 49;
                     if (reportedResolution == 47) return 49;
@@ -85,17 +83,18 @@ namespace XeryonMotionGUI.Helpers
                 }
                 else // XRT3 series
                 {
-                    // For XRT3, the reported value is acceptable.
                     return reportedResolution;
                 }
             }
 
-            // If axis type doesn't match any mapping, return the reported value.
+            Debug.WriteLine($"[AdjustResolution] No mapping for {type}. Returning reported resolution: {reportedResolution}");
             return reportedResolution;
         }
+
         /// <summary>
         /// Identifies the axis parameters by querying LLIM and HLIM with the appropriate axis-letter prefix,
         /// then parses the provided full response for the device info corresponding to the given axis letter.
+        /// Also writes debug info on how long each command took.
         /// </summary>
         /// <param name="port">An open SerialPort used for communicating with the device.</param>
         /// <param name="axisLetter">
@@ -111,65 +110,100 @@ namespace XeryonMotionGUI.Helpers
             // Build the command prefix.
             string prefix = string.IsNullOrEmpty(axisLetter) ? "" : axisLetter + ":";
 
+            Debug.WriteLine($"[IdentifyAxis] Using prefix: '{prefix}' for axis letter: '{axisLetter}'");
+
             try
             {
                 // --- Query LLIM ---
                 port.DiscardInBuffer();
+                port.ReadTimeout = 2000;
+                Stopwatch sw = Stopwatch.StartNew();
                 port.Write(prefix + "LLIM=?");
-                System.Threading.Thread.Sleep(50); // Give the device time to respond
-                string llimData = port.ReadExisting();
-                // Try to get the line that starts with the prefix.
-                var llimLine = llimData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                                       .FirstOrDefault(line => line.Trim().StartsWith(prefix + "LLIM"));
-                // If not found, try without the prefix.
+                string llimData = "";
+                int maxWaitMs = 1000; // maximum wait time in ms
+                while (sw.ElapsedMilliseconds < maxWaitMs)
+                {
+                    llimData = port.ReadExisting();
+                    if (!string.IsNullOrWhiteSpace(llimData))
+                    {
+                        break;
+                    }
+                    System.Threading.Thread.Sleep(10);
+                }
+                sw.Stop();
+                Debug.WriteLine($"[IdentifyAxis] {prefix}LLIM query took {sw.ElapsedMilliseconds} ms");
+                Debug.WriteLine($"[IdentifyAxis] Raw LLIM data: '{llimData}'");
+
+                var llimLine = llimData
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .FirstOrDefault(line => line.Trim().StartsWith(prefix + "LLIM"));
                 if (llimLine == null)
                 {
-                    llimLine = llimData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                                       .FirstOrDefault(line => line.Trim().StartsWith("LLIM"));
+                    llimLine = llimData
+                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .FirstOrDefault(line => line.Trim().StartsWith("LLIM"));
                 }
                 if (llimLine != null)
                 {
                     string llimNumber = Regex.Match(llimLine, @"[-+]?\d+(\.\d+)?").Value;
                     result.LLIM = Convert.ToDouble(llimNumber);
-                    Debug.WriteLine($"{(string.IsNullOrEmpty(prefix) ? "" : prefix)}LLIM: {llimNumber}");
+                    Debug.WriteLine($"{prefix}LLIM: {llimNumber}");
                 }
                 else
                 {
-                    Debug.WriteLine($"{(string.IsNullOrEmpty(prefix) ? "" : prefix)}LLIM line not found.");
+                    Debug.WriteLine($"{prefix}LLIM line not found.");
                 }
 
                 // --- Query HLIM ---
                 port.DiscardInBuffer();
+                sw.Restart();
                 port.Write(prefix + "HLIM=?");
-                System.Threading.Thread.Sleep(50);
-                string hlimData = port.ReadExisting();
-                var hlimLine = hlimData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                                       .FirstOrDefault(line => line.Trim().StartsWith(prefix + "HLIM"));
-                // If not found, try without the prefix.
+                string hlimData = "";
+                while (sw.ElapsedMilliseconds < maxWaitMs)
+                {
+                    hlimData = port.ReadExisting();
+                    if (!string.IsNullOrWhiteSpace(hlimData))
+                    {
+                        break;
+                    }
+                    System.Threading.Thread.Sleep(10);
+                }
+                sw.Stop();
+                Debug.WriteLine($"[IdentifyAxis] {prefix}HLIM query took {sw.ElapsedMilliseconds} ms");
+                Debug.WriteLine($"[IdentifyAxis] Raw HLIM data: '{hlimData}'");
+
+                var hlimLine = hlimData
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .FirstOrDefault(line => line.Trim().StartsWith(prefix + "HLIM"));
                 if (hlimLine == null)
                 {
-                    hlimLine = hlimData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                                       .FirstOrDefault(line => line.Trim().StartsWith("HLIM"));
+                    hlimLine = hlimData
+                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .FirstOrDefault(line => line.Trim().StartsWith("HLIM"));
                 }
                 if (hlimLine != null)
                 {
                     string hlimNumber = Regex.Match(hlimLine, @"[-+]?\d+(\.\d+)?").Value;
                     result.HLIM = Convert.ToDouble(hlimNumber);
-                    Debug.WriteLine($"{(string.IsNullOrEmpty(prefix) ? "" : prefix)}HLIM: {hlimNumber}");
+                    Debug.WriteLine($"{prefix}HLIM: {hlimNumber}");
                 }
                 else
                 {
-                    Debug.WriteLine($"{(string.IsNullOrEmpty(prefix) ? "" : prefix)}HLIM line not found.");
+                    Debug.WriteLine($"{prefix}HLIM line not found.");
                 }
 
                 // --- Parse Device Info from the Full Response ---
                 // Build a regex pattern using the prefix.
                 string pattern = $@"{Regex.Escape(prefix)}SOFT=\d+\s+(?:{Regex.Escape(prefix)})?(.*?)\s+{Regex.Escape(prefix)}STAT=";
+                Debug.WriteLine($"[IdentifyAxis] Device info regex pattern: {pattern}");
+                sw.Restart();
                 var devMatch = Regex.Match(response, pattern, RegexOptions.Singleline | RegexOptions.Multiline);
+                sw.Stop();
+                Debug.WriteLine($"[IdentifyAxis] Device info query took {sw.ElapsedMilliseconds} ms");
                 if (devMatch.Success)
                 {
                     string devInfo = devMatch.Groups[1].Value.Trim();
-                    Debug.WriteLine($"{prefix}Device Info: {devInfo}");
+                    Debug.WriteLine($"{prefix}Device Info extracted: '{devInfo}'");
                     // Expecting something like "XLS1=313"
                     var parts = devInfo.Split('=');
                     if (parts.Length >= 2 && int.TryParse(parts[1], out int res))
@@ -203,7 +237,7 @@ namespace XeryonMotionGUI.Helpers
 
                 // --- Calculate the Axis Range ---
                 result.Range = Math.Round((result.HLIM - result.LLIM) * result.Resolution / 1000000.0, 2);
-                Debug.WriteLine("Calculated Axis Range: " + result.Range);
+                Debug.WriteLine($"Calculated Axis Range: {result.Range}");
 
                 // Set additional default parameters.
                 result.Name = "DefaultAxis";
@@ -217,6 +251,5 @@ namespace XeryonMotionGUI.Helpers
 
             return result;
         }
-
     }
 }

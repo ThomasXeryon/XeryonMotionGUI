@@ -11,6 +11,11 @@ using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
 using Windows.System;
 using XeryonMotionGUI.Helpers;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
+using OxyPlot.Wpf;
+using Windows.Media.Devices;
 
 namespace XeryonMotionGUI.Views;
 
@@ -104,4 +109,35 @@ public sealed partial class MotionPage : Page
             nb.IsEnabled = true;
         }
     }
+
+    private void ExportGraph_Click(object sender, RoutedEventArgs e)
+    {
+        if (this.DataContext is MotionViewModel vm && vm.SelectedAxis is not null)
+        {
+            // 1. Access the PlotModel to export
+            PlotModel model = vm.SelectedAxis.PlotModel;
+            if (model == null) return;
+
+            // 2. Choose where to save the file (hard-coded or via a file picker)
+            // For simplicity, we hard-code a path; adapt for your environment:
+            string filename = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "MyAxisPlot.png");
+            model.Background = OxyColors.White;
+
+            // 3. Use the SkiaSharp PngExporter (width/height in pixels, default background = transparent)
+            //    You can tweak the Resolution DPI as well.
+            PngExporter.Export(model, filename, width: 1920, height: 1080);
+
+            // 4. Open the PNG in the default image viewer
+            //    For WinUI 3, we can do:
+            var processInfo = new ProcessStartInfo
+            {
+                FileName = filename,
+                UseShellExecute = true
+            };
+            Process.Start(processInfo);
+        }
+    }
+
 }

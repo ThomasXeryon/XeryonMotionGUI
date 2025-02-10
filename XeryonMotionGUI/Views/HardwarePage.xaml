@@ -196,6 +196,7 @@
                                        Canvas.Top="0" />
                                 </Canvas>
                             </Grid>
+                            
                         </Border>
                     </DataTemplate>
                 </ListView.ItemTemplate>

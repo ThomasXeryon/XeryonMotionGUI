@@ -286,47 +286,65 @@ namespace XeryonMotionGUI.Classes
 
         private void InitializePlot()
         {
-            _plotModel = new PlotModel { Title = "Axis Movement Over Time" };
+            // Create the PlotModel with a white background, black text
+            _plotModel = new PlotModel
+            {
+                Title = "Axis Movement Over Time",
+                Background = OxyColors.White,        // white chart area
+                TextColor = OxyColors.Black,         // black text (titles, axis labels)
+                PlotAreaBorderColor = OxyColors.Black
+            };
 
+            // Create the main series
             _positionSeries = new LineSeries
             {
                 Title = "Position (mm)",
-                MarkerType = MarkerType.Circle, // Add markers
-                MarkerSize = 2, // Small size to prevent clutter
-                MarkerStroke = OxyColors.Transparent, // No border for subtlety
-                MarkerFill = OxyColor.Parse("#27b62d"), // Same as line color
-                StrokeThickness = 1.5, // Slightly thicker for better visibility
+                MarkerType = MarkerType.Circle,
+                MarkerSize = 2,
+                MarkerStroke = OxyColors.Transparent,
+                MarkerFill = OxyColor.Parse("#27b62d"),
+                StrokeThickness = 1.5,
                 Color = OxyColor.Parse("#27b62d"),
-                LineStyle = LineStyle.Solid, // Ensure the line is solid
+                LineStyle = LineStyle.Solid,
             };
-
             _plotModel.Series.Add(_positionSeries);
 
-            // Add X Axis (Time)
-            _plotModel.Axes.Add(new LinearAxis
+            // X Axis
+            var xAxis = new LinearAxis
             {
                 Position = AxisPosition.Bottom,
                 Title = "Time (s)",
                 MajorGridlineStyle = LineStyle.Solid,
                 MinorGridlineStyle = LineStyle.Dot,
                 IsZoomEnabled = true,
-                IsPanEnabled = true
-            });
+                IsPanEnabled = true,
+                AxislineColor = OxyColors.Black,
+                TextColor = OxyColors.Black,
+                TitleColor = OxyColors.Black,
+                TicklineColor = OxyColors.Black
+            };
+            _plotModel.Axes.Add(xAxis);
 
-            // Add Y Axis (EPOS)
-            _plotModel.Axes.Add(new LinearAxis
+            // Y Axis
+            var yAxis = new LinearAxis
             {
                 Position = AxisPosition.Left,
                 Title = "Position (enc)",
                 MajorGridlineStyle = LineStyle.Solid,
                 MinorGridlineStyle = LineStyle.Dot,
                 IsZoomEnabled = true,
-                IsPanEnabled = true
-            });
+                IsPanEnabled = true,
+                AxislineColor = OxyColors.Black,
+                TextColor = OxyColors.Black,
+                TitleColor = OxyColors.Black,
+                TicklineColor = OxyColors.Black
+            };
+            _plotModel.Axes.Add(yAxis);
 
-            // Optional: Enhance interactivity
             _plotModel.IsLegendVisible = true;
-            _plotModel.Axes[0].AxisChanged += OnAxisChanged;
+
+            // Optional: detect axis changes for marker toggling
+            xAxis.AxisChanged += OnAxisChanged;
         }
 
         private void OnAxisChanged(object sender, AxisChangedEventArgs e)
@@ -606,31 +624,35 @@ namespace XeryonMotionGUI.Classes
             get => _DPOS;
             set
             {
+                // Always update the backing field and notify, even if value is the same.
                 if (_DPOS != value)
                 {
                     _DPOS = value;
                     OnPropertyChanged(nameof(DPOS));
-
-                    // Update the slider value.
-                    // Conversion: sliderValue (in mm) = DPOS * Resolution / 1,000,000.
-                    double newSliderValue = _DPOS * Resolution / 1000000.0;
-                    // Update the slider property without triggering SetDPOS again.
-                    UpdateSliderValue(newSliderValue);
                 }
+                else
+                {
+                    // Force notification even if the value is the same.
+                    OnPropertyChanged(nameof(DPOS));
+                }
+
+                // Convert DPOS (encoder units) to slider value (in mm)
+                double newSliderValue = _DPOS * Resolution / 1000000.0;
+                // Update the slider property without triggering SetDPOS again.
+                UpdateSliderValue(newSliderValue);
             }
         }
 
         // Use a helper method to update the slider's backing field directly.
         private void UpdateSliderValue(double newValue)
         {
-            if (_SliderValue != newValue)
-            {
-                _SliderValue = newValue;
-                OnPropertyChanged(nameof(SliderValue));
-            }
+            _suppressSliderUpdate = true;
+            _SliderValue = newValue;
+            OnPropertyChanged(nameof(SliderValue));
+            _suppressSliderUpdate = false;
         }
 
-        private bool _useControllerTime = false;
+        private bool _useControllerTime = true;
         public bool UseControllerTime
         {
             get => _useControllerTime;
@@ -1348,17 +1370,14 @@ namespace XeryonMotionGUI.Classes
             get => _SliderValue;
             set
             {
-                if (_SliderValue != value)
+                _SliderValue = value;
+                OnPropertyChanged(nameof(SliderValue));
+                if (!_suppressSliderUpdate)
                 {
-                    _SliderValue = value;
-                    OnPropertyChanged(nameof(SliderValue));
-                    // Only call SetDPOS if we're not suppressing updates.
-                    if (!_suppressSliderUpdate)
-                    {
-                        int newDpos = (int)(value * 1000000 / Resolution);
-                        SetDPOS(newDpos);
-                    }
+                    int newDpos = (int)(value * 1000000 / Resolution);
+                    SetDPOS(newDpos);
                 }
+                
             }
         }
 
@@ -1567,7 +1586,8 @@ namespace XeryonMotionGUI.Classes
 
         public async void Home()
         {
-            SetDPOS(0);
+            UpdateSliderWithoutCommand(0);
+            await SetDPOS(0);
         }
 
         public void StepPositive()

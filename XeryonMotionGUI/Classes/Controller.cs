@@ -435,6 +435,11 @@ namespace XeryonMotionGUI.Classes
                     InitializeAsync();
                     Debug.WriteLine("Controller Connected");
                     SendCommand("ENBL=1");
+                    foreach (var axis in this.Axes)
+                    {
+                        SendCommand(axis.AxisLetter + ":ENBL=1");
+
+                    }
                 }
                 else
                 {
@@ -721,7 +726,7 @@ namespace XeryonMotionGUI.Classes
             Port.DiscardInBuffer();
             await Task.Delay(100);
             Port.DiscardInBuffer();
-            Port.ReadTimeout = 200;
+            Port.ReadTimeout = 100;
 
             try
             {
@@ -807,7 +812,7 @@ namespace XeryonMotionGUI.Classes
                         }
 
                         // Small delay before the next command.
-                        await Task.Delay(0);
+                        await Task.Delay(1);
                     }
                 }
             }
