@@ -7,6 +7,43 @@ using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI.Helpers
 {
+    public static class StageCountsTable
+    {
+        private static readonly Dictionary<string, double> countsPerRev = new Dictionary<string, double>()
+    {
+        // Rotary stages – keys match those used in StageDictionary.
+        { "XRTU_25_109", 57600 },
+        { "XRTU_25_49", 144000 },
+        { "XRTU_25_19", 360000 },
+        { "XRTU_25_3", 1843200 },
+        { "XRTU_30_109", 57600 },
+        { "XRTU_30_49", 144000 },
+        { "XRTU_30_19", 360000 },
+        { "XRTU_30_3", 1843200 },
+        { "XRTU_40_109", 86400 },
+        { "XRTU_40_49", 135000 },
+        { "XRTU_40_19", 345600 },
+        { "XRTU_40_3", 2764800 },
+        { "XRTU_60_109", 64800 },
+        { "XRTU_60_49", 129600 },
+        { "XRTU_60_19", 324000 },
+        { "XRTU_60_3", 2073600 },
+        { "XRTA", 57600 },
+        { "XRTU_40_73_OLD", 86400 },
+        { "XRTU_30_109_OLD", 57600 },
+        { "XRTU_40_3_OLD", 1800000 }
+    };
+
+        public static double GetCounts(string stageKey)
+        {
+            if (countsPerRev.TryGetValue(stageKey, out double value))
+                return value;
+            return 0; // or throw an exception if preferred
+        }
+    }
+
+
+
     /// <summary>
     /// Contains the identification details for an axis.
     /// </summary>
@@ -26,6 +63,7 @@ namespace XeryonMotionGUI.Helpers
     /// <summary>
     /// Provides a method for identifying axis parameters from a device via a SerialPort.
     /// </summary>
+    /// 
     public static class AxisIdentifier
     {
         /// <summary>

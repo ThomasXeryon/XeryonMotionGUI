@@ -40,7 +40,10 @@ namespace XeryonMotionGUI.Classes
         private DateTime _endTime = DateTime.MinValue;
         private double _currentTime = 0;
         private double _startSyncTime = 0;
-        private int _lastTime = 0;
+        // Fields for speed calculation
+        private double _lastPosition = 0.0;        // store last EPOS value
+        private double _lastTime = 0.0;            // store last time reading (in seconds)
+        private bool _hasLastSample = false;
         private double _timeOffset = 0; // in seconds
 
 
@@ -79,7 +82,10 @@ namespace XeryonMotionGUI.Classes
             IndexMinusCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(IndexMinus);
             IndexPlusCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(IndexPlus);
 
-
+            if (Linear)
+                _selectedUnit = Units.mm;   // default for linear axis
+            else
+                _selectedUnit = Units.deg;
             // Assign the ParentController to each Parameter
             foreach (var parameter in Parameters)
             {
@@ -111,65 +117,79 @@ namespace XeryonMotionGUI.Classes
             OnPropertyChanged(nameof(Parameters));
         }
 
-        // Add a parameter dynamically
-        public void AddParameter(Parameter parameter)
-        {
-            if (Parameters.All(p => p.Name != parameter.Name))
-            {
-                Parameters.Add(parameter);
-                OnPropertyChanged(nameof(Parameters));
-            }
-        }
-
-        // Update an existing parameter
-        public void UpdateParameter(string name, Action<Parameter> updateAction)
-        {
-            var parameter = Parameters.FirstOrDefault(p => p.Name == name);
-            if (parameter != null)
-            {
-                updateAction(parameter);
-                OnPropertyChanged(nameof(Parameters));
-            }
-        }
-
-        // Get a specific parameter
-        public Parameter GetParameter(string name)
-        {
-            return Parameters.FirstOrDefault(p => p.Name == name);
-        }
-
         #endregion
 
         #region EPOS Update Method
 
         public void OnEPOSUpdate(double epos, double dummy)
         {
-            if (!_isLogging)
-                return;
-
-            double t;
+            // Decide which time source to use
+            double currentTimeSeconds;
             if (UseControllerTime)
             {
-                // Use the controller's TIME (in ms) converted to seconds,
-                // with any additional wrap-around logic already applied.
-                t = this.TIME / 1000.0;  // (plus any offset adjustments if needed)
+                // TIME is presumably milliseconds from device
+                currentTimeSeconds = TIME / 1000.0;
             }
             else
             {
-                // Use system time from the Controller's global stopwatch.
-                t = ParentController.GlobalTimeSeconds;
+                // Use a global stopwatch or system time from your controller
+                // e.g. ParentController.GlobalTimeSeconds
+                currentTimeSeconds = ParentController.GlobalTimeSeconds;
             }
-            _dataQueue.Enqueue((epos, t));
 
-            // Update min/max values as needed.
-            if (epos < _minEpos) _minEpos = epos;
-            if (epos > _maxEpos) _maxEpos = epos;
+            // Enqueue data if you are logging/plotting
+            if (_isLogging)
+            {
+                // you might store (epos, currentTimeSeconds) for the chart
+                _dataQueue.Enqueue((epos, currentTimeSeconds));
+            }
+
+            // ----- Calculate speed (only if we have a prior sample) -----
+            if (_hasLastSample)
+            {
+                double dt = currentTimeSeconds - _lastTime;
+                if (dt > 1e-9)  // to avoid dividing by 0
+                {
+                    // raw difference in encoder counts
+                    double rawEncDiff = epos - _lastPosition;
+
+                    // If rotational, handle wrap-around
+                    if (!Linear)
+                    {
+                        double fullRev = FullRevolutionEncoderUnits;
+                        rawEncDiff = (rawEncDiff + fullRev / 2.0) % fullRev - (fullRev / 2.0);
+                    }
+
+                    // Convert rawEncDiff to physical distance or angle
+                    double distanceOrAngle;
+                    if (Linear)
+                    {
+                        // epos in counts => mm
+                        // "Resolution" = nm per count
+                        distanceOrAngle = rawEncDiff * (Resolution / 1_000_000.0); // mm
+                    }
+                    else
+                    {
+                        // epos in counts => deg
+                        double degPerCount = 360.0 / FullRevolutionEncoderUnits;
+                        distanceOrAngle = rawEncDiff * degPerCount; // deg
+                    }
+
+                    // speed = distanceOrAngle / dt
+                    double speedValue = distanceOrAngle / dt;
+
+                    SPEED = Math.Abs(speedValue);
+                }
+            }
+
+            // ----- Store current sample as "last" for next iteration -----
+            _lastTime = currentTimeSeconds;
+            _lastPosition = epos;
+            _hasLastSample = true;
+
+            //  ...
+            //  if you also do anything else with epos or logging
         }
-
-
-
-
-
 
 
 
@@ -560,39 +580,129 @@ namespace XeryonMotionGUI.Classes
 
 
 
-        public double MaxSpeedDisplay
-        {
-            get
-            {
-                double mmSpeed = MaxSpeed;
-                switch (SelectedUnit)
-                {
-                    case Units.mm: return mmSpeed;
-                    case Units.mu: return mmSpeed * 1000.0;
-                    case Units.nm: return mmSpeed * 1e6;
-                    case Units.inch: return mmSpeed / 25.4;
-                    case Units.minch: return mmSpeed / 25.4 * 1000.0;
-                    default: return mmSpeed;
-                }
-            }
-        }
-
         public double SPEEDDisplay
         {
             get
             {
-                double mmSpeed = SPEED;
-                switch (SelectedUnit)
+                // We have stored SPEED internally as either mm/s (if Linear) or deg/s (if Rotational)
+                if (Linear)
                 {
-                    case Units.mm: return mmSpeed;
-                    case Units.mu: return mmSpeed * 1000.0;
-                    case Units.nm: return mmSpeed * 1e6;
-                    case Units.inch: return mmSpeed / 25.4;
-                    case Units.minch: return mmSpeed / 25.4 * 1000.0;
-                    default: return mmSpeed;
+                    // -------------- SPEED is in mm/s --------------
+                    switch (SelectedUnit)
+                    {
+                        case Units.Encoder:
+                            // Convert mm/s → counts/s
+                            // 1 mm/s = (1_000_000 / Resolution) counts/s
+                            return SPEED * (1_000_000.0 / Resolution);
+
+                        case Units.mm:
+                            return SPEED;  // mm/s
+                        case Units.mu:
+                            return SPEED * 1_000.0;  // µm/s
+                        case Units.nm:
+                            return SPEED * 1_000_000.0; // nm/s
+                        case Units.inch:
+                            return SPEED / 25.4; // in/s
+                        case Units.minch:
+                            return (SPEED / 25.4) * 1_000.0; // mils/s (thousandths of an inch)
+
+                        // Rotational units are not meaningfully supported for a linear axis:
+                        case Units.deg:
+                        case Units.rad:
+                        case Units.mrad:
+                            return double.NaN;
+
+                        default:
+                            return SPEED;  // fallback: mm/s
+                    }
+                }
+                else
+                {
+                    // -------------- SPEED is in deg/s --------------
+                    switch (SelectedUnit)
+                    {
+                        case Units.deg:
+                            return SPEED; // deg/s
+                        case Units.rad:
+                            // deg → rad: multiply by (π/180)
+                            return SPEED * (Math.PI / 180.0);
+                        case Units.mrad:
+                            // deg → rad → mrad
+                            return SPEED * (Math.PI / 180.0) * 1000.0;
+
+                        case Units.Encoder:
+                            // deg → encoder counts: 
+                            // 1 deg = (FullRevolutionEncoderUnits / 360) counts
+                            double countsPerDeg = FullRevolutionEncoderUnits / 360.0;
+                            return SPEED * countsPerDeg; // counts/s
+
+                        // Linear units are not meaningful for a purely rotational axis:
+                        case Units.mm:
+                        case Units.mu:
+                        case Units.nm:
+                        case Units.inch:
+                        case Units.minch:
+                            return double.NaN;
+
+                        default:
+                            return SPEED; // fallback: deg/s
+                    }
                 }
             }
         }
+
+        public double MaxSpeedDisplay
+        {
+            get
+            {
+                // Same logic as SPEEDDisplay, except you start with “MaxSpeed”
+                // which is also stored in base units (mm/s if linear, deg/s if rotational).
+                double baseSpeed = MaxSpeed;
+
+                if (Linear)
+                {
+                    // baseSpeed is mm/s
+                    switch (SelectedUnit)
+                    {
+                        case Units.Encoder:
+                            return baseSpeed * (1_000_000.0 / Resolution);
+                        case Units.mm:
+                            return baseSpeed;
+                        case Units.mu:
+                            return baseSpeed * 1_000.0;
+                        case Units.nm:
+                            return baseSpeed * 1_000_000.0;
+                        case Units.inch:
+                            return baseSpeed / 25.4;
+                        case Units.minch:
+                            return (baseSpeed / 25.4) * 1_000.0;
+                        default:
+                            // rotational units → not applicable
+                            return double.NaN;
+                    }
+                }
+                else
+                {
+                    // baseSpeed is deg/s
+                    switch (SelectedUnit)
+                    {
+                        case Units.deg:
+                            return baseSpeed;
+                        case Units.rad:
+                            return baseSpeed * (Math.PI / 180.0);
+                        case Units.mrad:
+                            return baseSpeed * (Math.PI / 180.0) * 1_000.0;
+                        case Units.Encoder:
+                            double countsPerDeg = FullRevolutionEncoderUnits / 360.0;
+                            return baseSpeed * countsPerDeg;
+                        default:
+                            // linear units → not applicable
+                            return double.NaN;
+                    }
+                }
+            }
+        }
+
 
         public IEnumerable<Units> UnitsList => Enum.GetValues(typeof(Units)).Cast<Units>();
         public double EPOSDisplay => UnitConversion.FromEncoder(EPOS, SelectedUnit, Resolution);
@@ -652,6 +762,7 @@ namespace XeryonMotionGUI.Classes
             _suppressSliderUpdate = false;
         }
 
+
         private bool _useControllerTime = true;
         public bool UseControllerTime
         {
@@ -663,6 +774,8 @@ namespace XeryonMotionGUI.Classes
                     _useControllerTime = value;
                     OnPropertyChanged(nameof(UseControllerTime));
                     // When switching, send the appropriate command:
+                    _hasLastSample = false;
+
                     SetTimeMode(_useControllerTime);
                 }
             }
@@ -675,9 +788,6 @@ namespace XeryonMotionGUI.Classes
             await ParentController.SendCommand(command, AxisLetter);
             Debug.WriteLine($"Time mode set to {(useController ? "Controller" : "System")}, sent command {command}");
         }
-
-
-
 
 
         private double _EPOS;
@@ -693,12 +803,31 @@ namespace XeryonMotionGUI.Classes
                     OnPropertyChanged(nameof(EPOS));
                     OnPropertyChanged(nameof(EPOSDisplay));
 
-                    CalculateSpeed();
+                    CalculateSpeed(); // if you want
 
-                    // Update the plot with the new EPOS and time
+                    // Also update SliderValue so the UI matches actual hardware
+                    if (Linear)
+                    {
+                        // Convert counts → mm
+                        double mmPosition = (_EPOS * Resolution) / 1_000_000.0;
+                        UpdateSliderValue(mmPosition);
+                    }
+                    else
+                    {
+                        // Convert counts → degrees
+                        double degPerCount = 360.0 / FullRevolutionEncoderUnits;
+                        double deg = _EPOS * degPerCount;
+
+                        // Keep it in [0..360) if you want the radial gauge pointer
+                        deg = (deg % 360.0 + 360.0) % 360.0;
+
+                        UpdateSliderValue(deg);
+                    }
                 }
             }
         }
+
+
 
         private int _STAT;
         public int STAT
@@ -883,7 +1012,10 @@ namespace XeryonMotionGUI.Classes
                     // Optionally, reset the selected unit if it is not valid for the new type.
                     if (!AvailableUnits.Contains(SelectedUnit))
                     {
-                        SelectedUnit = Units.Encoder;
+                        if (Linear)
+                            _selectedUnit = Units.mm;   // default for linear axis
+                        else
+                            _selectedUnit = Units.deg;
                     }
                 }
             }
@@ -907,6 +1039,29 @@ namespace XeryonMotionGUI.Classes
                 }
             }
         }
+
+        public double FullRevolutionEncoderUnits
+        {
+            get
+            {
+                if (!Linear)
+                {
+                    // Use your table lookup – assume AxisType holds a key such as "XRTU_25_109"
+                    double counts = StageCountsTable.GetCounts(AxisType);
+                    if (counts > 0)
+                    {
+                        return counts;
+                    }
+                    // If the lookup returns 0 (or key not found), fall back to a computed value.
+                    return UnitConversion.ToEncoder(360.0, SelectedUnit, Resolution);
+                }
+                else
+                {
+                    return 0; // Not used for linear axes.
+                }
+            }
+        }
+
 
         private string _FriendlyName;
         public string FriendlyName
@@ -1178,7 +1333,7 @@ namespace XeryonMotionGUI.Classes
             private set
             {
                 // Simply set to true only if both the incoming value and the tolerance check are true.
-                bool newValue = value && IsWithinTolerance(DPOS);
+                bool newValue = value;
                 if (_PositionReached != newValue)
                 {
                     _PositionReached = newValue;
@@ -1370,14 +1525,27 @@ namespace XeryonMotionGUI.Classes
             get => _SliderValue;
             set
             {
+                if (_suppressSliderUpdate)
+                {
+                    _SliderValue = value;
+                    return;
+                }
                 _SliderValue = value;
                 OnPropertyChanged(nameof(SliderValue));
-                if (!_suppressSliderUpdate)
+
+                if (Linear)
                 {
-                    int newDpos = (int)(value * 1000000 / Resolution);
-                    SetDPOS(newDpos);
+                    // SliderValue is in millimeters
+                    double encCounts = value * (1_000_000.0 / Resolution);
+                    SetDPOS(encCounts);
                 }
-                
+                else
+                {
+                    // SliderValue is in degrees
+                    double countsPerDeg = FullRevolutionEncoderUnits / 360.0;
+                    double encCounts = value * countsPerDeg;  // deg → counts
+                    SetDPOS(encCounts);
+                }
             }
         }
 
@@ -1542,16 +1710,44 @@ namespace XeryonMotionGUI.Classes
                 DateTime currentTime = DateTime.Now;
                 if (_LastUpdateTime != default)
                 {
-                    double timeDelta = (currentTime - _LastUpdateTime).TotalSeconds; // Time in seconds
+                    double timeDelta = (currentTime - _LastUpdateTime).TotalSeconds;
                     if (timeDelta > 0)
                     {
-                        // Convert nanometers to millimeters before calculating speed
-                        SPEED = Math.Abs((_EPOS - _PreviousEPOS) / 1_000_000) / timeDelta * Resolution; // Speed in mm/s
+                        double rawEncDiff = _EPOS - _PreviousEPOS;
+
+                        // If rotational, wrap the difference to handle crossing 0/max boundary cleanly.
+                        if (!Linear)
+                        {
+                            double fullRev = FullRevolutionEncoderUnits; // e.g., 200000 for 360°
+                            rawEncDiff = (rawEncDiff + fullRev / 2.0) % fullRev - (fullRev / 2.0);
+                        }
+
+                        double distanceOrAngleMoved;
+                        if (Linear)
+                        {
+                            // Convert from encoder counts → mm
+                            // "Resolution" means nm per encoder count, so rawEncDiff * (Resolution nm)
+                            // then /1e6 => mm
+                            distanceOrAngleMoved = rawEncDiff * (Resolution / 1_000_000.0); // mm
+                        }
+                        else
+                        {
+                            // Convert from encoder counts → deg
+                            double degPerCount = 360.0 / FullRevolutionEncoderUnits;
+                            distanceOrAngleMoved = rawEncDiff * degPerCount; // deg
+                        }
+
+                        double speedValue = distanceOrAngleMoved / timeDelta;
+
+                        // Keep speed as absolute magnitude
+                        SPEED = Math.Abs(speedValue);
                     }
                 }
+
                 _LastUpdateTime = currentTime;
             }
         }
+
 
         public void MoveNegative()
         {
@@ -1621,40 +1817,75 @@ namespace XeryonMotionGUI.Classes
 
         public Task SetDPOS(double value)
         {
-            // Retrieve HLIM and LLIM parameters (stored in mm)
-            var hlimParam = Parameters.FirstOrDefault(p => p.Command == "HLIM");
-            var llimParam = Parameters.FirstOrDefault(p => p.Command == "LLIM");
-            double hlim_mm = hlimParam != null ? Convert.ToDouble(hlimParam.Value) : double.PositiveInfinity;
-            double llim_mm = llimParam != null ? Convert.ToDouble(llimParam.Value) : double.NegativeInfinity;
-
-            // Convert HLIM and LLIM from mm to encoder units.
-            double hlimEnc = hlim_mm * 1000000 / Resolution;
-            double llimEnc = llim_mm * 1000000 / Resolution;
-
-            // Clamp the incoming value to within the limits (in encoder units)
-            if (value > hlimEnc)
+            if (!Linear)
             {
-                Debug.WriteLine($"Value {value} is greater than HLIM (converted) {hlimEnc}, adjusting to HLIM.");
-                value = hlimEnc;
-            }
-            if (value < llimEnc)
-            {
-                Debug.WriteLine($"Value {value} is less than LLIM (converted) {llimEnc}, adjusting to LLIM.");
-                value = llimEnc;
+                // Use the table lookup value.
+                double fullRevolution = FullRevolutionEncoderUnits;
+                value = value % fullRevolution;
+                if (value < 0)
+                    value += fullRevolution;
             }
 
-            if (AutoLogging) 
+
+
+            // --- Clamp the value against the high/low limits ---
+            if (Linear)
+            {
+                // For linear axes, assume HLIM and LLIM are given in mm.
+                var hlimParam = Parameters.FirstOrDefault(p => p.Command == "HLIM");
+                var llimParam = Parameters.FirstOrDefault(p => p.Command == "LLIM");
+                double hlim_mm = hlimParam != null ? Convert.ToDouble(hlimParam.Value) : double.PositiveInfinity;
+                double llim_mm = llimParam != null ? Convert.ToDouble(llimParam.Value) : double.NegativeInfinity;
+                double hlimEnc = hlim_mm * 1e6 / Resolution;
+                double llimEnc = llim_mm * 1e6 / Resolution;
+
+                if (value > hlimEnc)
+                {
+                    Debug.WriteLine($"Value {value} is greater than HLIM (converted) {hlimEnc}, adjusting to HLIM.");
+                    value = hlimEnc;
+                }
+                if (value < llimEnc)
+                {
+                    Debug.WriteLine($"Value {value} is less than LLIM (converted) {llimEnc}, adjusting to LLIM.");
+                    value = llimEnc;
+                }
+            }
+            else
+            {
+                // For rotational axes, assume HLIM and LLIM are provided in degrees.
+                var hlimParam = Parameters.FirstOrDefault(p => p.Command == "HLIM");
+                var llimParam = Parameters.FirstOrDefault(p => p.Command == "LLIM");
+                // Default to a full circle (360°) if no HLIM is given and 0° for LLIM.
+                double hlim_deg = hlimParam != null ? Convert.ToDouble(hlimParam.Value) : 360.0;
+                double llim_deg = llimParam != null ? Convert.ToDouble(llimParam.Value) : 0.0;
+                double hlimEnc = UnitConversion.ToEncoder(hlim_deg, SelectedUnit, Resolution);
+                double llimEnc = UnitConversion.ToEncoder(llim_deg, SelectedUnit, Resolution);
+
+                if (value > hlimEnc)
+                {
+                    Debug.WriteLine($"Value {value} is greater than HLIM (converted) {hlimEnc}, adjusting to HLIM.");
+                    value = hlimEnc;
+                }
+                if (value < llimEnc)
+                {
+                    Debug.WriteLine($"Value {value} is less than LLIM (converted) {llimEnc}, adjusting to LLIM.");
+                    value = llimEnc;
+                }
+            }
+
+            // Optionally start logging or reset the plot if needed.
+            if (AutoLogging)
             {
                 _isLogging = true;
                 ResetPlot();
             }
 
-            // Set DPOS (in encoder units) and notify bindings.
+            // Update the local property and send the command.
             DPOS = value;
-
             DateTime commandSentTime = DateTime.Now;
             ParentController.SendCommand($"DPOS={value}", AxisLetter);
 
+            // If the current encoder position is already within tolerance, finish immediately.
             if (IsWithinTolerance(value) && PositionReached)
             {
                 var duration = DateTime.Now - commandSentTime;
@@ -1663,9 +1894,8 @@ namespace XeryonMotionGUI.Classes
                 return Task.CompletedTask;
             }
 
+            // Otherwise, wait until the property changes and the axis reaches the target.
             var tcs = new TaskCompletionSource<bool>();
-
-            // Define a PropertyChanged event handler.
             PropertyChangedEventHandler handler = null;
             handler = (sender, args) =>
             {
@@ -1684,12 +1914,9 @@ namespace XeryonMotionGUI.Classes
                     tcs.TrySetResult(true);
                 }
             };
-
             this.PropertyChanged += handler;
             return tcs.Task;
         }
-
-
 
 
         public async Task TakeStep(double value)
@@ -1699,24 +1926,6 @@ namespace XeryonMotionGUI.Classes
             DPOS += stepEnc;
             await SetDPOS(DPOS);
         }
-
-        private bool IsWithinTolerance(double targetDpos)
-        {
-            double diff = Math.Abs(targetDpos - EPOS);
-
-            if (!Linear)
-            {
-                //double fullRevolution = UnitHelpers.ConvertUnitsToEncoder(360.0, Units.deg, Stage);
-                //int iFullRevolution = (int)fullRevolution;
-                //double diffWrapAdd = Math.Abs((targetDpos + iFullRevolution) - EPOS);
-                //double diffWrapSub = Math.Abs((targetDpos - iFullRevolution) - EPOS);
-                //diff = Math.Min(diff, Math.Min(diffWrapAdd, diffWrapSub));
-            }
-
-            // Define a fixed tolerance (in encoder units); adjust this value as needed.
-            return diff <= Convert.ToInt32(Parameters.FirstOrDefault(p => p.Command == "PTO2").Value + 2);
-        }
-
 
         #endregion
 
@@ -1730,6 +1939,60 @@ namespace XeryonMotionGUI.Classes
             await ParentController.LoadParametersFromController();
             ParentController.LoadingSettings = false;
         }
+
+        private bool IsWithinTolerance(double dpos)
+        {
+            // Get the current encoder position from the EPOS property.
+            double epos = (int)EPOS;
+            double diff = Math.Abs(dpos - epos);
+
+            // For rotary (non-linear) axes, account for wrap-around.
+            if (!Linear)
+            {
+                // Convert 360° to encoder units using your UnitConversion helper.
+                double encRev = UnitConversion.ToEncoder(360.0, Units.deg, Resolution);
+                double iEncRev = (int)encRev;
+                double wrapAdd = Math.Abs((dpos + iEncRev) - epos);
+                double wrapSub = Math.Abs((dpos - iEncRev) - epos);
+                diff = Math.Min(diff, Math.Min(wrapAdd, wrapSub));
+            }
+
+            // Get the tolerance from the PTO2 parameter in the Parameters collection.
+            double pto2 = 10; // default value if not found
+            var pto2Param = Parameters.FirstOrDefault(p => p.Command == "PTO2");
+            if (pto2Param != null)
+            {
+                pto2 = pto2Param.Value;
+            }
+            return (diff <= pto2);
+        }
+
+
+
+
+        #endregion
+
+        #region Plot Reset Method
+
+        // Add a field to store the baseline (in seconds)
+        private void ResetPlot()
+        {
+            _dispatcherQueue.TryEnqueue(() =>
+            {
+                // Clear the plot data.
+                _positionSeries.Points.Clear();
+                _minEpos = double.MaxValue;
+                _maxEpos = double.MinValue;
+
+                // Reset the time baseline based on the current time source.
+                _startSyncTime = UseControllerTime ? (this.TIME / 1000.0) : ParentController.GlobalTimeSeconds;
+
+                // Invalidate the plot to force a redraw.
+                _plotModel.InvalidatePlot(true);
+            });
+        }
+
+
 
         public async Task ResetEncoderAsync()
         {
@@ -1770,32 +2033,6 @@ namespace XeryonMotionGUI.Classes
                 });
             }
         }
-
-        #endregion
-
-        #region Plot Reset Method
-
-        // Add a field to store the baseline (in seconds)
-        private void ResetPlot()
-        {
-            _dispatcherQueue.TryEnqueue(() =>
-            {
-                // Clear the plot data.
-                _positionSeries.Points.Clear();
-                _minEpos = double.MaxValue;
-                _maxEpos = double.MinValue;
-
-                // Reset the time baseline based on the current time source.
-                _startSyncTime = UseControllerTime ? (this.TIME / 1000.0) : ParentController.GlobalTimeSeconds;
-
-                // Invalidate the plot to force a redraw.
-                _plotModel.InvalidatePlot(true);
-            });
-        }
-
-
-
-
 
 
         #endregion

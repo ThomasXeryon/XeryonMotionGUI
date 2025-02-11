@@ -213,9 +213,9 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 1, 1, 0, "Amplitude Control:", "AMPL",
                               category: "Advanced tuning") ,
 
-                new Parameter(-200, 0, 1, 0, "Left Soft Limit:", "LLIM",
+                new Parameter(-5000, 0, 1, 0, "Left Soft Limit:", "LLIM",
                               category: "Motion") ,
-                new Parameter(0, 200, 1, 0, "Right Soft Limit:", "HLIM",
+                new Parameter(0, 5000, 1, 0, "Right Soft Limit:", "HLIM",
                               category: "Motion") ,
 
                 new Parameter(0, 1, 1, 0, "Phase Correction:", "PHAS",

@@ -776,7 +776,7 @@ namespace XeryonMotionGUI.Classes
                                             convertedValue = rawValue / 1000;
                                             if (!axis.Linear)
                                             {
-                                                convertedValue = convertedValue / 10;
+                                                convertedValue = convertedValue * 10;
                                             }
                                             break;
                                         case "LLIM":

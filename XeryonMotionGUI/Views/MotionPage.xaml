@@ -5,8 +5,8 @@
     xmlns:local="using:XeryonMotionGUI.Views"
     xmlns:viewmodels="using:XeryonMotionGUI.ViewModels"
     xmlns:classes="using:XeryonMotionGUI.Classes"
-    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
-    xmlns:helpers="using:XeryonMotionGUI.Helpers"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls" xmlns:controls1="using:CommunityToolkit.WinUI.Controls"
+    xmlns:helpers="using:XeryonMotionGUI.Helpers" 
     xmlns:oxyplot="using:OxyPlot"
     xmlns:converters="using:XeryonMotionGUI.Helpers">
 
@@ -148,7 +148,7 @@
                                    VerticalAlignment="Center">
                             <Run Text="{Binding SelectedAxis.EPOSDisplay,
                                               Converter={StaticResource DoubleFormatConverter},
-                                              ConverterParameter='F3'}"/>
+                                              ConverterParameter='F4'}"/>
                         </TextBlock>
                     </StackPanel>
 
@@ -368,19 +368,54 @@
                                  HorizontalAlignment="Left"/>
                 </Grid>
 
-                <!-- ========== Row 5: DPOS Slider ========== -->
-                <StackPanel Grid.Row="5"
-                            Margin="0,10,0,0"
-                            HorizontalAlignment="Left">
-                    <TextBlock Text="DPOS Slider"
-                               FontWeight="Bold"
-                               Margin="0,0,0,5"/>
+                <!-- Linear slider panel (only visible if Axis.Linear == true) -->
+                <StackPanel x:Name="LinearSliderPanel"
+            Grid.Row="5"
+            Margin="0,10,0,0"
+            Visibility="{Binding SelectedAxis.Linear, 
+                                 Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="DPOS Slider (Linear)" 
+               FontWeight="Bold" 
+               Margin="0,0,0,5"/>
                     <Slider Minimum="{Binding SelectedAxis.NegativeRange}"
-                            Maximum="{Binding SelectedAxis.PositiveRange}"
-                            Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
-                            StepFrequency="0.1"
-                            Width="400"/>
+            Maximum="{Binding SelectedAxis.PositiveRange}"
+            Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
+            StepFrequency="0.1"
+            Width="400"/>
                 </StackPanel>
+
+                <!-- Rotational slider panel (only visible if Axis.Linear == false) -->
+                <StackPanel x:Name="RotationalSliderPanel"
+            Grid.Row="5"
+            Margin="0,10,0,0"
+            Visibility="{Binding SelectedAxis.Linear, 
+                                 Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                    <TextBlock Text="DPOS Slider (Rotational)" 
+               FontWeight="Bold" 
+               Margin="0,0,0,5"/>
+
+                    <!-- CommunityToolkit RadialGauge (0..360) -->
+                    <controls1:RadialGauge
+                        Minimum="0"
+                        Maximum="360"
+                        Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
+                            Width="280"
+                            MinAngle="0"
+                            MaxAngle="360"
+                            TickSpacing="45"
+                            IsInteractive="True"
+                            ValueStringFormat="N4" 
+                            ScaleWidth="15"
+                            StepSize="0.0001"     
+                            NeedleWidth="3"
+                            NeedleLength="0.75"
+                            ScalePadding="10"
+                            TickPadding="5"
+                            TickLength="5" 
+                    />
+                </StackPanel>
+
+
 
                 <!-- ========== Row 6: InfoBars ========== -->
                 <ItemsControl Grid.Row="6"
