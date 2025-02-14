@@ -45,7 +45,7 @@ namespace XeryonMotionGUI.Classes
         private double _lastTime = 0.0;            // store last time reading (in seconds)
         private bool _hasLastSample = false;
         private double _timeOffset = 0; // in seconds
-
+        private int _prevTime = 0;
 
 
 
@@ -123,31 +123,34 @@ namespace XeryonMotionGUI.Classes
 
         public void OnEPOSUpdate(double epos, double dummy)
         {
-            // Decide which time source to use
-            double currentTimeSeconds;
+            if (!_isLogging)
+                return;
+
+            double t;
             if (UseControllerTime)
             {
-                // TIME is presumably milliseconds from device
-                currentTimeSeconds = TIME / 1000.0;
+                // Add the accumulated offset to the current TIME value.
+                double continuousTicks = _timeOffset + this.TIME;
+                // Convert ticks to seconds.
+                // If each tick is 1/10000th of a second, then:
+                t = continuousTicks / 10000.0;
             }
             else
             {
-                // Use a global stopwatch or system time from your controller
-                // e.g. ParentController.GlobalTimeSeconds
-                currentTimeSeconds = ParentController.GlobalTimeSeconds;
+                t = ParentController.GlobalTimeSeconds;
             }
 
-            // Enqueue data if you are logging/plotting
-            if (_isLogging)
-            {
-                // you might store (epos, currentTimeSeconds) for the chart
-                _dataQueue.Enqueue((epos, currentTimeSeconds));
-            }
+            _dataQueue.Enqueue((epos, t));
+
+            // Update min/max values as needed.
+            if (epos < _minEpos) _minEpos = epos;
+            if (epos > _maxEpos) _maxEpos = epos;
+
 
             // ----- Calculate speed (only if we have a prior sample) -----
             if (_hasLastSample)
             {
-                double dt = currentTimeSeconds - _lastTime;
+                double dt = t - _lastTime;
                 if (dt > 1e-9)  // to avoid dividing by 0
                 {
                     // raw difference in encoder counts
@@ -183,7 +186,7 @@ namespace XeryonMotionGUI.Classes
             }
 
             // ----- Store current sample as "last" for next iteration -----
-            _lastTime = currentTimeSeconds;
+            _lastTime = t;
             _lastPosition = epos;
             _hasLastSample = true;
 
@@ -852,11 +855,20 @@ namespace XeryonMotionGUI.Classes
             {
                 if (_TIME != value)
                 {
+                    // Check for wrap-around: if the new TIME is less than the previous value, a wrap occurred.
+                    if (value < _prevTime)
+                    {
+                        // Increase the offset by the maximum value of TIME (65,536).
+                        // (Make sure to adjust if your controller actually wraps at 65,536 or 65,535.)
+                        _timeOffset += 65535;
+                    }
+                    _prevTime = value;
                     _TIME = value;
                     OnPropertyChanged(nameof(TIME));
                 }
             }
         }
+
 
         private double _DesiredPosition;
         public double DesiredPosition
@@ -1983,9 +1995,14 @@ namespace XeryonMotionGUI.Classes
                 _positionSeries.Points.Clear();
                 _minEpos = double.MaxValue;
                 _maxEpos = double.MinValue;
+                ParentController.Flush();
+
+                // Reset the wrap-around tracking variables.
+                _timeOffset = 0;
+                _prevTime = this.TIME;  // Start tracking from the current TIME
 
                 // Reset the time baseline based on the current time source.
-                _startSyncTime = UseControllerTime ? (this.TIME / 1000.0) : ParentController.GlobalTimeSeconds;
+                _startSyncTime = UseControllerTime ? (this.TIME / 10000.0) : ParentController.GlobalTimeSeconds;
 
                 // Invalidate the plot to force a redraw.
                 _plotModel.InvalidatePlot(true);

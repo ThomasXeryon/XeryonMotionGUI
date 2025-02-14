@@ -864,6 +864,11 @@ namespace XeryonMotionGUI.Classes
                 RunningControllers.Add(controller);
             }
         }
+
+        public void Flush()
+        {
+            Port.DiscardInBuffer();
+        }
         #endregion
 
         #region UI Helpers
