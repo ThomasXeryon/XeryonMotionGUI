@@ -45,6 +45,9 @@ namespace XeryonMotionGUI.Classes
         private double _lastTime = 0.0;            // store last time reading (in seconds)
         private bool _hasLastSample = false;
         private double _timeOffset = 0; // in seconds
+        private int _lastEncoder = 0;       // the last integer encoder count
+        private double _lastSpeedTime = 0;  // the last time (in seconds) we did a speed calc
+        private bool _hasLastEncoder = false;
         private int _prevTime = 0;
 
 
@@ -123,78 +126,29 @@ namespace XeryonMotionGUI.Classes
 
         public void OnEPOSUpdate(double epos, double dummy)
         {
-            if (!_isLogging)
-                return;
+            // 1) Bail out if not logging
+            if (!_isLogging) return;
 
-            double t;
-            if (UseControllerTime)
-            {
-                // Add the accumulated offset to the current TIME value.
-                double continuousTicks = _timeOffset + this.TIME;
-                // Convert ticks to seconds.
-                // If each tick is 1/10000th of a second, then:
-                t = continuousTicks / 10000.0;
-            }
-            else
-            {
-                t = ParentController.GlobalTimeSeconds;
-            }
+            // 2) Compute the new time in seconds
+            double t = UseControllerTime
+                ? (this._timeOffset + this.TIME) / 10000.0
+                : ParentController.GlobalTimeSeconds;
 
+            // 3) Enqueue data for plotting (unchanged)
             _dataQueue.Enqueue((epos, t));
 
-            // Update min/max values as needed.
+            // 4) Update speed calculation
+            CalculateSpeed();
+
+            // 5) Update references for next iteration
+            _lastEncoder = (int)Math.Round(epos);
+            _lastSpeedTime = t;
+            _hasLastEncoder = true;
+
+            // 6) Update min/max for plotting if needed
             if (epos < _minEpos) _minEpos = epos;
             if (epos > _maxEpos) _maxEpos = epos;
-
-
-            // ----- Calculate speed (only if we have a prior sample) -----
-            if (_hasLastSample)
-            {
-                double dt = t - _lastTime;
-                if (dt > 1e-9)  // to avoid dividing by 0
-                {
-                    // raw difference in encoder counts
-                    double rawEncDiff = epos - _lastPosition;
-
-                    // If rotational, handle wrap-around
-                    if (!Linear)
-                    {
-                        double fullRev = FullRevolutionEncoderUnits;
-                        rawEncDiff = (rawEncDiff + fullRev / 2.0) % fullRev - (fullRev / 2.0);
-                    }
-
-                    // Convert rawEncDiff to physical distance or angle
-                    double distanceOrAngle;
-                    if (Linear)
-                    {
-                        // epos in counts => mm
-                        // "Resolution" = nm per count
-                        distanceOrAngle = rawEncDiff * (Resolution / 1_000_000.0); // mm
-                    }
-                    else
-                    {
-                        // epos in counts => deg
-                        double degPerCount = 360.0 / FullRevolutionEncoderUnits;
-                        distanceOrAngle = rawEncDiff * degPerCount; // deg
-                    }
-
-                    // speed = distanceOrAngle / dt
-                    double speedValue = distanceOrAngle / dt;
-
-                    SPEED = Math.Abs(speedValue);
-                }
-            }
-
-            // ----- Store current sample as "last" for next iteration -----
-            _lastTime = t;
-            _lastPosition = epos;
-            _hasLastSample = true;
-
-            //  ...
-            //  if you also do anything else with epos or logging
         }
-
-
 
         #endregion
 
@@ -221,13 +175,6 @@ namespace XeryonMotionGUI.Classes
                 _plotModel.InvalidatePlot(true);
             });
         }
-
-
-
-
-
-
-
 
         public ICommand StartManualLoggingCommand => new RelayCommand(() => StartManualLogging());
         public ICommand StopManualLoggingCommand => new RelayCommand(() => StopManualLogging());
@@ -533,7 +480,7 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        private bool _autoLogging = true;
+        private bool _autoLogging = false;
         public bool AutoLogging
         {
             get => _autoLogging;
@@ -752,18 +699,19 @@ namespace XeryonMotionGUI.Classes
                 // Convert DPOS (encoder units) to slider value (in mm)
                 double newSliderValue = _DPOS * Resolution / 1000000.0;
                 // Update the slider property without triggering SetDPOS again.
-                UpdateSliderValue(newSliderValue);
+                //UpdateSliderValue(newSliderValue);
             }
         }
 
         // Use a helper method to update the slider's backing field directly.
-        private void UpdateSliderValue(double newValue)
+        public void UpdateSliderValue(double newValue)
         {
             _suppressSliderUpdate = true;
             _SliderValue = newValue;
             OnPropertyChanged(nameof(SliderValue));
             _suppressSliderUpdate = false;
         }
+
 
 
         private bool _useControllerTime = true;
@@ -784,7 +732,22 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-      private async void SetTimeMode(bool useController)
+        private bool _isUserDraggingSlider = false;
+
+        public bool IsUserDraggingSlider
+        {
+            get => _isUserDraggingSlider;
+            set
+            {
+                if (_isUserDraggingSlider != value)
+                {
+                    _isUserDraggingSlider = value;
+                    OnPropertyChanged(nameof(IsUserDraggingSlider));
+                }
+            }
+        }
+
+        private async void SetTimeMode(bool useController)
         {
             // If using controller time, send INFO=4; otherwise, for system time send INFO=7.
             string command = useController ? "INFO=4" : "INFO=7";
@@ -806,25 +769,28 @@ namespace XeryonMotionGUI.Classes
                     OnPropertyChanged(nameof(EPOS));
                     OnPropertyChanged(nameof(EPOSDisplay));
 
-                    CalculateSpeed(); // if you want
+                    CalculateSpeed();
 
-                    // Also update SliderValue so the UI matches actual hardware
-                    if (Linear)
+                    // Only update SliderValue if the user is not dragging it
+                    if (!_isUserDraggingSlider)
                     {
-                        // Convert counts → mm
-                        double mmPosition = (_EPOS * Resolution) / 1_000_000.0;
-                        UpdateSliderValue(mmPosition);
-                    }
-                    else
-                    {
-                        // Convert counts → degrees
-                        double degPerCount = 360.0 / FullRevolutionEncoderUnits;
-                        double deg = _EPOS * degPerCount;
+                        if (Linear)
+                        {
+                            // Convert counts → mm
+                            double mmPosition = (_EPOS * Resolution) / 1_000_000.0;
+                            UpdateSliderValue(mmPosition);
+                        }
+                        else
+                        {
+                            // Convert counts → degrees
+                            double degPerCount = 360.0 / FullRevolutionEncoderUnits;
+                            double deg = _EPOS * degPerCount;
 
-                        // Keep it in [0..360) if you want the radial gauge pointer
-                        deg = (deg % 360.0 + 360.0) % 360.0;
+                            // Keep it in [0..360) if you want the radial gauge pointer
+                            deg = (deg % 360.0 + 360.0) % 360.0;
 
-                        UpdateSliderValue(deg);
+                            UpdateSliderValue(deg);
+                        }
                     }
                 }
             }
@@ -1539,12 +1505,15 @@ namespace XeryonMotionGUI.Classes
             {
                 if (_suppressSliderUpdate)
                 {
-                    _SliderValue = value;
+                    // Ignore updates if the slider is being suppressed
                     return;
                 }
+
+                // Update the backing field
                 _SliderValue = value;
                 OnPropertyChanged(nameof(SliderValue));
 
+                // Always send the new position to the controller, even while dragging
                 if (Linear)
                 {
                     // SliderValue is in millimeters
@@ -1560,6 +1529,7 @@ namespace XeryonMotionGUI.Classes
                 }
             }
         }
+
 
         private void UpdateSliderWithoutCommand(double newValue)
         {
@@ -1719,47 +1689,65 @@ namespace XeryonMotionGUI.Classes
             }
             else
             {
-                DateTime currentTime = DateTime.Now;
-                if (_LastUpdateTime != default)
+                // Determine the current time based on the selected time source
+                double currentTime = UseControllerTime
+                    ? (this._timeOffset + this.TIME) / 10000.0 // Convert controller time to seconds
+                    : ParentController.GlobalTimeSeconds; // Use system time
+
+                if (_lastSpeedTime != 0) // Ensure we have a previous time reading
                 {
-                    double timeDelta = (currentTime - _LastUpdateTime).TotalSeconds;
-                    if (timeDelta > 0)
+                    double timeDelta = currentTime - _lastSpeedTime;
+
+                    if (timeDelta > 1e-9) // Skip if the time delta is too small or negative
                     {
+                        // Raw encoder difference
                         double rawEncDiff = _EPOS - _PreviousEPOS;
 
-                        // If rotational, wrap the difference to handle crossing 0/max boundary cleanly.
+                        // Handle wrap-around for rotational stages
                         if (!Linear)
                         {
-                            double fullRev = FullRevolutionEncoderUnits; // e.g., 200000 for 360°
-                            rawEncDiff = (rawEncDiff + fullRev / 2.0) % fullRev - (fullRev / 2.0);
+                            int fullRev = (int)Math.Round(FullRevolutionEncoderUnits);
+                            int lastPosInt = (int)Math.Round(_PreviousEPOS);
+                            int currPosInt = (int)Math.Round(_EPOS);
+                            int diff = currPosInt - lastPosInt;
+
+                            // Handle wrap-around by adjusting the difference
+                            int halfRev = fullRev / 2;
+                            if (diff > halfRev)
+                            {
+                                diff -= fullRev; // Adjust for positive wrap-around
+                            }
+                            else if (diff < -halfRev)
+                            {
+                                diff += fullRev; // Adjust for negative wrap-around
+                            }
+
+                            rawEncDiff = diff;
                         }
 
-                        double distanceOrAngleMoved;
+                        // Calculate distance or angle based on axis type
+                        double distanceOrAngle;
                         if (Linear)
                         {
-                            // Convert from encoder counts → mm
-                            // "Resolution" means nm per encoder count, so rawEncDiff * (Resolution nm)
-                            // then /1e6 => mm
-                            distanceOrAngleMoved = rawEncDiff * (Resolution / 1_000_000.0); // mm
+                            distanceOrAngle = rawEncDiff * (Resolution / 1_000_000.0); // mm
                         }
                         else
                         {
-                            // Convert from encoder counts → deg
                             double degPerCount = 360.0 / FullRevolutionEncoderUnits;
-                            distanceOrAngleMoved = rawEncDiff * degPerCount; // deg
+                            distanceOrAngle = rawEncDiff * degPerCount; // deg
                         }
 
-                        double speedValue = distanceOrAngleMoved / timeDelta;
-
-                        // Keep speed as absolute magnitude
+                        // Calculate speed
+                        double speedValue = distanceOrAngle / timeDelta;
                         SPEED = Math.Abs(speedValue);
                     }
                 }
 
-                _LastUpdateTime = currentTime;
+                // Update the last time and position for the next calculation
+                _lastSpeedTime = currentTime;
+                _PreviousEPOS = _EPOS;
             }
         }
-
 
         public void MoveNegative()
         {
@@ -1806,6 +1794,7 @@ namespace XeryonMotionGUI.Classes
         public void Stop()
         {
             ParentController.SendCommand("STOP", AxisLetter);
+            MaxSpeed = 0;
         }
 
         public Task Index()

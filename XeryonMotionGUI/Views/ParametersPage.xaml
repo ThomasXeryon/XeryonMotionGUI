@@ -2,144 +2,169 @@
     x:Class="XeryonMotionGUI.Views.ParametersPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:XeryonMotionGUI.Views"
     xmlns:helpers="using:XeryonMotionGUI.Helpers"
     xmlns:classes="using:XeryonMotionGUI.Classes"
     xmlns:viewmodels="using:XeryonMotionGUI.ViewModels">
 
-    <!-- Assign the ViewModel as the DataContext -->
+    <!-- Page.DataContext -->
     <Page.DataContext>
         <viewmodels:ParametersViewModel />
     </Page.DataContext>
 
     <Page.Resources>
-        <!-- Converters -->
+        <!-- Existing converters or resources you already have -->
         <helpers:LinearToIconConverter x:Key="LinearToIconConverter" />
         <helpers:AxisTypeToVisibilityConverter x:Key="AxisTypeToVisibilityConverter" />
-
-        <!-- Styles and Static Resources -->
-        <x:Double x:Key="ButtonWidth">33</x:Double>
-        <Thickness x:Key="ButtonMargin">0,0,0,0</Thickness>
+        <!-- etc. -->
     </Page.Resources>
 
     <Grid>
+        <!-- Two columns: left for controllers & axes, right for parameters -->
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="400" />
-            <!-- Controllers Panel -->
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
-            <!-- Axes and Parameters Panel -->
         </Grid.ColumnDefinitions>
+
+        <!-- Three rows: 
+             Row 0 -> Controllers 
+             Row 1 -> Axes
+             Row 2 -> (Parameters, in the right column) 
+        -->
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Controllers Section -->
-        <ListView 
-            ItemsSource="{Binding RunningControllers}" 
-            SelectedItem="{Binding SelectedController, Mode=TwoWay}"
-            Grid.Column="0" Grid.Row="0"
-            Margin="10,0,0,0"
-            VirtualizingStackPanel.VirtualizationMode="Recycling">
-            <ListView.ItemTemplate>
-                <DataTemplate>
-                    <Grid Margin="10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding Name}" 
-                                   FontSize="16" FontWeight="Bold" 
-                                   Grid.Row="0" Grid.Column="0" />
-                        <TextBlock Text="{Binding Type}" 
-                                   FontSize="14" Foreground="Gray" 
-                                   Grid.Row="1" Grid.Column="0" />
-                        <Button Margin="0,0,5,0" Width="45" Height="40" 
-                                Background="Transparent" 
-                                Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" 
-                                Click="OnFilePickerButtonClick" 
-                                ToolTipService.ToolTip="Load settings from file">
-                            <Button.Content>
-                                <SymbolIcon Symbol="OpenFile" />
-                            </Button.Content>
-                        </Button>
-                        <Button Margin="0,0,-10,0" Width="45" Height="40" 
-                                Background="Transparent" 
-                                Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" 
-                                Click="OnSaveButtonClick" 
-                                ToolTipService.ToolTip="Save settings to controller">
-                            <Button.Content>
-                                <SymbolIcon x:Name="SaveIcon" Symbol="SaveLocal" />
-                            </Button.Content>
-                        </Button>
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+        <!-- ========== CONTROLLERS SECTION ========== -->
+        <StackPanel Grid.Column="0" Grid.Row="0" Margin="10,0,0,0">
+            <TextBlock Text="Controllers"
+                       FontSize="16" 
+                       FontWeight="Bold"
+                       Margin="5,0,0,5" />
 
-        <!-- Axes Section -->
-        <ListView 
-            Grid.Column="1" Grid.Row="0"
-            ItemsSource="{Binding SelectedController.Axes}"
-            SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
-            Margin="50,0,0,0"
-            VirtualizingStackPanel.VirtualizationMode="Recycling">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="classes:Axis">
-                    <Grid Margin="5" Padding="10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <!-- Axis Icon -->
-                        <Grid Grid.Column="0">
-                            <SymbolIcon 
-                                VerticalAlignment="Center" HorizontalAlignment="Center"
-                                Width="25" Height="25"
-                                Symbol="{Binding Linear, Converter={StaticResource LinearToIconConverter}}"
-                                Margin="5,0,10,0" />
-                        </Grid>
-                        <!-- Axis Name -->
-                        <Grid Grid.Column="1">
-                            <TextBlock Text="{Binding Name}" 
-                                       FontWeight="Bold" FontSize="16"
-                                       VerticalAlignment="Center" Margin="5"/>
-                        </Grid>
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            <ListView 
+                ItemsSource="{Binding RunningControllers}" 
+                SelectedItem="{Binding SelectedController, Mode=TwoWay}"
+                Width="400">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-        <!-- Parameters Section -->
-        <Grid Grid.Column="1" Grid.Row="1" Margin="54,30,10,10"
+                            <!-- FriendlyName -->
+                            <TextBlock Text="{Binding FriendlyName}" 
+                                       FontSize="16" FontWeight="Bold" 
+                                       Grid.Row="0" Grid.Column="0" />
+                            <!-- FriendlyPort -->
+                            <TextBlock Text="{Binding FriendlyPort}" 
+                                       FontSize="14" Foreground="Gray" 
+                                       Grid.Row="1" Grid.Column="0" />
+
+                            <!-- Example buttons (load/save) -->
+                            <Button Margin="0,0,5,0" Width="45" Height="40" 
+                                    Background="Transparent" 
+                                    Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" 
+                                    Click="OnFilePickerButtonClick"
+                                    ToolTipService.ToolTip="Load settings from file">
+                                <Button.Content>
+                                    <SymbolIcon Symbol="OpenFile" />
+                                </Button.Content>
+                            </Button>
+                            <Button Margin="0,0,-10,0" Width="45" Height="40" 
+                                    Background="Transparent" 
+                                    Grid.Row="0" Grid.RowSpan="2" Grid.Column="2"
+                                    Click="OnSaveButtonClick" 
+                                    ToolTipService.ToolTip="Save settings to controller">
+                                <Button.Content>
+                                    <SymbolIcon Symbol="SaveLocal" />
+                                </Button.Content>
+                            </Button>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </StackPanel>
+
+        <!-- ========== AXES SECTION ========== -->
+        <StackPanel Grid.Column="0" Grid.Row="1" Margin="10,10,0,0">
+            <TextBlock Text="Axes"
+                       FontSize="16" 
+                       FontWeight="Bold"
+                       Margin="5,0,0,5" />
+
+            <ListView 
+                ItemsSource="{Binding SelectedController.Axes}"
+                SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
+                Width="400">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="classes:Axis">
+                        <Grid Margin="5" Padding="0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <!-- Axis Icon -->
+                            <Grid Grid.Column="0">
+                                <SymbolIcon 
+                                    VerticalAlignment="Center" 
+                                    HorizontalAlignment="Center"
+                                    Width="25" Height="25"
+                                    Symbol="{Binding Linear, Converter={StaticResource LinearToIconConverter}}"
+                                    Margin="5,0,10,0" />
+                            </Grid>
+                            <!-- Axis Name -->
+                            <Grid Grid.Column="1">
+                                <TextBlock Text="{Binding FriendlyName}" 
+                                           FontWeight="Bold" FontSize="16"
+                                           VerticalAlignment="Center" Margin="5"/>
+                            </Grid>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </StackPanel>
+
+        <!-- ========== PARAMETERS SECTION ========== -->
+        <!-- Note: Spanning rows 0-2 puts it adjacent to the left column 
+             but aligned in the right column.  
+             Or you can simply set Grid.Row="2" if that’s your preference. 
+        -->
+        <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="3" Margin="30,10,10,10"
               Visibility="{Binding SelectedAxis, Converter={StaticResource AxisTypeToVisibilityConverter}}">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" 
+                          HorizontalScrollBarVisibility="Disabled">
                 <!-- Outer ItemsControl bound to the grouped parameters -->
-                <ItemsControl ItemsSource="{Binding GroupedParameters}" Margin="0,0,0,0">
+                <ItemsControl ItemsSource="{Binding GroupedParameters}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="classes:ParameterGroup">
                             <StackPanel>
-                                <!-- Group Header: display the Category -->
+                                <!-- Group Header: Category -->
                                 <TextBlock Text="{x:Bind Category}" 
                                            FontWeight="Bold" FontSize="25" 
                                            Margin="0,10,0,20"/>
-                                <!-- Inner ItemsControl: list of parameters in this group -->
+                                <!-- Inner ItemsControl: list of parameters -->
                                 <ItemsControl ItemsSource="{x:Bind Parameters}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="classes:Parameter">
                                             <StackPanel Margin="5">
-                                                <!-- Parameter header row: parameter name and info icon -->
+                                                <!-- Parameter Name + Info Icon -->
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                     <TextBlock Text="{x:Bind Name}" 
                                                                FontWeight="Bold" 
                                                                VerticalAlignment="Center"/>
-                                                    <!-- Info Icon Button with a ToolTip -->
-                                                    <Button Background="Transparent" BorderThickness="0" Padding="0" Margin="10,0,0,0">
+                                                    <Button Background="Transparent" 
+                                                            BorderThickness="0" 
+                                                            Padding="0" 
+                                                            Margin="10,0,0,0">
                                                         <FontIcon Glyph="&#xE946;" FontSize="14"/>
                                                         <ToolTipService.ToolTip>
                                                             <ToolTip>
@@ -150,30 +175,27 @@
                                                         </ToolTipService.ToolTip>
                                                     </Button>
                                                 </StackPanel>
-                                                <!-- Parameter controls (TextBox, Slider, and increment/decrement Buttons) -->
+
+                                                <!-- Parameter controls (TextBox, Slider, +/- Buttons) -->
                                                 <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,10">
-                                                    <!-- Here we add InputScope="Number" so that only numeric input is allowed -->
-                                                    <TextBox Text="{x:Bind Value, Mode=TwoWay}" 
+                                                    <TextBox Text="{x:Bind Value, Mode=TwoWay}"
                                                              Width="100"
-                                                             InputScope="Number"
-                                                             />
+                                                             InputScope="Number" />
                                                     <Slider Minimum="{x:Bind EffectiveMin}" 
                                                             Maximum="{x:Bind EffectiveMax}" 
                                                             Value="{x:Bind Value, Mode=TwoWay}" 
-                                                            Width="200" 
+                                                            Width="200"
                                                             TickFrequency="{x:Bind Increment}" 
                                                             TickPlacement="None"
                                                             SnapsTo="Ticks" />
-                                                    <Button Content="-" 
+                                                    <Button Content="-"
                                                             Command="{x:Bind DecrementCommand}" 
-                                                            Width="{StaticResource ButtonWidth}" 
                                                             CommandParameter="{x:Bind Name}" 
-                                                            Margin="{StaticResource ButtonMargin}"/>
-                                                    <Button Content="+" 
+                                                            Width="32"/>
+                                                    <Button Content="+"
                                                             Command="{x:Bind IncrementCommand}" 
-                                                            Width="{StaticResource ButtonWidth}" 
                                                             CommandParameter="{x:Bind Name}" 
-                                                            Margin="{StaticResource ButtonMargin}"/>
+                                                            Width="32"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </DataTemplate>

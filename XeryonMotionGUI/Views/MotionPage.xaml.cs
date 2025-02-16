@@ -140,4 +140,42 @@ public sealed partial class MotionPage : Page
         }
     }
 
+    private void Slider_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (DataContext is MotionViewModel viewModel)
+        {
+            viewModel.SelectedAxis.IsUserDraggingSlider = true;
+        }
+    }
+
+    private void Slider_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (DataContext is MotionViewModel viewModel)
+        {
+            viewModel.SelectedAxis.IsUserDraggingSlider = false;
+
+            // Force an update of the slider position after dragging ends
+            viewModel.SelectedAxis.UpdateSliderValue(viewModel.SelectedAxis.SliderValue);
+        }
+    }
+
+    private void RadialGauge_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (DataContext is MotionViewModel viewModel)
+        {
+            viewModel.SelectedAxis.IsUserDraggingSlider = true;
+        }
+    }
+
+    private void RadialGauge_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (DataContext is MotionViewModel viewModel)
+        {
+            viewModel.SelectedAxis.IsUserDraggingSlider = false;
+
+            // Force an update of the slider position after dragging ends
+            viewModel.SelectedAxis.UpdateSliderValue(viewModel.SelectedAxis.SliderValue);
+        }
+    }
+
 }

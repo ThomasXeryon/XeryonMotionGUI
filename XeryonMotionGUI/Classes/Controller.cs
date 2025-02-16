@@ -822,8 +822,8 @@ namespace XeryonMotionGUI.Classes
                 {
                     Port.DataReceived += DataReceivedHandler;
                 }
-                LoadingSettings = false;
-                Port.WriteLine("INFO=7");
+                LoadingSettings = false;  
+                Port.WriteLine("INFO=4");
             }
         }
 

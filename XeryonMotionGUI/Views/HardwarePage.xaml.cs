@@ -148,6 +148,7 @@ namespace XeryonMotionGUI.Views
                             Serial = idResult.Serial,
                             Soft = idResult.Soft,
                             AxisCount = idResult.AxisCount,
+                            FriendlyName = idResult.FriendlyName,
                             Label = idResult.Label,
                             Status = "Connect"
                         };
@@ -186,7 +187,7 @@ namespace XeryonMotionGUI.Views
                             axis.StepSize = axisResult.StepSize;
                         }
 
-                        port.Write("INFO=7");
+                        port.Write("INFO=4");
                         port.Close();
 
                         FoundControllers.Add(controller);

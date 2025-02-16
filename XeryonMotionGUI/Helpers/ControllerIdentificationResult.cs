@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI.Helpers
@@ -179,8 +180,8 @@ namespace XeryonMotionGUI.Helpers
                 {
                     result.Type = ControllerType.XD_OEM;
                     result.AxisCount = 1;
-                    result.Name = "XD-OEM Single Axis Controller";
-                    result.FriendlyName = "XD-OEM";
+                    result.Name = "XD-OEM";
+                    result.FriendlyName = "XD-OEM Single Axis Controller";
                 }
                 else
                 {
@@ -190,20 +191,20 @@ namespace XeryonMotionGUI.Helpers
                     if (result.AxisCount == 1)
                     {
                         result.Type = ControllerType.XD_C;
-                        result.Name = "XD-C Single Axis Controller";
-                        result.FriendlyName = "XD-C";
+                        result.Name = "XD-C";
+                        result.FriendlyName = "XD-C Single Axis Controller";
                     }
                     else if (result.AxisCount <= 6)
                     {
                         result.Type = ControllerType.XD_M;
-                        result.Name = "XD-M Multi Axis Controller";
-                        result.FriendlyName = "XD-M";
+                        result.Name = "XD-M";
+                        result.FriendlyName = "XD-M Multi Axis Controller";
                     }
                     else
                     {
                         result.Type = ControllerType.XD_19;
-                        result.Name = "XD-19 Multi Axis Controller";
-                        result.FriendlyName = "XD-19";
+                        result.Name = "XD-19";
+                        result.FriendlyName = "XD-19 Multi Axis Controller";
                     }
                 }
             }

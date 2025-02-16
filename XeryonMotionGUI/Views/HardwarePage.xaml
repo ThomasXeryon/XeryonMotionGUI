@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="using:XeryonMotionGUI.Helpers"
+    xmlns:converters="using:XeryonMotionGUI.Helpers"
     mc:Ignorable="d">
 
     <Page.Resources>
@@ -27,6 +28,7 @@
         <!-- Converters -->
         <local:BoolToColorConverter x:Key="BoolToColorConverter" />
         <local:StatusToBrushConverter x:Key="StatusToBrushConverter" />
+        <converters:DoubleFormatConverter x:Key="DoubleFormatConverter" />
         <local:ControllerTypeToImageConverter x:Key="ControllerTypeToImageConverter" />
     </Page.Resources>
 
@@ -126,9 +128,9 @@
                                             </TransitionCollection>
                                         </StackPanel.ChildrenTransitions>
                                         <TextBlock Text="Commercial Name:" FontWeight="Bold" Margin="0,0,0,5"/>
-                                        <TextBlock Text="{Binding Name}" Margin="0,0,0,5"/>
-                                        <TextBlock Text="Type:" FontWeight="Bold" Margin="0,0,0,5"/>
                                         <TextBlock Text="{Binding Type}" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Type:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding Name}" Margin="0,0,0,5"/>
                                         <TextBlock Text="Serial Number:" FontWeight="Bold" Margin="0,0,0,5"/>
                                         <TextBlock Text="{Binding Serial}" Margin="0,0,0,5"/>
                                         <TextBlock Text="Software Version:" FontWeight="Bold" Margin="0,0,0,5"/>
@@ -167,7 +169,9 @@
                                                             </TextBlock>
                                                             <TextBlock FontSize="12">
                                                               <Run Text="Travel Range: " />
-                                                              <Run Text="{Binding Range}" />
+                                                              <Run Text="{Binding Range,
+                                              Converter={StaticResource DoubleFormatConverter},
+                                              ConverterParameter='F0'}" />
                                                             </TextBlock>
                                                             <TextBlock FontSize="12">
                                                               <Run Text="Friendly Name: " />

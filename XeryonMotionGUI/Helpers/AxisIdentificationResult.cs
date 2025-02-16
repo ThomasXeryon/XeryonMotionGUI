@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
+using System.Security.Cryptography.Xml;
 using System.Text.RegularExpressions;
 using XeryonMotionGUI.Classes;
 
@@ -174,13 +175,8 @@ namespace XeryonMotionGUI.Helpers
 
                 var llimLine = llimData
                     .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                    .FirstOrDefault(line => line.Trim().StartsWith(prefix + "LLIM"));
-                if (llimLine == null)
-                {
-                    llimLine = llimData
-                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                        .FirstOrDefault(line => line.Trim().StartsWith("LLIM"));
-                }
+                    .FirstOrDefault(line => line.Trim().StartsWith(prefix + "LLIM") || line.Trim().StartsWith("LLIM"));
+
                 if (llimLine != null)
                 {
                     string llimNumber = Regex.Match(llimLine, @"[-+]?\d+(\.\d+)?").Value;
@@ -212,13 +208,8 @@ namespace XeryonMotionGUI.Helpers
 
                 var hlimLine = hlimData
                     .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                    .FirstOrDefault(line => line.Trim().StartsWith(prefix + "HLIM"));
-                if (hlimLine == null)
-                {
-                    hlimLine = hlimData
-                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                        .FirstOrDefault(line => line.Trim().StartsWith("HLIM"));
-                }
+                    .FirstOrDefault(line => line.Trim().StartsWith(prefix + "HLIM") || line.Trim().StartsWith("HLIM"));
+
                 if (hlimLine != null)
                 {
                     string hlimNumber = Regex.Match(hlimLine, @"[-+]?\d+(\.\d+)?").Value;
@@ -231,56 +222,101 @@ namespace XeryonMotionGUI.Helpers
                 }
 
                 // --- Parse Device Info from the Full Response ---
-                // Build a regex pattern using the prefix.
+                // Example pattern to find "X:SOFT=123  X:STAT=" or so.
                 string pattern = $@"{Regex.Escape(prefix)}SOFT=\d+\s+(?:{Regex.Escape(prefix)})?(.*?)\s+{Regex.Escape(prefix)}STAT=";
                 Debug.WriteLine($"[IdentifyAxis] Device info regex pattern: {pattern}");
                 sw.Restart();
                 var devMatch = Regex.Match(response, pattern, RegexOptions.Singleline | RegexOptions.Multiline);
                 sw.Stop();
                 Debug.WriteLine($"[IdentifyAxis] Device info query took {sw.ElapsedMilliseconds} ms");
+
+                string devInfo = "";
                 if (devMatch.Success)
                 {
-                    string devInfo = devMatch.Groups[1].Value.Trim();
+                    devInfo = devMatch.Groups[1].Value.Trim();
                     Debug.WriteLine($"{prefix}Device Info extracted: '{devInfo}'");
-                    // Expecting something like "XLS1=313"
+
+                    // Expecting something like "XLS1=313" or "XRTU_25_19=109" etc.
                     var parts = devInfo.Split('=');
                     if (parts.Length >= 2 && int.TryParse(parts[1], out int res))
                     {
-                        result.AxisType = parts[0].Trim();
-                        result.Resolution = AdjustResolution(result.AxisType, res);
-                        Debug.WriteLine($"{prefix}Axis Type set to: {result.AxisType}, Resolution set to: {result.Resolution}");
+                        // e.g. "XLS1" or "XRTU_25_19"
+                        string rawType = parts[0].Trim();
+                        // Adjust the resolution if needed
+                        int adjustedResolution = AdjustResolution(rawType, res);
+
+                        Debug.WriteLine($"{prefix}Raw AxisType: {rawType}, Adjusted Resolution: {adjustedResolution}");
+
+                        result.AxisType = rawType;              // We'll store the raw type here
+                        result.Resolution = adjustedResolution; // final resolution
                     }
                     else
                     {
+                        Debug.WriteLine($"{prefix}Could not parse device info properly, defaulting to XLS");
                         result.AxisType = "XLS";
-                        Debug.WriteLine($"{prefix}Axis Type defaulted to: {result.AxisType}");
-                    }
-                    // Check if the device info contains "XRT". If yes, assume rotary (Linear = false); otherwise, linear.
-                    if (devInfo.Contains("XRT"))
-                    {
-                        result.Linear = false;
-                        Debug.WriteLine($"{prefix}Axis set to Rotary (Linear = false).");
-                    }
-                    else
-                    {
-                        result.Linear = true;
-                        Debug.WriteLine($"{prefix}Axis set to Linear (Linear = true).");
+                        result.Resolution = 312;  // some default
                     }
                 }
                 else
                 {
-                    Debug.WriteLine($"No device info match found for axis {axisLetter} in response.");
+                    // If no match, default to XLS as fallback
+                    Debug.WriteLine($"No device info match found for axis {axisLetter} in response. Defaulting to XLS.");
                     result.AxisType = "XLS";
+                    result.Resolution = 312;
                 }
 
-                // --- Calculate the Axis Range ---
-                result.Range = Math.Round((result.HLIM - result.LLIM) * result.Resolution / 1000000.0, 2);
-                Debug.WriteLine($"Calculated Axis Range: {result.Range}");
+                // -------------- NEW LOGIC --------------
+                // Decide if it's an XLA, XLS, or XRT stage based on the result.AxisType string
+                string axisTypeUpper = result.AxisType.ToUpperInvariant();
 
-                // Set additional default parameters.
-                result.Name = "DefaultAxis";
-                result.FriendlyName = "Test Axis";
-                result.StepSize = 1;
+                if (axisTypeUpper.Contains("XLA"))
+                {
+                    // XLA => linear axis
+                    result.Linear = true;
+                    result.Name = "XLA";                   // e.g. short label
+                    result.FriendlyName = "XLA Linear actuator";    // more descriptive
+                }
+                else if (axisTypeUpper.Contains("XLS"))
+                {
+                    // XLS => linear axis
+                    result.Linear = true;
+                    result.Name = "XLS";
+                    result.FriendlyName = "XLS Linear stage";
+                }
+                else if (axisTypeUpper.Contains("XRT"))
+                {
+                    // XRT => rotational axis
+                    result.Linear = false;
+                    result.Name = "XRT";
+                    result.FriendlyName = "XRT-U Rotary stage";
+                }
+                else
+                {
+                    // Unknown => default assumption linear
+                    result.Linear = true;
+                    result.Name = axisTypeUpper;
+                    result.FriendlyName = axisTypeUpper + " (Unknown)";
+                }
+                if (result.Linear)
+                {
+                    // E.g. if LLIM=0, HLIM=50 => range = 50 * res / 1e6 mm
+                    result.Range = Math.Round((result.HLIM - result.LLIM) * result.Resolution / 1_000_000.0, 2);
+                }
+                else
+                {
+                    // For rotational, range might not be directly computed from LLIM/HLIM
+                    // Some people set LLIM=0, HLIM=360 => 360 deg
+                    // So we can store it as degrees or just skip
+                    double rawDeg = result.HLIM - result.LLIM; // e.g. might be 360
+                    result.Range = rawDeg; // or you can skip the mm conversion
+                }
+                Debug.WriteLine($"[IdentifyAxis] Computed Range = {result.Range}");
+
+                // Additional defaults
+                result.Name = result.Name.Trim();  // in case we have extra spaces
+                result.FriendlyName = result.FriendlyName.Trim();
+                result.StepSize = 1;  // user can override later
+                Debug.WriteLine($"[IdentifyAxis] Final => AxisType={result.AxisType}, Name={result.Name}, FriendlyName={result.FriendlyName}, Linear={result.Linear}, Res={result.Resolution}");
             }
             catch (Exception ex)
             {
@@ -289,5 +325,6 @@ namespace XeryonMotionGUI.Helpers
 
             return result;
         }
+
     }
 }

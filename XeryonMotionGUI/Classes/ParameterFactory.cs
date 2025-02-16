@@ -8,17 +8,17 @@ namespace XeryonMotionGUI.Classes
         {
             switch (controllerType)
             {
-                case "XD-OEM":
+                case "XD-OEM Single Axis Controller":
                     return CreateOEMParameters(axisType);
-                case "XD-C":
+                case "XD-C Single Axis Controller":
                     return CreateXDCParameters(axisType);
-                case "XD-M":
+                case "XD-M Multi Axis Controller":
                     return CreateXDMParameters(axisType);
-                case "XD-19":
+                case "XD-19 Multi Axis Controller":
                     return CreateXD19Parameters(axisType);
-                case "XWS":
+                case "XWS Multi Axis Controller":
                     return CreateXWSParameters(axisType);
-                case "INTG":
+                case "INTG Single Axis Integrated Controller":
                     return CreateINTGParameters(axisType);
                 default:
                     return CreateDefaultParameters();
@@ -80,9 +80,9 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 1, 1, 0, "Amplitude Control:", "AMPL",
                               category: "Advanced tuning") ,
 
-                new Parameter(-200, 0, 1, 0, "Left Soft Limit:", "LLIM",
+                new Parameter(-2000, 0, 1, 0, "Left Soft Limit:", "LLIM",
                               category: "Motion") ,
-                new Parameter(0, 200, 1, 0, "Right Soft Limit:", "HLIM",
+                new Parameter(0, 2000, 1, 0, "Right Soft Limit:", "HLIM",
                               category: "Motion") ,
 
                 new Parameter(0, 1, 1, 0, "Phase Correction:", "PHAS",
@@ -109,7 +109,7 @@ namespace XeryonMotionGUI.Classes
                               category: "Advanced tuning") ,
                 new Parameter(0, 65500,5 , 0, "Min Open Loop Amplitude:", "MIMP",
                               category: "Advanced tuning") ,
-                new Parameter(0, 200, 5, 0, "Integrational Favtor:", "INTF",
+                new Parameter(0, 200, 5, 0, "Integrational Factortor:", "INTF",
                               category: "Advanced tuning") ,
                 new Parameter(0, 1000000, 1, 0, "Index Error Limit:", "ILIM",
                               category: "Time outs and error handling") ,
@@ -242,7 +242,7 @@ namespace XeryonMotionGUI.Classes
                               category: "Advanced tuning") ,
                 new Parameter(0, 65500,5 , 0, "Min Open Loop Amplitude:", "MIMP",
                               category: "Advanced tuning") ,
-                new Parameter(0, 200, 5, 0, "Integrational Favtor:", "INTF",
+                new Parameter(0, 200, 5, 0, "Integrational Factortor:", "INTF",
                               category: "Advanced tuning") ,
                 new Parameter(0, 1000000, 1, 0, "Index Error Limit:", "ILIM",
                               category: "Time outs and error handling") ,
@@ -342,9 +342,9 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 1, 1, 0, "Amplitude Control:", "AMPL",
                               category: "Advanced tuning") ,
 
-                new Parameter(-200, 0, 1, 0, "Left Soft Limit:", "LLIM",
+new Parameter(-2000, 0, 1, 0, "Left Soft Limit:", "LLIM",
                               category: "Motion") ,
-                new Parameter(0, 200, 1, 0, "Right Soft Limit:", "HLIM",
+                new Parameter(0, 2000, 1, 0, "Right Soft Limit:", "HLIM",
                               category: "Motion") ,
 
                 new Parameter(0, 1, 1, 0, "Phase Correction:", "PHAS",
@@ -371,7 +371,7 @@ namespace XeryonMotionGUI.Classes
                               category: "Advanced tuning") ,
                 new Parameter(0, 65500,5 , 0, "Min Open Loop Amplitude:", "MIMP",
                               category: "Advanced tuning") ,
-                new Parameter(0, 200, 5, 0, "Integrational Favtor:", "INTF",
+                new Parameter(0, 200, 5, 0, "Integrational Factortor:", "INTF",
                               category: "Advanced tuning") ,
                 new Parameter(0, 1000000, 1, 0, "Index Error Limit:", "ILIM",
                               category: "Time outs and error handling") ,
@@ -470,9 +470,9 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 1, 1, 0, "Amplitude Control:", "AMPL",
                               category: "Advanced tuning") ,
 
-                new Parameter(-200, 0, 1, 0, "Left Soft Limit:", "LLIM",
+new Parameter(-2000, 0, 1, 0, "Left Soft Limit:", "LLIM",
                               category: "Motion") ,
-                new Parameter(0, 200, 1, 0, "Right Soft Limit:", "HLIM",
+                new Parameter(0, 2000, 1, 0, "Right Soft Limit:", "HLIM",
                               category: "Motion") ,
 
                 new Parameter(0, 1, 1, 0, "Phase Correction:", "PHAS",
@@ -499,7 +499,7 @@ namespace XeryonMotionGUI.Classes
                               category: "Advanced tuning") ,
                 new Parameter(0, 65500,5 , 0, "Min Open Loop Amplitude:", "MIMP",
                               category: "Advanced tuning") ,
-                new Parameter(0, 200, 5, 0, "Integrational Favtor:", "INTF",
+                new Parameter(0, 200, 5, 0, "Integrational Factortor:", "INTF",
                               category: "Advanced tuning") ,
                 new Parameter(0, 1000000, 1, 0, "Index Error Limit:", "ILIM",
                               category: "Time outs and error handling") ,
