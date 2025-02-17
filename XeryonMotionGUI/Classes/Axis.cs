@@ -10,6 +10,8 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Windows.UI;
 using Microsoft.UI.Xaml.Controls;
+using System.Runtime.InteropServices;
+using Windows.UI.ViewManagement;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using OxyPlot.Series;
@@ -21,6 +23,7 @@ using Microsoft.VisualBasic;
 using System.Reflection.Metadata;
 using Newtonsoft.Json.Linq;
 using CommunityToolkit.WinUI;
+using Windows.UI.ViewManagement;
 
 namespace XeryonMotionGUI.Classes
 {
@@ -84,11 +87,6 @@ namespace XeryonMotionGUI.Classes
             ScanNegativeCommand = new RelayCommand(ScanNegative);
             IndexMinusCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(IndexMinus);
             IndexPlusCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(IndexPlus);
-
-            if (Linear)
-                _selectedUnit = Units.mm;   // default for linear axis
-            else
-                _selectedUnit = Units.deg;
             // Assign the ParentController to each Parameter
             foreach (var parameter in Parameters)
             {
@@ -96,6 +94,13 @@ namespace XeryonMotionGUI.Classes
                 parameter.ParentController = ParentController;
             }
             InitializePlot();
+            if (_selectedUnit == default(Units))
+            {
+                if (Linear)
+                    _selectedUnit = Units.mm;
+                else
+                    _selectedUnit = Units.deg;
+            }
         }
 
         #endregion
@@ -253,16 +258,16 @@ namespace XeryonMotionGUI.Classes
 
 
         #region Plot Initialization
-
         private void InitializePlot()
         {
-            // Create the PlotModel with a white background, black text
+            var frame = App.AppTitlebar as FrameworkElement;
+
+            // Create the base PlotModel
             _plotModel = new PlotModel
             {
                 Title = "Axis Movement Over Time",
-                Background = OxyColors.White,        // white chart area
-                TextColor = OxyColors.Black,         // black text (titles, axis labels)
-                PlotAreaBorderColor = OxyColors.Black
+                Background = OxyColors.Transparent,
+                //TextColor = OxyColors.Black
             };
 
             // Create the main series
@@ -272,9 +277,7 @@ namespace XeryonMotionGUI.Classes
                 MarkerType = MarkerType.Circle,
                 MarkerSize = 2,
                 MarkerStroke = OxyColors.Transparent,
-                MarkerFill = OxyColor.Parse("#27b62d"),
                 StrokeThickness = 1.5,
-                Color = OxyColor.Parse("#27b62d"),
                 LineStyle = LineStyle.Solid,
             };
             _plotModel.Series.Add(_positionSeries);
@@ -287,13 +290,8 @@ namespace XeryonMotionGUI.Classes
                 MajorGridlineStyle = LineStyle.Solid,
                 MinorGridlineStyle = LineStyle.Dot,
                 IsZoomEnabled = true,
-                IsPanEnabled = true,
-                AxislineColor = OxyColors.Black,
-                TextColor = OxyColors.Black,
-                TitleColor = OxyColors.Black,
-                TicklineColor = OxyColors.Black
+                IsPanEnabled = true
             };
-            _plotModel.Axes.Add(xAxis);
 
             // Y Axis
             var yAxis = new LinearAxis
@@ -303,19 +301,52 @@ namespace XeryonMotionGUI.Classes
                 MajorGridlineStyle = LineStyle.Solid,
                 MinorGridlineStyle = LineStyle.Dot,
                 IsZoomEnabled = true,
-                IsPanEnabled = true,
-                AxislineColor = OxyColors.Black,
-                TextColor = OxyColors.Black,
-                TitleColor = OxyColors.Black,
-                TicklineColor = OxyColors.Black
+                IsPanEnabled = true
             };
+
+            _plotModel.Axes.Add(xAxis);
             _plotModel.Axes.Add(yAxis);
 
+            // Now set the axis colors based on theme
+            if (frame != null && frame.ActualTheme == ElementTheme.Light)
+            {
+                // Dark theme => use white
+                xAxis.AxislineColor = OxyColors.White;
+                xAxis.TextColor = OxyColors.White;
+                xAxis.TitleColor = OxyColors.White;
+                xAxis.TicklineColor = OxyColors.White;
+
+                yAxis.AxislineColor = OxyColors.White;
+                yAxis.TextColor = OxyColors.White;
+                yAxis.TitleColor = OxyColors.White;
+                yAxis.TicklineColor = OxyColors.White;
+
+                _plotModel.TextColor = OxyColors.White;
+            }
+            else
+            {
+                // Light (or Default) theme => use black
+                xAxis.AxislineColor = OxyColors.Black;
+                xAxis.TextColor = OxyColors.Black;
+                xAxis.TitleColor = OxyColors.Black;
+                xAxis.TicklineColor = OxyColors.Black;
+
+                yAxis.AxislineColor = OxyColors.Black;
+                yAxis.TextColor = OxyColors.Black;
+                yAxis.TitleColor = OxyColors.Black;
+                yAxis.TicklineColor = OxyColors.Black;
+
+                _plotModel.TextColor = OxyColors.Black;
+            }
+
+            // Show legend
             _plotModel.IsLegendVisible = true;
 
             // Optional: detect axis changes for marker toggling
             xAxis.AxisChanged += OnAxisChanged;
         }
+
+
 
         private void OnAxisChanged(object sender, AxisChangedEventArgs e)
         {
@@ -461,7 +492,7 @@ namespace XeryonMotionGUI.Classes
             get; set;
         }
 
-        private Units _selectedUnit = Units.Encoder;
+        public Units _selectedUnit;
         public Units SelectedUnit
         {
             get => _selectedUnit;
@@ -990,6 +1021,7 @@ namespace XeryonMotionGUI.Classes
                     // Optionally, reset the selected unit if it is not valid for the new type.
                     if (!AvailableUnits.Contains(SelectedUnit))
                     {
+                        Debug.WriteLine("Unknown unit selected");
                         if (Linear)
                             _selectedUnit = Units.mm;   // default for linear axis
                         else
@@ -1505,7 +1537,7 @@ namespace XeryonMotionGUI.Classes
             {
                 if (_suppressSliderUpdate)
                 {
-                    // Ignore updates if the slider is being suppressed
+                    // Ignore updates if the slider is being suppressed or the user is dragging it
                     return;
                 }
 

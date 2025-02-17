@@ -4,8 +4,8 @@ namespace XeryonMotionGUI.Helpers
 {
     public enum Units
     {
-        Encoder,  // default (raw value)
         mm,
+        Encoder, 
         mu,
         nm,
         inch,

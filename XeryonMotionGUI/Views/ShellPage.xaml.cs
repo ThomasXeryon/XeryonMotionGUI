@@ -97,15 +97,19 @@ public sealed partial class ShellPage : Page
             // Create an instance of NavigationRootPage (the navigation container).
             var navRootPage = new NavigationRootPage();
 
-            // Copy the RequestedTheme from the current page to ensure consistency.
-            if (currentPage is FrameworkElement fe)
+            if (this.ActualTheme == ElementTheme.Dark)
             {
-                navRootPage.RequestedTheme = fe.RequestedTheme;
+
+                navRootPage.RequestedTheme = ElementTheme.Dark;
+                
             }
             else
             {
-                navRootPage.RequestedTheme = ElementTheme.Default;
+
+                navRootPage.RequestedTheme = ElementTheme.Light;
+                
             }
+
 
             // Set the NavigationRootPage as the content for the new window.
             newWindow.Content = navRootPage;

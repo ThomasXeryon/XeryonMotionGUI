@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml;
 using System.Windows.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
+using WinRT.Interop; // for WindowNative, Win32Interop
 using Windows.System;
 using XeryonMotionGUI.Helpers;
 using OxyPlot;
@@ -16,20 +17,39 @@ using OxyPlot.Axes;
 using OxyPlot.Series;
 using OxyPlot.Wpf;
 using Windows.Media.Devices;
+using Newtonsoft.Json.Linq;
+using Microsoft.UI;
+using WinRT.Interop;
+using Microsoft.UI.Windowing;
 
 namespace XeryonMotionGUI.Views;
 
 public sealed partial class MotionPage : Page
 {
     private bool _suppressSliderValueChanged = false;
-
-    public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
-
+    private PlotModel _plotModel;
+    private LineSeries _positionSeries;
+    private LinearAxis xAxis;
+    private LinearAxis yAxis;
     public MotionPage()
     {
         InitializeComponent();
         this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
-        this.DataContext = new MotionViewModel();  // Set DataContext here
+        this.DataContext = new MotionViewModel(); // Set DataContext here
+
+
+        PositionSlider.AddHandler(
+            UIElement.PointerPressedEvent,
+            new PointerEventHandler(Slider_PointerPressed),
+            handledEventsToo: true);
+
+        PositionSlider.AddHandler(
+            UIElement.PointerReleasedEvent,
+            new PointerEventHandler(Slider_PointerReleased),
+            handledEventsToo: true);
+
+        this.ActualThemeChanged += OnActualThemeChanged;
+        Debug.WriteLine($"MotionPage constructor. Current theme: {this.ActualTheme}");
 
     }
 
@@ -137,30 +157,120 @@ public sealed partial class MotionPage : Page
                 UseShellExecute = true
             };
             Process.Start(processInfo);
+            model.Background = OxyColors.Transparent;
+
         }
     }
 
-    private void Slider_PointerPressed(object sender, PointerRoutedEventArgs e)
+    private void InitializePlot()
     {
-        if (DataContext is MotionViewModel viewModel)
+        // Create the base PlotModel
+        _plotModel = new PlotModel
         {
-            viewModel.SelectedAxis.IsUserDraggingSlider = true;
-        }
+            Title = "Axis Movement Over Time",
+            Background = OxyColors.Transparent
+        };
+
+        // Create the main series
+        _positionSeries = new LineSeries
+        {
+            Title = "Position (mm)",
+            MarkerType = MarkerType.Circle,
+            MarkerSize = 2,
+            MarkerStroke = OxyColors.Transparent,
+            StrokeThickness = 1.5,
+            LineStyle = LineStyle.Solid,
+        };
+        _plotModel.Series.Add(_positionSeries);
+
+        // X Axis
+        xAxis = new LinearAxis
+        {
+            Position = AxisPosition.Bottom,
+            Title = "Time (s)",
+            MajorGridlineStyle = LineStyle.Solid,
+            MinorGridlineStyle = LineStyle.Dot,
+            IsZoomEnabled = true,
+            IsPanEnabled = true
+        };
+
+        // Y Axis
+        yAxis = new LinearAxis
+        {
+            Position = AxisPosition.Left,
+            Title = "Position (enc)",
+            MajorGridlineStyle = LineStyle.Solid,
+            MinorGridlineStyle = LineStyle.Dot,
+            IsZoomEnabled = true,
+            IsPanEnabled = true
+        };
+
+        _plotModel.Axes.Add(xAxis);
+        _plotModel.Axes.Add(yAxis);
+
+        // Apply colors based on current theme
+        ApplyThemeToPlotModel();
+
+        // Show legend
+        _plotModel.IsLegendVisible = true;
+
+        // Assign PlotModel to a plot control, if you have one in XAML, for example:
+        // myPlotView.Model = _plotModel;
     }
 
-    private void Slider_PointerReleased(object sender, PointerRoutedEventArgs e)
+    private void ApplyThemeToPlotModel()
     {
-        if (DataContext is MotionViewModel viewModel)
+        var frame = App.AppTitlebar as FrameworkElement;
+        if (frame != null && frame.ActualTheme == ElementTheme.Dark)
         {
-            viewModel.SelectedAxis.IsUserDraggingSlider = false;
+            // Dark theme => use white
+            xAxis.AxislineColor = OxyColors.White;
+            xAxis.TextColor = OxyColors.White;
+            xAxis.TitleColor = OxyColors.White;
+            xAxis.TicklineColor = OxyColors.White;
 
-            // Force an update of the slider position after dragging ends
-            viewModel.SelectedAxis.UpdateSliderValue(viewModel.SelectedAxis.SliderValue);
+            yAxis.AxislineColor = OxyColors.White;
+            yAxis.TextColor = OxyColors.White;
+            yAxis.TitleColor = OxyColors.White;
+            yAxis.TicklineColor = OxyColors.White;
+
+            _plotModel.TextColor = OxyColors.White;
+        }
+        else
+        {
+            // Light (or Default) theme => use black
+            xAxis.AxislineColor = OxyColors.Black;
+            xAxis.TextColor = OxyColors.Black;
+            xAxis.TitleColor = OxyColors.Black;
+            xAxis.TicklineColor = OxyColors.Black;
+
+            yAxis.AxislineColor = OxyColors.Black;
+            yAxis.TextColor = OxyColors.Black;
+            yAxis.TitleColor = OxyColors.Black;
+            yAxis.TicklineColor = OxyColors.Black;
+
+            _plotModel.TextColor = OxyColors.Black;
+        }
+
+        // Force OxyPlot to redraw with the new colors
+        _plotModel.InvalidatePlot(false);
+    }
+
+    // Called whenever the page's ActualTheme changes (WinUI)
+    private void OnActualThemeChanged(FrameworkElement sender, object args)
+    {
+        Debug.WriteLine("Updating colors");
+
+        // Re-apply the theming logic to update the axis colors
+        if (_plotModel != null)
+        {
+            ApplyThemeToPlotModel();
         }
     }
 
     private void RadialGauge_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        Debug.WriteLine("Starting drag");
         if (DataContext is MotionViewModel viewModel)
         {
             viewModel.SelectedAxis.IsUserDraggingSlider = true;
@@ -169,12 +279,69 @@ public sealed partial class MotionPage : Page
 
     private void RadialGauge_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
+        Debug.WriteLine("Stopped drag");
         if (DataContext is MotionViewModel viewModel)
         {
             viewModel.SelectedAxis.IsUserDraggingSlider = false;
 
             // Force an update of the slider position after dragging ends
             viewModel.SelectedAxis.UpdateSliderValue(viewModel.SelectedAxis.SliderValue);
+        }
+    }
+
+    private void Slider_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        Debug.WriteLine("Starting drag");
+        if (DataContext is MotionViewModel viewModel)
+        {
+            viewModel.SelectedAxis.IsUserDraggingSlider = true;
+        }
+    }
+
+    private void Slider_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        Debug.WriteLine("Stopped drag");
+        if (DataContext is MotionViewModel viewModel)
+        {
+            viewModel.SelectedAxis.IsUserDraggingSlider = false;
+
+            // Force an update of the slider position after dragging ends
+            viewModel.SelectedAxis.UpdateSliderValue(viewModel.SelectedAxis.SliderValue);
+        }
+    }
+
+    private void OpenJoystickPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        var newWindow = new Window();
+        var navRootPage = new NavigationRootPage();
+
+        // e.g. match theme
+        if (this.ActualTheme == ElementTheme.Dark)
+            navRootPage.RequestedTheme = ElementTheme.Dark;
+        else
+            navRootPage.RequestedTheme = ElementTheme.Light;
+
+        newWindow.Content = navRootPage;
+        newWindow.SetWindowSize(400, 470);
+        newWindow.Activate();
+
+        // 1) Get the AppWindow:
+        IntPtr hWnd = WindowNative.GetWindowHandle(newWindow);
+        WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+        AppWindow appWindow = AppWindow.GetFromWindowId(windowId);
+
+        // 2) Cast Presenter to OverlappedPresenter
+        if (appWindow.Presenter is OverlappedPresenter overlappedPresenter)
+        {
+            // 3) Enable always-on-top
+            overlappedPresenter.IsAlwaysOnTop = true;
+        }
+
+        // Then navigate
+        if (this.DataContext is MotionViewModel vm)
+        {
+            var axes = vm.AllAxes;
+            navRootPage.Navigate(typeof(JoystickWindow), axes);
         }
     }
 

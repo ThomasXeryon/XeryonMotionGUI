@@ -14,16 +14,12 @@ namespace XeryonMotionGUI.Views
 {
     public sealed partial class ParametersPage : Page
     {
-        public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
-
         public ParametersPage()
         {
             this.InitializeComponent();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
-            if (this.DataContext == null)
-            {
-                this.DataContext = new ParametersViewModel();
-            }
+            this.DataContext = new ParametersViewModel(); // Set DataContext here
+
         }
 
         private async void OnFilePickerButtonClick(object sender, RoutedEventArgs e)

@@ -29,6 +29,7 @@
   <ItemGroup>
     <None Remove="DraggableElement.xaml" />
     <None Remove="Styles\ResourceDictionary1.xaml" />
+    <None Remove="Views\JoystickWindow.xaml" />
     <None Remove="Views\NavigationRootPage.xaml" />
   </ItemGroup>
 
@@ -87,6 +88,9 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="Views\JoystickWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="Views\NavigationRootPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

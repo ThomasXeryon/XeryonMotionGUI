@@ -156,7 +156,6 @@
                                                                 </TransitionCollection>
                                                             </StackPanel.ChildrenTransitions>
                                                             <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,5">
-                                                              <Run Text="Axis: " />
                                                               <Run Text="{Binding AxisTitle}" />
                                                             </TextBlock>
                                                             <TextBlock FontSize="12">

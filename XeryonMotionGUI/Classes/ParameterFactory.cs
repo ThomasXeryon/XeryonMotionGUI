@@ -30,19 +30,19 @@ namespace XeryonMotionGUI.Classes
             var parameters = new ObservableCollection<Parameter>
             {
                 // For each parameter, set "Category" from your comment
-                new Parameter(0, 1, 0.001, 0, "Zone 1 Size:", "ZON1",
+                new Parameter(0, 10, 0.0001, 0, "Zone 1 Size:", "ZON1",
                               category: "Advanced tuning",
                               explanation: "Defines how large the first zone is.") ,
 
-                new Parameter(0, 1, 0.001, 0, "Zone 2 Size:", "ZON2",
+                new Parameter(0, 10, 0.0001, 0, "Zone 2 Size:", "ZON2",
                               category: "Advanced tuning",
                               explanation: "Defines how large the second zone is.") ,
 
-                new Parameter(0, 190000, 500, 0, "Zone 1 Frequency:", "FREQ",
+                new Parameter(0, 200000, 500, 0, "Zone 1 Frequency:", "FREQ",
                               category: "Motion",
                               explanation: "Frequency used in the first zone.") ,
 
-                new Parameter(0, 190000, 500, 0, "Zone 2 Frequency:", "FRQ2",
+                new Parameter(0, 200000, 500, 0, "Zone 2 Frequency:", "FRQ2",
                               category: "Motion",
                               explanation: "Frequency used in the second zone.") ,
 

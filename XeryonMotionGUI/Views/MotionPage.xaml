@@ -99,40 +99,59 @@
 
             <!-- Axes ListView, Width=400, including rotary/linear icon -->
             <ListView
-                HorizontalAlignment="Left"
-                ItemsSource="{Binding SelectedController.Axes}" 
-                SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
-                Width="320">
+    x:Name="AxesListView"
+    HorizontalAlignment="Left"
+    ItemsSource="{Binding SelectedController.Axes}" 
+    SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
+    Width="320">
+
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="classes:Axis">
                         <Grid Margin="5" Padding="0,10">
+                            <!-- Your existing Axis visuals -->
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Rotary/Linear SymbolIcon -->
+                            <!-- Symbol for linear or rotary -->
                             <Grid Grid.Column="0">
                                 <SymbolIcon 
-                                    Symbol="{Binding Linear, Converter={StaticResource LinearToIconConverter}}"
-                                    Width="25" Height="25"
-                                    VerticalAlignment="Center" 
-                                    HorizontalAlignment="Center"
-                                    Margin="5,0,10,0" />
+                        Symbol="{Binding Linear, Converter={StaticResource LinearToIconConverter}}"
+                        Width="25" Height="25"
+                        VerticalAlignment="Center" 
+                        HorizontalAlignment="Center"
+                        Margin="5,0,10,0" />
                             </Grid>
 
                             <!-- Axis FriendlyName -->
                             <Grid Grid.Column="1">
                                 <TextBlock Text="{Binding FriendlyName}" 
-                                           FontWeight="Bold" 
-                                           FontSize="16"
-                                           VerticalAlignment="Center" 
-                                           Margin="5"/>
+                               FontWeight="Bold" 
+                               FontSize="16"
+                               VerticalAlignment="Center" 
+                               Margin="5"/>
                             </Grid>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
+
+                <!-- Here is where we add a style that sets a context menu (flyout) on each ListViewItem -->
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="ContextFlyout">
+                            <Setter.Value>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Open Joystick"
+                      CommandParameter="{Binding}" 
+                      Click="OpenJoystickPageButton_Click" />
+                                </MenuFlyout>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListView.ItemContainerStyle>
             </ListView>
+
         </StackPanel>
 
         <!-- ========== RIGHT COLUMN (Row 0..2) FOR MAIN MOTION CONTROLS ========== -->
@@ -173,7 +192,7 @@
                 <Grid Grid.Row="0"
                       Background="{ThemeResource SystemChromeMediumLowColor}"
                       Padding="10"
-                      CornerRadius="15">
+                      CornerRadius="5">
                        
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -312,7 +331,8 @@
                                FontWeight="SemiBold"
                                Margin="10,0,5,0"
                                VerticalAlignment="Center"/>
-                    <ComboBox ItemsSource="{Binding SelectedAxis.AvailableUnits}"
+                    <ComboBox x:Name="UNitsbox"
+                                ItemsSource="{Binding SelectedAxis.AvailableUnits}"
                               SelectedItem="{Binding SelectedAxis.SelectedUnit, Mode=TwoWay}"
                               Width="80"
                               VerticalAlignment="Center"/>
@@ -430,13 +450,13 @@
                     <TextBlock Text="DPOS Slider (Linear)" 
                                FontWeight="Bold" 
                                Margin="0,0,0,5"/>
-                    <Slider Minimum="{Binding SelectedAxis.NegativeRange}"
+                    <Slider x:Name="PositionSlider"
+                            Minimum="{Binding SelectedAxis.NegativeRange}"
                             Maximum="{Binding SelectedAxis.PositiveRange}"
                             Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
                             StepFrequency="0.1"
-                            Width="400"
-                            PointerPressed="Slider_PointerPressed"
-                            PointerReleased="Slider_PointerReleased"/>
+                            Width="400">
+                    </Slider>
                 </StackPanel>
 
                 <!-- Rotational slider panel (only visible if Axis.Linear == false) -->
@@ -510,7 +530,8 @@
                                       MinWidth="400"
                                       HorizontalAlignment="Stretch"
                                       VerticalAlignment="Stretch"
-                                      Background="White"/>
+                                      Foreground="Transparent"
+                                      Background="Transparent"/>
                 </Grid>
 
                 <!-- ========== Row 8: Advanced Expander ========== -->

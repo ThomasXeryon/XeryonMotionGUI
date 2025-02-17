@@ -1,0 +1,78 @@
+<Page
+    x:Class="XeryonMotionGUI.Views.JoystickWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel
+        HorizontalAlignment="Center"
+        VerticalAlignment="Center"
+        Spacing="16"
+        Padding="20"
+        Width="400"
+        Height="450">
+
+        <!-- Axis Selection Row -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+            <ComboBox x:Name="ComboBoxAxisX"
+                      Width="130"
+                      DisplayMemberPath="AxisLetter"
+                      SelectionChanged="ComboBoxAxisX_SelectionChanged"
+                      PlaceholderText="Horizontal Axis" />
+
+            <ComboBox x:Name="ComboBoxAxisY"
+                      Width="130"
+                      DisplayMemberPath="AxisLetter"
+                      SelectionChanged="ComboBoxAxisY_SelectionChanged"
+                      PlaceholderText="Vertical Axis" />
+        </StackPanel>
+
+        <!-- Buttons to invert X / Y directions -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+            <Button x:Name="InvertXButton" Content="Invert Horizontal"
+                    Click="InvertXButton_Click" Width="130"/>
+            <Button x:Name="InvertYButton" Content="Invert Vertical"
+                    Click="InvertYButton_Click" Width="130"/>
+        </StackPanel>
+
+        <!-- Speed Multiplier slider -->
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+            <TextBlock Text="Speed Multiplier" FontWeight="Bold"
+                       HorizontalAlignment="Center" Margin="0,0,0,5"/>
+            <Slider x:Name="SpeedMultiplierSlider"
+                    Minimum="0"
+                    Maximum="10"
+                    Value="1.0"
+                    SmallChange="0.1"
+                    StepFrequency="0.01"
+                    LargeChange="1"
+                    Width="200"
+                    ValueChanged="SpeedMultiplierSlider_ValueChanged"/>
+        </StackPanel>
+
+        <!-- Joystick Canvas -->
+        <Canvas x:Name="CanvasArea"
+                Width="220"
+                Height="220"
+                HorizontalAlignment="Center"
+                PointerPressed="CanvasArea_PointerPressed"
+                PointerReleased="CanvasArea_PointerReleased"
+                PointerMoved="CanvasArea_PointerMoved">
+
+            <!-- Joystick Boundary -->
+            <Ellipse 
+                Width="220"
+                Height="220"
+                Stroke="Gray"
+                StrokeThickness="2"/>
+
+            <!-- Joystick Knob -->
+            <Ellipse x:Name="Knob"
+                     Width="40"
+                     Height="40"
+                     Fill="{ThemeResource SystemAccentColorLight1}"
+                     Opacity="0.8"
+                     Canvas.Left="90"
+                     Canvas.Top="90" />
+        </Canvas>
+    </StackPanel>
+</Page>

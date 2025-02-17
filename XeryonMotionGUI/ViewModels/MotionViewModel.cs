@@ -44,11 +44,8 @@ namespace XeryonMotionGUI.ViewModels
                     OnPropertyChanged(nameof(ResetEncoderCommand));
                     OnPropertyChanged(nameof(ScanPositiveCommand));
                     OnPropertyChanged(nameof(ScanNegativeCommand));
-                    OnPropertyChanged(nameof(SelectedAxis));
                     OnPropertyChanged(nameof(IndexMinusCommand));
                     OnPropertyChanged(nameof(IndexPlusCommand));
-                    OnPropertyChanged(nameof(SelectedAxis));
-
                 }
             }
         }
@@ -134,6 +131,28 @@ namespace XeryonMotionGUI.ViewModels
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        // Suppose your view model has a property called Controllers, 
+        // each with an Axes collection. Combine them into a single list:
+        public IReadOnlyList<Axis> AllAxes
+        {
+            get
+            {
+                // If RunningControllers is null or empty, return empty.
+                if (RunningControllers == null || RunningControllers.Count == 0)
+                    return Array.Empty<Axis>();
+
+                var axisList = new List<Axis>();
+                foreach (var controller in RunningControllers)
+                {
+                    // Each Controller has an Axes collection
+                    axisList.AddRange(controller.Axes);
+                }
+                return axisList;
+            }
+        }
+
+
 
     }
 }
