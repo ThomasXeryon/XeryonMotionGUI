@@ -11,35 +11,35 @@
     xmlns:oxyplot="using:OxyPlot"
     xmlns:converters="using:XeryonMotionGUI.Helpers">
 
-    <!-- Page Resources -->
+    <!-- ======= Page Resources ======= -->
     <Page.Resources>
-        <!-- Converters (same as original MotionPage) -->
         <converters:DoubleFormatConverter x:Key="DoubleFormatConverter" />
         <helpers:BoolToColorConverter x:Key="BoolToColorConverter"/>
         <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
         <helpers:TooltipValueFormatter x:Key="TooltipValueFormatter"/>
-
-        <!-- Also include LinearToIconConverter so we can show rotary/linear icons -->
         <helpers:LinearToIconConverter x:Key="LinearToIconConverter" />
+
+
     </Page.Resources>
 
-    <!-- ViewModel -->
+    <!-- ======= ViewModel ======= -->
     <Page.DataContext>
         <viewmodels:MotionViewModel />
     </Page.DataContext>
 
+    <!-- ======= Layout Grid ======= -->
     <Grid>
-        <!-- MATCH ParametersPage: left column = Auto width, right column = * -->
+        <!-- Left column: Controllers & Axes; Right column: TabView -->
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- MATCH ParametersPage row layout: 
-             Row 0 -> Controllers 
+        <!-- 3 rows on the left to match your original structure:
+             Row 0 -> Controllers
              Row 1 -> Axes
-             Row 2 -> everything else 
+             Row 2 -> empty (or just fills leftover space)
         -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -47,20 +47,19 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- ========== CONTROLLERS SECTION (Row 0) ========== -->
+        <!-- ========== CONTROLLERS (Left Col=0, Row=0) ========== -->
         <StackPanel Grid.Column="0" Grid.Row="0" Margin="10,0,0,0">
-            <!-- Header text + margin exactly like ParametersPage -->
             <TextBlock Text="Controllers"
                        FontSize="16" 
                        FontWeight="Bold"
                        Margin="5,0,0,5" />
 
-            <!-- Controllers ListView, set Width=400 to match ParametersPage -->
             <ListView
                 HorizontalAlignment="Left"
                 ItemsSource="{Binding RunningControllers}" 
                 SelectedItem="{Binding SelectedController, Mode=TwoWay}"
                 Width="320">
+
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="classes:Controller">
                         <Grid Margin="10">
@@ -90,428 +89,438 @@
             </ListView>
         </StackPanel>
 
-        <!-- ========== AXES SECTION (Row 1) ========== -->
+        <!-- ========== AXES (Left Col=0, Row=1) ========== -->
         <StackPanel Grid.Column="0" Grid.Row="1" Margin="10,10,0,0">
             <TextBlock Text="Axes"
                        FontSize="16" 
                        FontWeight="Bold"
                        Margin="5,0,0,5" />
 
-            <!-- Axes ListView, Width=400, including rotary/linear icon -->
             <ListView
-    x:Name="AxesListView"
-    HorizontalAlignment="Left"
-    ItemsSource="{Binding SelectedController.Axes}" 
-    SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
-    Width="320">
+                x:Name="AxesListView"
+                HorizontalAlignment="Left"
+                ItemsSource="{Binding SelectedController.Axes}" 
+                SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
+                Width="320">
 
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="classes:Axis">
                         <Grid Margin="5" Padding="0,10">
-                            <!-- Your existing Axis visuals -->
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Symbol for linear or rotary -->
                             <Grid Grid.Column="0">
+                                <!-- Linear/Rotary icon -->
                                 <SymbolIcon 
-                        Symbol="{Binding Linear, Converter={StaticResource LinearToIconConverter}}"
-                        Width="25" Height="25"
-                        VerticalAlignment="Center" 
-                        HorizontalAlignment="Center"
-                        Margin="5,0,10,0" />
+                                    Symbol="{Binding Linear, Converter={StaticResource LinearToIconConverter}}"
+                                    Width="25" Height="25"
+                                    VerticalAlignment="Center" 
+                                    HorizontalAlignment="Center"
+                                    Margin="5,0,10,0" />
                             </Grid>
 
-                            <!-- Axis FriendlyName -->
                             <Grid Grid.Column="1">
                                 <TextBlock Text="{Binding FriendlyName}" 
-                               FontWeight="Bold" 
-                               FontSize="16"
-                               VerticalAlignment="Center" 
-                               Margin="5"/>
+                                           FontWeight="Bold" 
+                                           FontSize="16"
+                                           VerticalAlignment="Center" 
+                                           Margin="5"/>
                             </Grid>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
 
-                <!-- Here is where we add a style that sets a context menu (flyout) on each ListViewItem -->
+                <!-- Right-click context menu for axes -->
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
                         <Setter Property="ContextFlyout">
                             <Setter.Value>
                                 <MenuFlyout>
                                     <MenuFlyoutItem Text="Open Joystick"
-                      CommandParameter="{Binding}" 
-                      Click="OpenJoystickPageButton_Click" />
+                                                    CommandParameter="{Binding}" 
+                                                    Click="OpenJoystickPageButton_Click" />
                                 </MenuFlyout>
                             </Setter.Value>
                         </Setter>
                     </Style>
                 </ListView.ItemContainerStyle>
             </ListView>
-
         </StackPanel>
 
-        <!-- ========== RIGHT COLUMN (Row 0..2) FOR MAIN MOTION CONTROLS ========== -->
-        <ScrollViewer 
-            Grid.Column="1" 
-            Grid.Row="0" 
+        <!-- ========== TEAR-OUT ENABLED TABVIEW (Right Col=1, RowSpan=3) ========== -->
+        <TabView
+            x:Name="Tabs"
+            Grid.Column="1"
+            Grid.Row="0"
             Grid.RowSpan="3"
-            Padding="10"
-            HorizontalScrollBarVisibility="Auto"
-            VerticalScrollBarVisibility="Auto"
-            Margin="20,0,0,0">
+            CloseButtonOverlayMode="OnPointerOver"
+            Margin="20,20,0,0"
             
+            TabWidthMode="Compact"
+            IsAddTabButtonVisible="False"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch">
 
-            <!-- Nested Grid for all your existing motion controls -->
-            <Grid>
-                <Grid.RowDefinitions>
-                    <!-- Row 0: Axis Title (EPOS/Speed/Time/Status) -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Row 1: Step -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Row 2: Scan -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Row 3: Move -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Row 4: Index/Reset + progress bars -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Row 5: DPOS slider -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Row 6: InfoBars -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Row 7: Graph + Export -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Row 8: Advanced Expander -->
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+            <!-- Optional: Drag regions for your custom title bar -->
+            <TabView.TabStripHeader>
+                <Grid x:Name="ShellTitleBarInset" Background="Transparent"/>
+            </TabView.TabStripHeader>
+            <TabView.TabStripFooter>
+                <Grid x:Name="CustomDragRegion" Background="Transparent"/>
+            </TabView.TabStripFooter>
 
-                <!-- ========== Row 0: Axis Title, EPOS, Speed, Max, Time, Status Bits ========== -->
-                <Grid Grid.Row="0"
-                      Background="{ThemeResource SystemChromeMediumLowColor}"
-                      Padding="10"
-                      CornerRadius="5">
-                       
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
 
-                    <!-- EPOS -->
-                    <StackPanel Grid.Column="1"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="10,0,0,0">
-                        <TextBlock Text="Position:"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,5,0"/>
-                        <TextBlock Width="60"
-                                   TextAlignment="Right"
-                                   VerticalAlignment="Center">
-                            <Run Text="{Binding SelectedAxis.EPOSDisplay,
-                                              Converter={StaticResource DoubleFormatConverter},
-                                              ConverterParameter='F4'}"/>
-                        </TextBlock>
-                    </StackPanel>
+            <TabViewItem Header=" " IsClosable="False">
+                <TabViewItem.IconSource>
+                    <SymbolIconSource Symbol="Home"/>
+                </TabViewItem.IconSource>
+                <ScrollViewer 
+                    Padding="10"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto">
 
-                    <!-- Speed -->
-                    <StackPanel Grid.Column="2"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="20,0,0,0">
-                        <TextBlock Text="Speed:"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,5,0"/>
-                        <TextBlock Width="30"
-                                   TextAlignment="Right"
-                                   VerticalAlignment="Center">
-                            <Run Text="{Binding SelectedAxis.SPEEDDisplay,
-                                              Converter={StaticResource DoubleFormatConverter},
-                                              ConverterParameter='F0'}"/>
-                        </TextBlock>
-                    </StackPanel>
+                    <Grid>
+                        <!-- These 7 rows match your original "Motion" content -->
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <!-- Row 0 -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Row 1 -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Row 2 -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Row 3 -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Row 4 -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Row 5 -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Row 6 -->
+                        </Grid.RowDefinitions>
 
-                    <!-- Max Speed -->
-                    <StackPanel Grid.Column="3"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="20,0,0,0">
-                        <TextBlock Text="Max Speed:"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,5,0"/>
-                        <TextBlock Width="50"
-                                   TextAlignment="Right"
-                                   VerticalAlignment="Center">
-                            <Run Text="{Binding SelectedAxis.MaxSpeedDisplay,
-                                              Converter={StaticResource DoubleFormatConverter},
-                                              ConverterParameter='F2'}"/>
-                        </TextBlock>
-                    </StackPanel>
+                        <!-- Row 0: Axis Title, EPOS, Speed, Status Bits, etc. -->
+                        <Grid Grid.Row="0"
+                              Background="{ThemeResource SystemChromeMediumLowColor}"
+                              Padding="10"
+                              CornerRadius="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                    <!-- Time -->
-                    <StackPanel Grid.Column="4"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="20,0,0,0">
-                        <TextBlock Text="Elapsed Time:"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,5,0"
-                                   VerticalAlignment="Center"/>
-                        <TextBlock Width="60"
-                                   TextAlignment="Right"
-                                   VerticalAlignment="Center">
-                            <Run Text="{Binding SelectedAxis.CommandToPositionReachedDelay}"/>
-                        </TextBlock>
-                    </StackPanel>
+                            <!-- EPOS -->
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Margin="10,0,0,0">
+                                <TextBlock Text="Position:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,5,0"/>
+                                <TextBlock Width="60"
+                                           TextAlignment="Right"
+                                           VerticalAlignment="Center">
+                                    <Run Text="{Binding SelectedAxis.EPOSDisplay,
+                                                        Converter={StaticResource DoubleFormatConverter},
+                                                        ConverterParameter='F4'}"/>
+                                </TextBlock>
+                            </StackPanel>
 
-                    <!-- Status Bits -->
-                    <StackPanel Grid.Column="6"
-                                Orientation="Vertical"
-                                HorizontalAlignment="Right"
-                                Margin="20,0,0,0">
-                        <!-- Position Reached -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                            <Ellipse Width="15" Height="15"
-                                     Fill="{Binding SelectedAxis.PositionReached, Converter={StaticResource BoolToColorConverter}}"
-                                     Stroke="Gray" StrokeThickness="0.5"
-                                     Margin="0,0,5,0"
-                                     VerticalAlignment="Center"/>
-                            <TextBlock Text="Position Reached"
+                            <!-- Speed -->
+                            <StackPanel Grid.Column="2"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Margin="20,0,0,0">
+                                <TextBlock Text="Speed:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,5,0"/>
+                                <TextBlock Width="30"
+                                           TextAlignment="Right"
+                                           VerticalAlignment="Center">
+                                    <Run Text="{Binding SelectedAxis.SPEEDDisplay,
+                                                        Converter={StaticResource DoubleFormatConverter},
+                                                        ConverterParameter='F0'}"/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Max Speed -->
+                            <StackPanel Grid.Column="3"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Margin="20,0,0,0">
+                                <TextBlock Text="Max Speed:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,5,0"/>
+                                <TextBlock Width="50"
+                                           TextAlignment="Right"
+                                           VerticalAlignment="Center">
+                                    <Run Text="{Binding SelectedAxis.MaxSpeedDisplay,
+                                                        Converter={StaticResource DoubleFormatConverter},
+                                                        ConverterParameter='F2'}"/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Time -->
+                            <StackPanel Grid.Column="4"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Margin="20,0,0,0">
+                                <TextBlock Text="Elapsed Time:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,5,0"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Width="60"
+                                           TextAlignment="Right"
+                                           VerticalAlignment="Center">
+                                    <Run Text="{Binding SelectedAxis.CommandToPositionReachedDelay}"/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Status Bits: Position Reached, Index Found, Motor On -->
+                            <StackPanel Grid.Column="6"
+                                        Orientation="Vertical"
+                                        HorizontalAlignment="Right"
+                                        Margin="20,0,0,0">
+                                <!-- Position Reached -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                    <Ellipse Width="15" Height="15"
+                                             Fill="{Binding SelectedAxis.PositionReached, Converter={StaticResource BoolToColorConverter}}"
+                                             Stroke="Gray" StrokeThickness="0.5"
+                                             Margin="0,0,5,0"
+                                             VerticalAlignment="Center"/>
+                                    <TextBlock Text="Position Reached"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- Index Found -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                    <Ellipse Width="15" Height="15"
+                                             Fill="{Binding SelectedAxis.EncoderValid, Converter={StaticResource BoolToColorConverter}}"
+                                             Stroke="Gray" StrokeThickness="0.5"
+                                             Margin="0,0,5,0"
+                                             VerticalAlignment="Center"/>
+                                    <TextBlock Text="Index Found"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- Motor on -->
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="15" Height="15"
+                                             Fill="{Binding SelectedAxis.MotorOn, Converter={StaticResource BoolToColorConverter}}"
+                                             Stroke="Gray" StrokeThickness="0.5"
+                                             Margin="0,0,5,0"
+                                             VerticalAlignment="Center"/>
+                                    <TextBlock Text="Motor on"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Row 1: Step -->
+                        <StackPanel Grid.Row="1"
+                                    Orientation="Horizontal"
+                                    Spacing="10"
+                                    Margin="0,10,0,0">
+                            <Button Content="Step -"
+                                    Command="{Binding SelectedAxis.StepNegativeCommand}"
+                                    Width="70"/>
+                            <controls:NumberBox Value="{Binding SelectedAxis.StepSize, Mode=TwoWay}"
+                                                Width="70"
+                                                SpinButtonPlacementMode="Compact"
+                                                Minimum="0"/>
+                            <Button Content="Step +"
+                                    Command="{Binding SelectedAxis.StepPositiveCommand}"
+                                    Width="70"/>
+                            <TextBlock Text="Units:"
+                                       FontWeight="SemiBold"
+                                       Margin="10,0,5,0"
                                        VerticalAlignment="Center"/>
+                            <ComboBox x:Name="UNitsbox"
+                                      ItemsSource="{Binding SelectedAxis.AvailableUnits}"
+                                      SelectedItem="{Binding SelectedAxis.SelectedUnit, Mode=TwoWay}"
+                                      Width="80"
+                                      VerticalAlignment="Center"/>
                         </StackPanel>
 
-                        <!-- Index Found -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                            <Ellipse Width="15" Height="15"
-                                     Fill="{Binding SelectedAxis.EncoderValid, Converter={StaticResource BoolToColorConverter}}"
-                                     Stroke="Gray" StrokeThickness="0.5"
-                                     Margin="0,0,5,0"
-                                     VerticalAlignment="Center"/>
-                            <TextBlock Text="Index Found"
-                                       VerticalAlignment="Center"/>
+                        <!-- Row 2: Scan -->
+                        <StackPanel Grid.Row="2"
+                                    Orientation="Horizontal"
+                                    Spacing="10"
+                                    Margin="0,10,0,0">
+                            <Button Content="Scan -"
+                                    Command="{Binding SelectedAxis.ScanNegativeCommand}"
+                                    Width="70"/>
+                            <Button Content="Home"
+                                    Command="{Binding SelectedAxis.HomeCommand}"
+                                    Width="70"/>
+                            <Button Content="Scan +"
+                                    Command="{Binding SelectedAxis.ScanPositiveCommand}"
+                                    Width="70"/>
                         </StackPanel>
 
-                        <!-- Motor on -->
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="15" Height="15"
-                                     Fill="{Binding SelectedAxis.MotorOn, Converter={StaticResource BoolToColorConverter}}"
-                                     Stroke="Gray" StrokeThickness="0.5"
-                                     Margin="0,0,5,0"
-                                     VerticalAlignment="Center"/>
-                            <TextBlock Text="Motor on"
-                                       VerticalAlignment="Center"/>
+                        <!-- Row 3: Move -->
+                        <StackPanel Grid.Row="3"
+                                    Orientation="Horizontal"
+                                    Spacing="10"
+                                    Margin="0,10,0,0">
+                            <Button Content="Move -"
+                                    Command="{Binding SelectedAxis.MoveNegativeCommand}"
+                                    Width="70"/>
+                            <Button Content="STOP"
+                                    Command="{Binding SelectedAxis.StopCommand}"
+                                    Width="70"
+                                    FontWeight="Bold"
+                                    Foreground="Red"/>
+                            <Button Content="Move +"
+                                    Command="{Binding SelectedAxis.MovePositiveCommand}"
+                                    Width="70"/>
                         </StackPanel>
-                    </StackPanel>
-                </Grid>
 
-                <!-- ========== Row 1: Step ========== -->
-                <StackPanel Grid.Row="1"
-                            Orientation="Horizontal"
-                            Spacing="10"
-                            Margin="0,10,0,0">
-                    <Button Content="Step -"
-                            Command="{Binding SelectedAxis.StepNegativeCommand}"
-                            Width="70"/>
-                    <controls:NumberBox Value="{Binding SelectedAxis.StepSize, Mode=TwoWay}"
-                                        Width="70"
-                                        SpinButtonPlacementMode="Compact"
-                                        Minimum="0"/>
-                    <Button Content="Step +"
-                            Command="{Binding SelectedAxis.StepPositiveCommand}"
-                            Width="70"/>
-                    <!-- Units -->
-                    <TextBlock Text="Units:"
-                               FontWeight="SemiBold"
-                               Margin="10,0,5,0"
-                               VerticalAlignment="Center"/>
-                    <ComboBox x:Name="UNitsbox"
-                                ItemsSource="{Binding SelectedAxis.AvailableUnits}"
-                              SelectedItem="{Binding SelectedAxis.SelectedUnit, Mode=TwoWay}"
-                              Width="80"
-                              VerticalAlignment="Center"/>
-                </StackPanel>
+                        <!-- Row 4: Index/Reset + progress bars -->
+                        <Grid Grid.Row="4"
+                              Margin="0,10,0,0"
+                              HorizontalAlignment="Left">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                <!-- ========== Row 2: Scan ========== -->
-                <StackPanel Grid.Row="2"
-                            Orientation="Horizontal"
-                            Spacing="10"
-                            Margin="0,10,0,0">
-                    <Button Content="Scan -"
-                            Command="{Binding SelectedAxis.ScanNegativeCommand}"
-                            Width="70"/>
-                    <Button Content="Home"
-                            Command="{Binding SelectedAxis.HomeCommand}"
-                            Width="70"/>
-                    <Button Content="Scan +"
-                            Command="{Binding SelectedAxis.ScanPositiveCommand}"
-                            Width="70"/>
-                </StackPanel>
+                            <!-- Index -->
+                            <controls:SplitButton Content="Index"
+                                                  Width="110"
+                                                  Margin="0"
+                                                  Grid.Row="0"
+                                                  Grid.Column="0"
+                                                  Command="{Binding SelectedAxis.IndexCommand}">
+                                <controls:SplitButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Index Left"
+                                                        Command="{Binding SelectedAxis.IndexMinusCommand}"/>
+                                        <MenuFlyoutItem Text="Index Right"
+                                                        Command="{Binding SelectedAxis.IndexPlusCommand}"/>
+                                    </MenuFlyout>
+                                </controls:SplitButton.Flyout>
+                            </controls:SplitButton>
 
-                <!-- ========== Row 3: Move ========== -->
-                <StackPanel Grid.Row="3"
-                            Orientation="Horizontal"
-                            Spacing="10"
-                            Margin="0,10,0,0">
-                    <Button Content="Move -"
-                            Command="{Binding SelectedAxis.MoveNegativeCommand}"
-                            Width="70"/>
-                    <Button Content="STOP"
-                            Command="{Binding SelectedAxis.StopCommand}"
-                            Width="70"
-                            FontWeight="Bold"
-                            Foreground="Red"/>
-                    <Button Content="Move +"
-                            Command="{Binding SelectedAxis.MovePositiveCommand}"
-                            Width="70"/>
-                </StackPanel>
+                            <ProgressBar Value="100"
+                                         IsIndeterminate="True"
+                                         Visibility="{Binding SelectedAxis.SearchingIndex, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                         Width="70"
+                                         Height="5"
+                                         Margin="5,28,0,0"
+                                         Grid.Row="0"
+                                         Grid.Column="0"
+                                         HorizontalAlignment="Left"/>
 
-                <!-- ========== Row 4: Index/Reset + progress bars ========== -->
-                <Grid Grid.Row="4"
-                      Margin="0,10,0,0"
-                      HorizontalAlignment="Left">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                            <!-- Reset -->
+                            <controls:SplitButton Content="Reset"
+                                                  Width="110"
+                                                  Margin="10,0,0,0"
+                                                  Grid.Row="0"
+                                                  Grid.Column="1"
+                                                  Command="{Binding SelectedAxis.ResetCommand}"
+                                                  IsEnabled="{Binding SelectedAxis.IsResetEnabled}">
+                                <controls:SplitButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Reset All"
+                                                        Command="{Binding SelectedAxis.ResetCommand}"/>
+                                        <MenuFlyoutItem Text="Reset Encoder"
+                                                        Command="{Binding SelectedAxis.ResetEncoderCommand}"/>
+                                    </MenuFlyout>
+                                </controls:SplitButton.Flyout>
+                            </controls:SplitButton>
 
-                    <!-- Index -->
-                    <controls:SplitButton Content="Index"
-                                          Width="110"
-                                          Margin="0"
-                                          Grid.Row="0"
-                                          Grid.Column="0"
-                                          Command="{Binding SelectedAxis.IndexCommand}">
-                        <controls:SplitButton.Flyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem Text="Index Left"
-                                                Command="{Binding SelectedAxis.IndexMinusCommand}"/>
-                                <MenuFlyoutItem Text="Index Right"
-                                                Command="{Binding SelectedAxis.IndexPlusCommand}"/>
-                            </MenuFlyout>
-                        </controls:SplitButton.Flyout>
-                    </controls:SplitButton>
+                            <ProgressBar Value="100"
+                                         IsIndeterminate="True"
+                                         Visibility="Collapsed"
+                                         Width="70"
+                                         Height="5"
+                                         Margin="5,28,0,0"
+                                         Grid.Row="0"
+                                         Grid.Column="1"
+                                         HorizontalAlignment="Left"/>
+                        </Grid>
 
-                    <ProgressBar Value="100"
-                                 IsIndeterminate="True"
-                                 Visibility="{Binding SelectedAxis.SearchingIndex, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                 Width="70"
-                                 Height="5"
-                                 Margin="5,28,0,0"
-                                 Grid.Row="0"
-                                 Grid.Column="0"
-                                 HorizontalAlignment="Left"/>
-
-                    <!-- Reset -->
-                    <controls:SplitButton Content="Reset"
-                                          Width="110"
-                                          Margin="10,0,0,0"
-                                          Grid.Row="0"
-                                          Grid.Column="1"
-                                          Command="{Binding SelectedAxis.ResetCommand}"
-                                          IsEnabled="{Binding SelectedAxis.IsResetEnabled}">
-                        <controls:SplitButton.Flyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem Text="Reset All"
-                                                Command="{Binding SelectedAxis.ResetCommand}"/>
-                                <MenuFlyoutItem Text="Reset Encoder"
-                                                Command="{Binding SelectedAxis.ResetEncoderCommand}"/>
-                            </MenuFlyout>
-                        </controls:SplitButton.Flyout>
-                    </controls:SplitButton>
-
-                    <ProgressBar Value="100"
-                                 IsIndeterminate="True"
-                                 Visibility="Collapsed"
-                                 Width="70"
-                                 Height="5"
-                                 Margin="5,28,0,0"
-                                 Grid.Row="0"
-                                 Grid.Column="1"
-                                 HorizontalAlignment="Left"/>
-                </Grid>
-
-                <!-- ========== Row 5: DPOS Slider (Linear or Rotational) ========== -->
-                <!-- Linear slider panel (only visible if Axis.Linear == true) -->
-                <StackPanel x:Name="LinearSliderPanel"
-                            Grid.Row="5"
-                            Margin="0,10,0,0"
-                            Visibility="{Binding SelectedAxis.Linear, 
+                        <!-- Row 5: DPOS Sliders (Linear or Rotational) -->
+                        <StackPanel x:Name="LinearSliderPanel"
+                                    Grid.Row="5"
+                                    Margin="0,10,0,0"
+                                    Visibility="{Binding SelectedAxis.Linear, 
                                                  Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="DPOS Slider (Linear)" 
-                               FontWeight="Bold" 
-                               Margin="0,0,0,5"/>
-                    <Slider x:Name="PositionSlider"
-                            Minimum="{Binding SelectedAxis.NegativeRange}"
-                            Maximum="{Binding SelectedAxis.PositiveRange}"
-                            Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
-                            StepFrequency="0.1"
-                            Width="400">
-                    </Slider>
-                </StackPanel>
+                            <TextBlock Text="DPOS Slider (Linear)" 
+                                       FontWeight="Bold" 
+                                       Margin="0,0,0,5"/>
+                            <Slider x:Name="PositionSlider"
+                                    Minimum="{Binding SelectedAxis.NegativeRange}"
+                                    Maximum="{Binding SelectedAxis.PositiveRange}"
+                                    Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
+                                    StepFrequency="0.1"
+                                    Width="400"/>
+                        </StackPanel>
 
-                <!-- Rotational slider panel (only visible if Axis.Linear == false) -->
-                <StackPanel x:Name="RotationalSliderPanel"
-                            Grid.Row="5"
-                            Margin="0,10,0,0"
-                            Visibility="{Binding SelectedAxis.Linear, 
+                        <StackPanel x:Name="RotationalSliderPanel"
+                                    Grid.Row="5"
+                                    Margin="0,10,0,0"
+                                    Visibility="{Binding SelectedAxis.Linear, 
                                                  Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                    <TextBlock Text="DPOS Slider (Rotational)" 
-                               FontWeight="Bold" 
-                               Margin="0,0,0,5"/>
+                            <TextBlock Text="DPOS Slider (Rotational)" 
+                                       FontWeight="Bold" 
+                                       Margin="0,0,0,5"/>
 
-                    <!-- CommunityToolkit RadialGauge (0..360) -->
-                    <controls1:RadialGauge
-                        Minimum="0"
-                        Maximum="360"
-                        Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
-                        Width="280"
-                        MinAngle="0"
-                        MaxAngle="360"
-                        TickSpacing="45"
-                        IsInteractive="True"
-                        ValueStringFormat=" "
-                        ScaleWidth="15"
-                        StepSize="1"
-                        NeedleWidth="3"
-                        NeedleLength="0.75"
-                        ScalePadding="10"
-                        TickPadding="5"
-                        TickLength="5"
-                        PointerPressed="RadialGauge_PointerPressed"
-                        PointerReleased="RadialGauge_PointerReleased">
-                    </controls1:RadialGauge>
-                </StackPanel>
+                            <controls1:RadialGauge
+                                Minimum="0"
+                                Maximum="360"
+                                Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
+                                Width="280"
+                                MinAngle="0"
+                                MaxAngle="360"
+                                TickSpacing="45"
+                                IsInteractive="True"
+                                ValueStringFormat=" "
+                                ScaleWidth="15"
+                                StepSize="1"
+                                NeedleWidth="3"
+                                NeedleLength="0.75"
+                                ScalePadding="10"
+                                TickPadding="5"
+                                TickLength="5"
+                                PointerPressed="RadialGauge_PointerPressed"
+                                PointerReleased="RadialGauge_PointerReleased"/>
+                        </StackPanel>
 
-                <!-- ========== Row 6: InfoBars ========== -->
-                <ItemsControl Grid.Row="6"
-                             ItemsSource="{Binding SelectedAxis.InfoBarMessages}"
-                             Margin="0,10,0,0">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="classes:InfoBarMessage">
-                            <controls:InfoBar
-                                IsOpen="True"
-                                Severity="{x:Bind Severity}"
-                                Title="{x:Bind Title}"
-                                Message="{x:Bind Message}"
-                                Margin="0,0,0,10"
-                                IsClosable="False"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                        <!-- Row 6: InfoBars -->
+                        <ItemsControl Grid.Row="6"
+                                     ItemsSource="{Binding SelectedAxis.InfoBarMessages}"
+                                     Margin="0,10,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="classes:InfoBarMessage">
+                                    <controls:InfoBar
+                                        IsOpen="True"
+                                        Severity="{x:Bind Severity}"
+                                        Title="{x:Bind Title}"
+                                        Message="{x:Bind Message}"
+                                        Margin="0,0,0,10"
+                                        IsClosable="False"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </ScrollViewer>
+            </TabViewItem>
 
-                <!-- ========== Row 7: Graph & Export ========== -->
-                <Grid Grid.Row="7"
-                      Margin="0,10,0,0">
+            <!-- ========== TAB 2: GRAPH (NO ScrollViewer) ========== -->
+            <TabViewItem Header=" " IsClosable="False">
+                <TabViewItem.IconSource>
+                    <SymbolIconSource Symbol="Library"/>
+                </TabViewItem.IconSource>
+                <Grid Padding="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
@@ -523,7 +532,6 @@
                             Margin="0,0,0,5"
                             Click="ExportGraph_Click"/>
 
-                    <!-- OxyPlot graph -->
                     <oxyplot:PlotView Grid.Row="1"
                                       Model="{Binding SelectedAxis.PlotModel}"
                                       MinHeight="500"
@@ -533,45 +541,66 @@
                                       Foreground="Transparent"
                                       Background="Transparent"/>
                 </Grid>
+            </TabViewItem>
 
-                <!-- ========== Row 8: Advanced Expander ========== -->
-                <controls:Expander Grid.Row="8"
-                                   Header="Advanced"
-                                   IsExpanded="False"
-                                   Margin="0,20,0,0"
-                                   Visibility="Visible">
-                    <StackPanel Margin="10">
-                        <!-- Logging Mode + Start/Stop Manual Logging -->
-                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="Logging Mode:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                            <ToggleSwitch IsOn="{Binding SelectedAxis.AutoLogging, Mode=TwoWay}"
-                                          OnContent="Auto"
-                                          OffContent="Manual"/>
-                            <!-- Only show manual logging buttons if auto == false -->
+            <!-- ========== TAB 3: SETTINGS (ScrollViewer) ========== -->
+            <TabViewItem Header=" " IsClosable="False">
+                <TabViewItem.IconSource>
+                    <SymbolIconSource Symbol="Setting"/>
+                </TabViewItem.IconSource>
+                <ScrollViewer Padding="10"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto">
+
+                    <StackPanel Spacing="20">
+                        <!-- LOGGING group -->
+                        <StackPanel>
+                            <TextBlock Text="Logging Settings" 
+                                       FontWeight="SemiBold" 
+                                       FontSize="16"
+                                       Margin="0,0,0,5"/>
                             <StackPanel Orientation="Horizontal"
-                                        Margin="10,0,0,0"
-                                        Visibility="{Binding SelectedAxis.AutoLogging,
-                                            Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                                <Button Content="Start Logging"
-                                        Command="{Binding SelectedAxis.StartManualLoggingCommand}"
-                                        Margin="0,0,5,0"/>
-                                <Button Content="Stop Logging"
-                                        Command="{Binding SelectedAxis.StopManualLoggingCommand}"/>
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="Logging Mode:" 
+                                           Margin="0,0,5,0" 
+                                           VerticalAlignment="Center"/>
+                                <ToggleSwitch IsOn="{Binding SelectedAxis.AutoLogging, Mode=TwoWay}"
+                                              OnContent="Auto"
+                                              OffContent="Manual"/>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="10,0,0,0"
+                                            Visibility="{Binding SelectedAxis.AutoLogging,
+                                                Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                    <Button Content="Start Logging"
+                                            Command="{Binding SelectedAxis.StartManualLoggingCommand}"
+                                            Margin="0,0,5,0"/>
+                                    <Button Content="Stop Logging"
+                                            Command="{Binding SelectedAxis.StopManualLoggingCommand}"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Time Source Toggle -->
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <TextBlock Text="Use Controller Time:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                            <ToggleSwitch IsOn="{Binding SelectedAxis.UseControllerTime, Mode=TwoWay}" 
-                                          OnContent="Controller" 
-                                          OffContent="System"/>
+                        <!-- TIME SOURCE group -->
+                        <StackPanel>
+                            <TextBlock Text="Time Source" 
+                                       FontWeight="SemiBold" 
+                                       FontSize="16"
+                                       Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                <TextBlock Text="Use Controller Time:" 
+                                           Margin="0,0,5,0"
+                                           VerticalAlignment="Center"/>
+                                <ToggleSwitch IsOn="{Binding SelectedAxis.UseControllerTime, Mode=TwoWay}"
+                                              OnContent="Controller"
+                                              OffContent="System"/>
+                            </StackPanel>
                         </StackPanel>
+
+                        <!-- More settings can go here -->
                     </StackPanel>
-                </controls:Expander>
+                </ScrollViewer>
+            </TabViewItem>
 
-            </Grid>
-        </ScrollViewer>
-
+        </TabView>
     </Grid>
 </Page>
