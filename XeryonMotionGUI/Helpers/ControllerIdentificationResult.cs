@@ -120,7 +120,7 @@ namespace XeryonMotionGUI.Helpers
                 port.Write("INFO=0");
                 port.Write("POLI=25");
                 System.Threading.Thread.Sleep(100);
-                port.ReadTimeout = 500;
+                port.ReadTimeout = 200;
 
                 // --- Read AXES response ---
                 sw.Restart();

@@ -14,6 +14,8 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
 using Newtonsoft.Json.Linq;
+using XeryonMotionGUI.Helpers;
+using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
 namespace XeryonMotionGUI.Classes
 {
@@ -310,7 +312,6 @@ namespace XeryonMotionGUI.Classes
         #region Command Properties
 
         // Command for Reconnect
-        public ICommand ReconnectCommand => new RelayCommand(Reconnect);
 
         // Command for opening/closing port
         public ICommand OpenPortCommand
@@ -383,41 +384,40 @@ namespace XeryonMotionGUI.Classes
         #endregion
 
         #region Connection Methods
-        private void Reconnect()
-        {
-            try
-            {
-                // Attempt to reconnect the controller
-                Port.Open();
-                IsConnected = true; // Mark as connected
-                Debug.WriteLine($"Reconnected to port {Port.PortName}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to reconnect: {ex.Message}");
-            }
-        }
 
         public void Disconnect()
         {
+            Debug.WriteLine("Trying to close controller");
             try
             {
-                if (Port != null && Port.IsOpen)
-                {
-                    Port.DataReceived -= DataReceivedHandler;
-                    Port.Close();
-                    Debug.WriteLine($"Port {Port.PortName} closed.");
-                }
+                Port.DataReceived -= DataReceivedHandler; // Remove event handler
+                Port.DiscardInBuffer();
+                Port.DiscardOutBuffer();
+                Port.Close();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"Error closing port {Port?.PortName}: {ex.Message}");
+                throw;
             }
             finally
             {
-                Running = false; // Safely notify UI of the state change
+                Running = false;
+                Status = "Connect";
                 UpdateRunningControllers();
+                Debug.WriteLine("Controller Disconnected");
             }
+        }
+
+        public void ReconnectController()
+        {
+
+                Disconnect();
+           
+
+            // Now reuse the same logic in OpenPort()
+            OpenPort();
+
+            // That’s it!
         }
 
         public void OpenPort()
@@ -427,6 +427,8 @@ namespace XeryonMotionGUI.Classes
                 if (!Running)
                 {
                     Port.Open();
+                    Port.DiscardOutBuffer();
+                    Port.DiscardInBuffer();
                     Port.BaudRate = 230400;
                     Port.ReadTimeout = 200;
                     Running = true;
@@ -474,21 +476,21 @@ namespace XeryonMotionGUI.Classes
         #region Data Handling
         private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
         {
-            var sp = (SerialPort)sender;
-            string receivedData = sp.ReadExisting(); // Read all available bytes at once
+                var sp = (SerialPort)sender;
+                string receivedData = sp.ReadExisting(); // Read all available bytes at once
 
-            if (!string.IsNullOrEmpty(receivedData))
-            {
-                // Get time as a double from stopwatch
-                double timeSeconds = _globalStopwatch.Elapsed.TotalSeconds;
-
-                // Process each line separately
-                string[] lines = receivedData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var line in lines)
+                if (!string.IsNullOrEmpty(receivedData))
                 {
-                    ParseLine(line, timeSeconds);
+                    // Get time as a double from stopwatch
+                    double timeSeconds = _globalStopwatch.Elapsed.TotalSeconds;
+
+                    // Process each line separately
+                    string[] lines = receivedData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines)
+                    {
+                        ParseLine(line, timeSeconds);
+                    }
                 }
-            }
         }
 
 
@@ -582,7 +584,7 @@ namespace XeryonMotionGUI.Classes
                         value = Math.Round(value * 1000000 / resolution, 0); // Convert and round
                         break;
                     case "CFRQ":
-                        value = value * 10;
+                        value = MassCfrqHelper.MassToCfrqSmooth(value);
                         break;
                     default:
                         break;
@@ -787,7 +789,8 @@ namespace XeryonMotionGUI.Classes
                                             convertedValue = Math.Round(rawValue / 1000000 * axis.Resolution, 3);
                                             break;
                                         case "CFRQ":
-                                            convertedValue = rawValue / 10; // Hz to kHz conversion.
+                                            double massApprox = MassCfrqHelper.CfrqToMassSmooth(rawValue);
+                                            convertedValue = massApprox;
                                             break;
                                         default:
                                             break;

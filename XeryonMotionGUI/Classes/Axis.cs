@@ -116,14 +116,52 @@ namespace XeryonMotionGUI.Classes
             Parameters.Clear();
 
             var newParameters = ParameterFactory.CreateParameters(ParentController.Type, axisType);
-
             foreach (var parameter in newParameters)
             {
+                parameter.ParentAxis = this;
+                parameter.ParentController = ParentController;
+                parameter.PropertyChanged += OnParameterPropertyChanged;
                 Parameters.Add(parameter);
             }
 
+            // 2) After creation, also do an initial check:
+            var freqParam = newParameters.FirstOrDefault(p => p.Command == "FREQ");
+            if (freqParam != null) FrequencyRangeHelper.UpdateFrequency(freqParam);
+
+            var frq2Param = newParameters.FirstOrDefault(p => p.Command == "FRQ2");
+            if (frq2Param != null) FrequencyRangeHelper.UpdateFrequency(frq2Param);
+
             OnPropertyChanged(nameof(Parameters));
         }
+
+        private void OnParameterPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(Parameter.Value))
+                return;
+
+            var param = (Parameter)sender;
+
+            // 1) If it's LLIM/HLIM, update Range:
+            if (param.Command == "HLIM" || param.Command == "LLIM")
+            {
+                var hlimParam = Parameters.FirstOrDefault(p => p.Command == "HLIM");
+                var llimParam = Parameters.FirstOrDefault(p => p.Command == "LLIM");
+                if (hlimParam == null || llimParam == null)
+                    return;
+
+                double hlim = hlimParam.Value;
+                double llim = llimParam.Value;
+                Range = hlim - llim;
+            }
+
+            // 2) If it's FREQ or FRQ2, update freq range:
+            if (param.Command == "FREQ" || param.Command == "FRQ2")
+            {
+                FrequencyRangeHelper.UpdateFrequency(param);
+            }
+        }
+
+
 
         #endregion
 
@@ -1342,8 +1380,9 @@ namespace XeryonMotionGUI.Classes
             get => _PositionReached;
             private set
             {
-                // Simply set to true only if both the incoming value and the tolerance check are true.
-                bool newValue = value;
+                // Force 'true' only if both 'value' is true AND we are within tolerance
+                bool newValue = value && IsWithinTolerance(DPOS);
+
                 if (_PositionReached != newValue)
                 {
                     _PositionReached = newValue;

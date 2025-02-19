@@ -93,55 +93,86 @@ namespace XeryonMotionGUI.Views
         {
             RefreshProgressBar.Visibility = Visibility.Visible;
             await Task.Delay(10);
+
+            // 1) Gather current enumerated COM ports
             string[] ports = SerialPort.GetPortNames();
 
-            // Remove non-running controllers.
-            for (int i = FoundControllers.Count - 1; i >= 0; i--)
+            // 2) (Optional) Mark running controllers as not running if their port is missing
+            // so that if the device was unplugged, next re-discovery triggers reconnect.
+            foreach (var ctrl in Controller.FoundControllers)
             {
-                if (!FoundControllers[i].Running)
+                if (ctrl.Running && !ports.Contains(ctrl.FriendlyPort))
                 {
-                    FoundControllers.RemoveAt(i);
+                    Debug.WriteLine($"Port {ctrl.FriendlyPort} no longer present => marking {ctrl.Name} as not running.");
+                    ctrl.Running = false;
+                    ctrl.Status = "Idle"; // Or "Unplugged," etc.
                 }
             }
 
+            // 3) Enumerate each port, try identifying
             foreach (var portName in ports)
             {
-                using (var port = new SerialPort(portName)
+                // We'll create a temp SerialPort to do the identification
+                using (var tempPort = new SerialPort(portName)
                 {
                     BaudRate = 115200,
-                    ReadTimeout = 500 // Adjust as needed.
+                    ReadTimeout = 200 // Adjust to taste
                 })
                 {
                     try
                     {
-                        port.Open();
+                        tempPort.Open();
 
-                        // Call the helper method.
-                        ControllerIdentificationResult idResult = ControllerIdentifier.GetControllerIdentificationResult(port);
+                        // Attempt to identify the controller on this port
+                        ControllerIdentificationResult idResult = ControllerIdentifier.GetControllerIdentificationResult(tempPort);
                         if (idResult.Type == ControllerType.Unknown)
                         {
                             Debug.WriteLine($"{portName} did not respond with a valid SRNO. Skipping.");
                             continue;
                         }
-                        Debug.WriteLine($"{portName} identified as {idResult.FriendlyName} with {idResult.AxisCount} axis.");
 
-                        // If no label was returned, assign default letters.
+                        Debug.WriteLine($"{portName} identified as {idResult.FriendlyName} with {idResult.AxisCount} axis/axes.");
+
+                        // If no label was returned, assign default letters
                         if (string.IsNullOrEmpty(idResult.Label))
                         {
                             if (idResult.AxisCount == 1)
                             {
-                                idResult.Label = ""; // For single-axis, no prefix.
+                                idResult.Label = ""; // single axis => no prefix
                             }
                             else
                             {
-                                idResult.Label = new string("ABCDEFGHIJKLMNOPQRSTUVWXYZ".Take(idResult.AxisCount).ToArray());
+                                // e.g. 'ABCD' for 4 axes
+                                idResult.Label = new string("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                                            .Take(idResult.AxisCount).ToArray());
                             }
                         }
 
-                        // Create the Controller instance.
+                        // Check if there's an existing controller for this port
+                        var existing = Controller.FoundControllers.FirstOrDefault(c => c.FriendlyPort == portName);
+                        if (existing != null)
+                        {
+                            if (!existing.Running)
+                            {
+                                // If we have it, but it's not running => do "auto reconnect"
+                                Debug.WriteLine($"Auto reconnecting to {portName}...");
+                                tempPort.Close(); // we won't need this tempPort now
+                                existing.ReconnectController();
+                                continue;
+                            }
+                            else
+                            {
+                                // If already running => skip
+                                Debug.WriteLine($"Skipping duplicate controller on {portName} (already running).");
+                                tempPort.Close();
+                                continue;
+                            }
+                        }
+
+                        // Otherwise, create a brand-new Controller
                         var controller = new Controller("DefaultController", idResult.AxisCount, idResult.FriendlyName)
                         {
-                            Port = port,
+                            Port = tempPort,
                             Type = idResult.FriendlyName,
                             Name = idResult.Name,
                             FriendlyPort = portName,
@@ -153,7 +184,7 @@ namespace XeryonMotionGUI.Views
                             Status = "Connect"
                         };
 
-                        // Create an Axis for each axis.
+                        // Create an Axis for each axis
                         controller.Axes = new ObservableCollection<Axis>();
                         for (int i = 0; i < idResult.AxisCount; i++)
                         {
@@ -163,21 +194,21 @@ namespace XeryonMotionGUI.Views
                             controller.Axes.Add(axis);
                         }
 
-                        // Refresh additional info from the controller.
-                        port.Write("INFO=1");
-                        port.Write("POLI=25");
+                        // (Optional) read a bit more info
+                        tempPort.Write("INFO=1");
+                        tempPort.Write("POLI=25");
                         await Task.Delay(100);
-                        var response = port.ReadExisting();
+                        var response = tempPort.ReadExisting();
                         response = string.Join("\n", response.Split('\n').TakeLast(120));
-                        Debug.WriteLine("Response from controller: " + response);
-                        port.Write("INFO=0");
+                        Debug.WriteLine("Response from controller on " + portName + ": " + response);
+                        tempPort.Write("INFO=0");
                         await Task.Delay(100);
-                        port.DiscardInBuffer();
+                        tempPort.DiscardInBuffer();
 
-                        // For each axis, use your AxisIdentifier helper to extract parameters.
+                        // For each axis, identify axis details
                         foreach (var axis in controller.Axes)
                         {
-                            var axisResult = Helpers.AxisIdentifier.IdentifyAxis(port, axis.AxisLetter, response);
+                            var axisResult = Helpers.AxisIdentifier.IdentifyAxis(tempPort, axis.AxisLetter, response);
                             axis.Name = axisResult.Name;
                             axis.Resolution = axisResult.Resolution;
                             axis.Type = axisResult.AxisType;
@@ -187,19 +218,37 @@ namespace XeryonMotionGUI.Views
                             axis.StepSize = axisResult.StepSize;
                         }
 
-                        port.Write("INFO=4");
-                        port.Close();
+                        tempPort.Write("INFO=4");
+                        tempPort.Close();
 
-                        FoundControllers.Add(controller);
+                        Controller.FoundControllers.Add(controller);
+                    }
+                    catch (FileNotFoundException ex)
+                    {
+                        // 4) Catch the "Could not find file 'COMx'" scenario
+                        Debug.WriteLine($"Error processing port {portName}: {ex.Message}");
+
+                        // If there's an existing running controller for 'portName', mark it as idle
+                        var existing = Controller.FoundControllers
+                            .FirstOrDefault(c => c.FriendlyPort == portName);
+                        if (existing != null && existing.Running)
+                        {
+                            existing.Running = false;
+                            existing.Status = "Idle"; // or "Unplugged"
+                            Debug.WriteLine($"Marked controller on {portName} as Idle due to FileNotFoundException.");
+                        }
                     }
                     catch (Exception ex)
                     {
+                        // Handle other errors (IO, Timeout, etc.)
                         Debug.WriteLine($"Error processing port {portName}: {ex.Message}");
                     }
                 }
             }
+
             RefreshProgressBar.Visibility = Visibility.Collapsed;
         }
+
 
         #endregion
 
