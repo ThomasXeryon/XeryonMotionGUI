@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace XeryonMotionGUI.Blocks
@@ -19,6 +20,11 @@ namespace XeryonMotionGUI.Blocks
             }
         }
 
+        public void SetDispatcherQueue(DispatcherQueue queue)
+        {
+            _dispatcherQueue = queue;
+        }
+
         public WaitBlock()
         {
             Text = "Wait";
@@ -32,9 +38,9 @@ namespace XeryonMotionGUI.Blocks
             Debug.WriteLine($"[WaitBlock] Waiting for {WaitTime} ms.");
 
             // Highlight the WaitBlock
-            if (this.UiElement != null)
+            if (this.UiElement != null && _dispatcherQueue != null)
             {
-                this.UiElement.HighlightBlock(true);
+                _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(true));
             }
 
             try
@@ -44,10 +50,9 @@ namespace XeryonMotionGUI.Blocks
             }
             finally
             {
-                // Remove the highlight
-                if (this.UiElement != null)
+                if (this.UiElement != null && _dispatcherQueue != null)
                 {
-                    this.UiElement.HighlightBlock(false);
+                    _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(false));
                 }
             }
 

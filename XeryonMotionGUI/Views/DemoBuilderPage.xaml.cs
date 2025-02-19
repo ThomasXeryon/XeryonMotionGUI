@@ -2,7 +2,7 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using System;
+using Microsoft.UI.Dispatching;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Collections.ObjectModel;
@@ -11,6 +11,8 @@ using XeryonMotionGUI.Classes;
 using XeryonMotionGUI.Blocks;
 using System.Threading;
 using System.ComponentModel;
+
+
 
 namespace XeryonMotionGUI.Views
 {
@@ -47,10 +49,15 @@ namespace XeryonMotionGUI.Views
             Canvas.SetLeft(GreenFlagBlock, 50);
             Canvas.SetTop(GreenFlagBlock, 10);
 
-            // Assign a StartBlock to the GreenFlagBlock
+            // Create the StartBlock
             GreenFlagBlock.Block = new StartBlock();
+
+            // ✔ IMPORTANT: Provide the DispatcherQueue so StartBlock can do UI updates
+            GreenFlagBlock.Block.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
+
             Debug.WriteLine("Assigned StartBlock to GreenFlagBlock.");
         }
+
 
         // Create palette blocks
         private void InitializeBlockPalette()
@@ -60,7 +67,7 @@ namespace XeryonMotionGUI.Views
                 // Create a DraggableElement for the palette
                 var block = new DraggableElement
                 {
-                    Block = BlockFactory.CreateBlock(blockType, this.RunningControllers), // Pass RunningControllers
+                    Block = BlockFactory.CreateBlock(blockType, this.RunningControllers, DispatcherQueue.GetForCurrentThread()), // Pass RunningControllers
                     Text = blockType,
                     Margin = new Thickness(10),
                     Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent)
@@ -88,13 +95,16 @@ namespace XeryonMotionGUI.Views
         {
             if (sender is DraggableElement paletteBlock)
             {
-                // 1. Create a brand-new block instance
-                var newBlockInstance = BlockFactory.CreateBlock(paletteBlock.Text, this.RunningControllers);
+                // 1) Create the new block
+                var newBlockInstance = BlockFactory.CreateBlock(paletteBlock.Text, this.RunningControllers, DispatcherQueue.GetForCurrentThread());
 
-                // 2. Clone it into a new DraggableElement
+                // 2) ✔ Provide the DispatcherQueue to the block
+                newBlockInstance.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
+
+                // 3) Create a DraggableElement to host it
                 _draggedBlock = new DraggableElement
                 {
-                    Block = newBlockInstance, // Assign the new block
+                    Block = newBlockInstance, // now it has a valid _dispatcherQueue
                     Text = paletteBlock.Text,
                     WorkspaceCanvas = WorkspaceCanvas,
                     SnapShadow = SnapShadow,
@@ -785,49 +795,46 @@ namespace XeryonMotionGUI.Views
         {
             Debug.WriteLine("Start button clicked. Executing block actions...");
 
-            // Disable Start Button and enable Stop Button
-            StartButton.IsEnabled = false;
-            StopButton.IsEnabled = true;
+            // UI update must be on the UI thread
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                StartButton.IsEnabled = false;
+                StopButton.IsEnabled = true;
+            });
 
-            // Initialize cancellation token
             _cancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = _cancellationTokenSource.Token;
             _isRunning = true;
 
             try
             {
-                // Execute the StartBlock first
-                if (GreenFlagBlock.Block != null)
+                await Task.Run(async () =>
                 {
-                    Debug.WriteLine("Executing StartBlock...");
-                    await GreenFlagBlock.Block.ExecuteAsync(cancellationToken);
-                }
-
-                // Traverse from the GreenFlag's NextBlock (logic chain)
-                var currentBlock = GreenFlagBlock.Block.NextBlock; // Use BlockBase references
-                while (currentBlock != null && !cancellationToken.IsCancellationRequested)
-                {
-                    Debug.WriteLine($"Executing block: {currentBlock.Text}");
-                    Debug.WriteLine($"Block '{currentBlock.Text}': PreviousBlock = {currentBlock.PreviousBlock?.Text ?? "null"}, NextBlock = {currentBlock.NextBlock?.Text ?? "null"}");
-
-                    // Highlight the block
-                    if (currentBlock.UiElement != null)
+                    var currentBlock = GreenFlagBlock.Block.NextBlock;
+                    while (currentBlock != null && !cancellationToken.IsCancellationRequested)
                     {
-                        currentBlock.UiElement.HighlightBlock(true);
+                        Debug.WriteLine($"Executing block: {currentBlock.Text}");
+
+                        // If the block has a UI element (DraggableElement), update it on the UI thread
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            if (currentBlock.UiElement != null)
+                                currentBlock.UiElement.HighlightBlock(true);
+                        });
+
+                        await currentBlock.ExecuteAsync(cancellationToken);
+
+                        // Remove highlight on the UI thread
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            if (currentBlock.UiElement != null)
+                                currentBlock.UiElement.HighlightBlock(false);
+                        });
+
+                        currentBlock = currentBlock.NextBlock;
                     }
+                });
 
-                    // Call the block's ExecuteAsync method
-                    await currentBlock.ExecuteAsync(cancellationToken);
-
-                    // Remove the highlight
-                    if (currentBlock.UiElement != null)
-                    {
-                        currentBlock.UiElement.HighlightBlock(false);
-                    }
-
-                    // Move to the next block in the chain
-                    currentBlock = currentBlock.NextBlock;
-                }
             }
             catch (Exception ex)
             {
@@ -835,13 +842,19 @@ namespace XeryonMotionGUI.Views
             }
             finally
             {
-                // Reset buttons after execution completes
-                StartButton.IsEnabled = true;
-                StopButton.IsEnabled = false;
+                // Ensure UI updates are done on the UI thread
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    StartButton.IsEnabled = true;
+                    StopButton.IsEnabled = false;
+                });
+
                 _isRunning = false;
                 _cancellationTokenSource = null;
             }
         }
+
+
 
         private void StopButton_Click(object sender, RoutedEventArgs e)
         {

@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.UI.Dispatching;
 using XeryonMotionGUI;
 using XeryonMotionGUI.Classes;
 
@@ -10,6 +11,14 @@ public abstract class BlockBase : INotifyPropertyChanged
     {
         get; set;
     } // Reference to the UI element
+
+    protected DispatcherQueue _dispatcherQueue;
+
+    // Provide a public method or property to set it
+    public void SetDispatcherQueue(DispatcherQueue queue)
+    {
+        _dispatcherQueue = queue;
+    }
 
 
     private Controller _selectedController;

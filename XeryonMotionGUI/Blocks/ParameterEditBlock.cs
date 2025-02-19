@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Microsoft.UI.Dispatching;
 using XeryonMotionGUI.Classes;
 
 public class ParameterEditBlock : BlockBase
@@ -52,6 +53,11 @@ public class ParameterEditBlock : BlockBase
         }
     }
 
+    public void SetDispatcherQueue(DispatcherQueue queue)
+    {
+        _dispatcherQueue = queue;
+    }
+
     public ParameterEditBlock()
     {
         Text = "Edit Parameter";
@@ -85,9 +91,9 @@ public class ParameterEditBlock : BlockBase
         Debug.WriteLine($"[ParameterEditBlock] Setting {SelectedParameter} to {ParameterValue} on {SelectedAxis.FriendlyName}.");
 
         // Highlight the block
-        if (this.UiElement != null)
+        if (this.UiElement != null && _dispatcherQueue != null)
         {
-            this.UiElement.HighlightBlock(true);
+            _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(true));
         }
 
         try
@@ -107,9 +113,9 @@ public class ParameterEditBlock : BlockBase
         finally
         {
             // Remove the highlight
-            if (this.UiElement != null)
+            if (this.UiElement != null && _dispatcherQueue != null)
             {
-                this.UiElement.HighlightBlock(false);
+                _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(false));
             }
         }
 

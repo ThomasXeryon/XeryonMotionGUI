@@ -15,7 +15,6 @@ namespace XeryonMotionGUI
 {
     public sealed partial class DraggableElement : UserControl, INotifyPropertyChanged
     {
-
         private Point _dragStartOffset;
         private bool _isDragging = false;
         private bool _isUpdatingPosition = false;
@@ -27,31 +26,36 @@ namespace XeryonMotionGUI
             this.PointerPressed += OnPointerPressed;
             this.SizeChanged += OnSizeChanged;
 
-            // Set minimum size for the block
+            // Minimum size for the block
             this.MinWidth = 150;
             this.MinHeight = 50;
         }
-        public event PropertyChangedEventHandler PropertyChanged;
 
+        // ---------------------- INotifyPropertyChanged ----------------------
+        public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            PropertyChanged?.Invoke(
+                this,
+                new PropertyChangedEventArgs(propertyName)
+            );
         }
 
+        // ---------------------- PositionChanged Event ----------------------
         public event EventHandler PositionChanged;
-
         private void NotifyPositionChanged()
         {
             PositionChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        // Dependency properties
+        // -------------------- RunningControllers DP (if needed) --------------------
         public static readonly DependencyProperty RunningControllersProperty =
                 DependencyProperty.Register(
                     nameof(RunningControllers),
                     typeof(ObservableCollection<Controller>),
                     typeof(DraggableElement),
-                    new PropertyMetadata(null));
+                    new PropertyMetadata(null)
+                );
 
         public ObservableCollection<Controller> RunningControllers
         {
@@ -63,6 +67,7 @@ namespace XeryonMotionGUI
             }
         }
 
+        // ---------------------- (Optional) Parameters property ----------------------
         private ObservableCollection<Parameter> _parameters;
         public ObservableCollection<Parameter> Parameters
         {
@@ -74,33 +79,69 @@ namespace XeryonMotionGUI
             }
         }
 
-        public static readonly DependencyProperty BlockProperty =
-            DependencyProperty.Register(
-                nameof(Block),
-                typeof(BlockBase),
-                typeof(DraggableElement),
-                new PropertyMetadata(null, OnBlockChanged));
+        // ---------------------- Was a DependencyProperty, now a plain property ----------------------
+        // Instead of a DP, we keep a simple C# property to avoid COMExceptions if read off the UI thread.
+        private BlockBase _block;
+        public BlockBase Block
+        {
+            get => _block;
+            set
+            {
+                if (_block != value)
+                {
+                    _block = value;
+                    OnPropertyChanged(nameof(Block));
 
+                    if (_block != null)
+                    {
+                        // 1) Sync DraggableElement.Text with Block.Text
+                        this.Text = _block.Text;
+
+                        // 2) Let the block know its UiElement is this DraggableElement
+                        _block.UiElement = this;
+
+                        // 3) Initialize the block's controller and axis
+                        _block.InitializeControllerAndAxis(this.RunningControllers);
+
+                        Debug.WriteLine(
+                            $"Block set: Text = {this.Text}, " +
+                            $"SelectedController = {_block.SelectedController?.FriendlyName}, " +
+                            $"SelectedAxis = {_block.SelectedAxis?.FriendlyName}"
+                        );
+                    }
+                }
+            }
+        }
+
+        // ---------------------- Text DP ----------------------
         public static readonly DependencyProperty TextProperty =
             DependencyProperty.Register(
                 nameof(Text),
                 typeof(string),
                 typeof(DraggableElement),
-                new PropertyMetadata(string.Empty, OnTextChanged));
+                new PropertyMetadata(string.Empty, OnTextChanged)
+            );
 
-        public static readonly DependencyProperty BackgroundProperty =
-    DependencyProperty.Register(
-        nameof(Background),
-        typeof(Brush),
-        typeof(DraggableElement),
-        new PropertyMetadata(new SolidColorBrush(Colors.Transparent)));
-
-        public Brush Background
+        public string Text
         {
-            get => (Brush)GetValue(BackgroundProperty);
-            set => SetValue(BackgroundProperty, value);
+            get => (string)GetValue(TextProperty);
+            set => SetValue(TextProperty, value);
         }
 
+        // If DraggableElement.Text changes and there's a Block, update the Block's text as well.
+        // (This is optional, depending on your scenario.)
+        private static void OnTextChanged(
+            DependencyObject d,
+            DependencyPropertyChangedEventArgs e
+        )
+        {
+            if (d is DraggableElement draggableElement && draggableElement._block != null)
+            {
+                draggableElement._block.Text = e.NewValue as string;
+            }
+        }
+
+        // ---------------------- Next/Previous Blocks (UI references) ----------------------
         private DraggableElement _previousBlock;
         public DraggableElement PreviousBlock
         {
@@ -110,10 +151,10 @@ namespace XeryonMotionGUI
                 if (_previousBlock != value)
                 {
                     _previousBlock = value;
-                    // Sync with BlockBase level
-                    if (Block != null)
+                    // Sync with the underlying Block if set
+                    if (_block != null)
                     {
-                        Block.PreviousBlock = value?.Block;
+                        _block.PreviousBlock = value?._block;
                     }
                 }
             }
@@ -128,30 +169,22 @@ namespace XeryonMotionGUI
                 if (_nextBlock != value)
                 {
                     _nextBlock = value;
-                    // Sync with BlockBase level
-                    if (Block != null)
+                    // Sync with the underlying Block
+                    if (_block != null)
                     {
-                        Block.NextBlock = value?.Block;
+                        _block.NextBlock = value?._block;
                     }
                 }
             }
-        }    // The block below this one
+        }
+
+        // The SnapShadow reference
         public DraggableElement SnapShadow
         {
             get; set;
-        }    // Reference to the snap shadow
-
-        public string Text
-        {
-            get => (string)GetValue(TextProperty);
-            set => SetValue(TextProperty, value);
         }
 
-        private void OnSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            // No need to call UpdateHeight anymore
-        }
-
+        // ---------------------- WorkspaceCanvas (to find pointer position) ----------------------
         private Canvas _workspaceCanvas;
         public Canvas WorkspaceCanvas
         {
@@ -159,50 +192,18 @@ namespace XeryonMotionGUI
             set
             {
                 _workspaceCanvas = value;
-                Debug.WriteLine($"WorkspaceCanvas set in DraggableElement: {_workspaceCanvas != null}");
+                Debug.WriteLine(
+                    $"WorkspaceCanvas set in DraggableElement: {_workspaceCanvas != null}"
+                );
             }
         }
 
-        private static void OnTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        // ---------------------- OnSizeChanged / OnPointer(Drag) events ----------------------
+        private void OnSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (d is DraggableElement draggableElement && draggableElement.Block != null)
-            {
-                draggableElement.Block.Text = e.NewValue as string; // Update the Block.Text property
-            }
+            // We’re ignoring changes in size
         }
 
-        public BlockBase Block
-        {
-            get => (BlockBase)GetValue(BlockProperty);
-            set
-            {
-                SetValue(BlockProperty, value);
-                OnPropertyChanged(nameof(Block));
-            }
-        }
-
-        private static void OnBlockChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            if (d is DraggableElement draggableElement)
-            {
-                var newBlock = e.NewValue as BlockBase;
-                if (newBlock != null)
-                {
-                    // Synchronize Block.Text with DraggableElement.Text
-                    draggableElement.Text = newBlock.Text;
-
-                    // Set the UiElement property of the block to this DraggableElement
-                    newBlock.UiElement = draggableElement;
-
-                    // Initialize the controller and axis
-                    newBlock.InitializeControllerAndAxis(draggableElement.RunningControllers);
-
-                    Debug.WriteLine($"Block set: Text = {draggableElement.Text}, SelectedController = {newBlock.SelectedController?.FriendlyName}, SelectedAxis = {newBlock.SelectedAxis?.FriendlyName}");
-                }
-            }
-        }
-
-        // Handles dragging behavior
         private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
         {
             if (WorkspaceCanvas == null)
@@ -235,14 +236,14 @@ namespace XeryonMotionGUI
                 double newLeft = currentPosition.X - _dragStartOffset.X;
                 double newTop = currentPosition.Y - _dragStartOffset.Y;
 
-                // Update the position of the dragged block
+                // Move the DraggableElement
                 Canvas.SetLeft(this, newLeft);
                 Canvas.SetTop(this, newTop);
 
-                this.NotifyPositionChanged();
+                // Notify
+                NotifyPositionChanged();
 
-
-                // Move all connected blocks below this one
+                // Move connected blocks below
                 MoveConnectedBlocks(this, newLeft, newTop);
             }
             finally
@@ -265,7 +266,7 @@ namespace XeryonMotionGUI
             WorkspaceCanvas.PointerReleased -= OnPointerReleased;
         }
 
-        // Snap to the nearest block below
+        // This method attempts to snap the current block to the SnapShadow’s position
         private void SnapToNearestBlock()
         {
             if (WorkspaceCanvas == null || SnapShadow == null)
@@ -274,28 +275,27 @@ namespace XeryonMotionGUI
                 return;
             }
 
-            // Only snap if the shadow is visible
+            // If shadow is not visible, no snap
             if (SnapShadow.Visibility != Visibility.Visible)
             {
                 Debug.WriteLine("No shadow visible. Block will not snap.");
                 return;
             }
 
-            // Calculate the target position for snapping (based on the shadow's position)
             double snapLeft = Canvas.GetLeft(SnapShadow);
             double snapTop = Canvas.GetTop(SnapShadow);
 
-            // Move the block to the shadow's position
+            // Move self to shadow’s position
             Canvas.SetLeft(this, snapLeft);
             Canvas.SetTop(this, snapTop);
 
-            // Update connections
+            // If we had a previous block, break that chain
             if (this.PreviousBlock != null)
             {
-                this.PreviousBlock.NextBlock = null; // Detach from previous block
+                this.PreviousBlock.NextBlock = null;
             }
 
-            // Find the block that corresponds to the shadow's position
+            // Look for a block to snap under
             foreach (var child in WorkspaceCanvas.Children)
             {
                 if (child is DraggableElement targetBlock &&
@@ -305,9 +305,11 @@ namespace XeryonMotionGUI
                     double targetLeft = Canvas.GetLeft(targetBlock);
                     double targetTop = Canvas.GetTop(targetBlock);
 
+                    // If we’re within SnapThreshold of the target
                     if (Math.Abs(snapLeft - targetLeft) < SnapThreshold &&
                         Math.Abs(snapTop - (targetTop + targetBlock.ActualHeight)) < SnapThreshold)
                     {
+                        // Snap to that block
                         this.PreviousBlock = targetBlock;
                         targetBlock.NextBlock = this;
                         Debug.WriteLine($"Block snapped to: {targetBlock.Text}");
@@ -316,11 +318,10 @@ namespace XeryonMotionGUI
                 }
             }
 
-            // Move all connected blocks below this one
+            // Move connected blocks below
             MoveConnectedBlocks(this, snapLeft, snapTop);
         }
 
-        // Move all connected blocks below this one
         private void MoveConnectedBlocks(DraggableElement block, double parentLeft, double parentTop)
         {
             if (block.NextBlock != null)
@@ -329,26 +330,16 @@ namespace XeryonMotionGUI
                 double nextLeft = parentLeft;
                 double nextTop = parentTop + block.ActualHeight;
 
-                // Update the position of the next block
                 Canvas.SetLeft(nextBlock, nextLeft);
                 Canvas.SetTop(nextBlock, nextTop);
                 nextBlock.NotifyPositionChanged();
 
-
-                // Recursively move blocks connected below
+                // Recurse
                 MoveConnectedBlocks(nextBlock, nextLeft, nextTop);
             }
         }
 
-        // Handle ComboBox size changes
-        private void ComboBox_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (sender is ComboBox comboBox)
-            {
-                Debug.WriteLine($"ComboBox size changed: Width = {e.NewSize.Width}, Height = {e.NewSize.Height}");
-            }
-        }
-
+        // Example highlight method
         public void HighlightBlock(bool isExecuting)
         {
             if (isExecuting)
@@ -358,8 +349,19 @@ namespace XeryonMotionGUI
             }
             else
             {
-                // Reset to the default background color
+                // Reset to transparent
                 this.Background = new SolidColorBrush(Colors.Transparent);
+            }
+        }
+
+        // Example: Handling combo box resizing in the block
+        private void ComboBox_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is ComboBox comboBox)
+            {
+                Debug.WriteLine(
+                    $"ComboBox size changed: Width = {e.NewSize.Width}, Height = {e.NewSize.Height}"
+                );
             }
         }
     }

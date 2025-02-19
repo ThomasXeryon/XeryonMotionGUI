@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 
 namespace XeryonMotionGUI.Blocks
 {
@@ -40,6 +41,11 @@ namespace XeryonMotionGUI.Blocks
                     OnPropertyChanged();
                 }
             }
+        }
+
+        public void SetDispatcherQueue(DispatcherQueue queue)
+        {
+            _dispatcherQueue = queue;
         }
 
         public int RepeatCount
@@ -118,18 +124,18 @@ namespace XeryonMotionGUI.Blocks
                     Debug.WriteLine($"[RepeatBlock] Executing block: {block.Text}");
 
                     // Highlight the block
-                    if (block.UiElement != null)
+                    if (this.UiElement != null && _dispatcherQueue != null)
                     {
-                        block.UiElement.HighlightBlock(true);
+                        _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(true));
                     }
 
                     // Call the block's ExecuteAsync method
                     await block.ExecuteAsync(cancellationToken);
 
                     // Remove the highlight
-                    if (block.UiElement != null)
+                    if (this.UiElement != null && _dispatcherQueue != null)
                     {
-                        block.UiElement.HighlightBlock(false);
+                        _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(false));
                     }
                 }
             }

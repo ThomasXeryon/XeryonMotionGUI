@@ -11,7 +11,6 @@ using Microsoft.UI.Xaml.Controls.Primitives; // For RangeBaseValueChangedEventAr
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
-using Windows.System;
 using WinRT.Interop; // For WindowNative, Win32Interop
 using Newtonsoft.Json.Linq;
 
@@ -135,7 +134,7 @@ namespace XeryonMotionGUI.Views
 
         private async void EPOSTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
         {
-            if (e.Key == VirtualKey.Enter)
+            if (e.Key == Windows.System.VirtualKey.Enter)
             {
                 var textBox = sender as TextBox;
                 if (textBox != null && double.TryParse(textBox.Text, out double displayValue))

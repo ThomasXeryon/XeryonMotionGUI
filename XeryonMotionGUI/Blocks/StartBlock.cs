@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 
 namespace XeryonMotionGUI.Blocks
 {
@@ -17,6 +18,11 @@ namespace XeryonMotionGUI.Blocks
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)
         {
             Debug.WriteLine("StartBlock executed. No action performed.");
+        }
+
+        public void SetDispatcherQueue(DispatcherQueue queue)
+        {
+            _dispatcherQueue = queue;
         }
     }
 }

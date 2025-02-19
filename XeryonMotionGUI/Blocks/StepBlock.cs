@@ -2,15 +2,13 @@
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
+using Microsoft.UI.Dispatching;
 
 namespace XeryonMotionGUI.Blocks
 {
     public class StepBlock : BlockBase
     {
-        private bool _isPositive = true; // Default direction (positive)
-        int StepSize = 50000;
-
+        private bool _isPositive = true;
         public bool IsPositive
         {
             get => _isPositive;
@@ -21,28 +19,35 @@ namespace XeryonMotionGUI.Blocks
             }
         }
 
+        public void SetDispatcherQueue(DispatcherQueue queue)
+        {
+            _dispatcherQueue = queue;
+        }
+
         public StepBlock()
         {
             Text = "Step";
             Width = 140;
             Height = 200;
-            RequiresAxis = true; // Requires an axis to operat
+            RequiresAxis = true;
         }
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)
         {
-            string direction = IsPositive ? "positive" : "negative";
-            Debug.WriteLine($"[StepBlock] Stepping {SelectedAxis.FriendlyName} in the {direction} direction.");
+            Debug.WriteLine($"[StepBlock] Stepping {SelectedAxis.FriendlyName} in the " +
+                            $"{(IsPositive ? "positive" : "negative")} direction.");
 
-            // Highlight the block
-            if (this.UiElement != null)
+            // 1) Highlight block on the UI thread
+            //    Make sure you have a reference to `_dispatcherQueue`.
+            if (this.UiElement != null && _dispatcherQueue != null)
             {
-                this.UiElement.HighlightBlock(true);
+                _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(true));
             }
 
             try
             {
-                // Await the step command so that the block stays highlighted until it finishes.
+                // 2) Execute the actual stepping (hardware command)
+                //    This part can run on any thread (background is fine).
                 if (IsPositive)
                 {
                     await SelectedAxis.TakeStep(SelectedAxis.StepSize);
@@ -54,15 +59,14 @@ namespace XeryonMotionGUI.Blocks
             }
             finally
             {
-                // Remove the highlight once the asynchronous step is complete.
-                if (this.UiElement != null)
+                // 3) Remove highlight on UI thread
+                if (this.UiElement != null && _dispatcherQueue != null)
                 {
-                    this.UiElement.HighlightBlock(false);
+                    _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(false));
                 }
             }
 
             Debug.WriteLine($"[StepBlock] Step completed.");
         }
-
     }
- }
+}

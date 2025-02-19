@@ -21,10 +21,10 @@ public static class FrequencyRangeHelper
             freqParam.Min = 80000;
             freqParam.Max = 90000;
         }
-        else
+        if (freqParam.Value >= 100000)
         {
             freqParam.Min = 160000;
-            freqParam.Max = 170000;
+            freqParam.Max = 175000;
         }
     }
 }

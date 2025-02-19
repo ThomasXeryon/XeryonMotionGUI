@@ -1,12 +1,27 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using Microsoft.UI.Dispatching;  // <-- Add this for DispatcherQueue
 using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI.Blocks
 {
     public static class BlockFactory
     {
-        public static BlockBase CreateBlock(string blockType, ObservableCollection<Controller> runningControllers)
+        /// <summary>
+        /// Creates a new block of the specified type and initializes it with the provided controllers,
+        /// optionally assigning a DispatcherQueue for UI updates.
+        /// </summary>
+        /// <param name="blockType">The string identifier for the block type, e.g. "Step", "Move", etc.</param>
+        /// <param name="runningControllers">A collection of controllers the block can reference.</param>
+        /// <param name="dispatcherQueue">
+        ///     An optional DispatcherQueue from the UI thread. 
+        ///     Passing this allows the new block to safely update UI elements without COM exceptions.
+        /// </param>
+        /// <returns>A fully initialized BlockBase instance.</returns>
+        public static BlockBase CreateBlock(
+            string blockType,
+            ObservableCollection<Controller> runningControllers,
+            DispatcherQueue dispatcherQueue = null)
         {
             BlockBase block = blockType switch
             {
@@ -23,8 +38,14 @@ namespace XeryonMotionGUI.Blocks
                 _ => throw new ArgumentException($"Unknown block type: {blockType}")
             };
 
-            // Initialize the controller and axi
+            // 1. Initialize the controller and axis
             block.InitializeControllerAndAxis(runningControllers);
+
+            // 2. Assign the DispatcherQueue if provided
+            if (dispatcherQueue != null)
+            {
+                block.SetDispatcherQueue(dispatcherQueue);
+            }
 
             return block;
         }

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Microsoft.UI.Dispatching;
 
 namespace XeryonMotionGUI.Blocks
 {
@@ -15,14 +16,19 @@ namespace XeryonMotionGUI.Blocks
             Height = 140;
         }
 
+        public void SetDispatcherQueue(DispatcherQueue queue)
+        {
+            _dispatcherQueue = queue;
+        }
+
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)
         {
             Debug.WriteLine($"[IndexBlock] Indexing {SelectedAxis.FriendlyName} in the {_direction} direction.");
 
             // Highlight the block
-            if (this.UiElement != null)
+            if (this.UiElement != null && _dispatcherQueue != null)
             {
-                this.UiElement.HighlightBlock(true);
+                _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(true));
             }
 
             try
@@ -44,9 +50,9 @@ namespace XeryonMotionGUI.Blocks
             finally
             {
                 // Remove the highlight
-                if (this.UiElement != null)
+                if (this.UiElement != null && _dispatcherQueue != null)
                 {
-                    this.UiElement.HighlightBlock(false);
+                    _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(false));
                 }
             }
 

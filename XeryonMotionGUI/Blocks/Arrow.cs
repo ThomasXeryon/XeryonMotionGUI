@@ -39,6 +39,8 @@ namespace XeryonMotionGUI.Classes
             };
         }
 
+
+
         /// <summary>
         /// Adds the arrow to the specified Canvas.
         /// </summary>

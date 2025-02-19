@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI.Blocks
@@ -21,6 +22,11 @@ namespace XeryonMotionGUI.Blocks
                 _IsStart = value;
                 OnPropertyChanged();
             }
+        }
+
+        public void SetDispatcherQueue(DispatcherQueue queue)
+        {
+            _dispatcherQueue = queue;
         }
 
         public LoggingBlock()

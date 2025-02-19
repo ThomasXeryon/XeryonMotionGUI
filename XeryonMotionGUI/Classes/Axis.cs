@@ -491,9 +491,9 @@ namespace XeryonMotionGUI.Classes
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public void SetDispatcherQueue(DispatcherQueue dispatcherQueue)
+        public void SetDispatcherQueue(DispatcherQueue disspatcherQueue)
         {
-            _dispatcherQueue = dispatcherQueue;
+            _dispatcherQueue = disspatcherQueue;
         }
 
         protected virtual void OnPropertyChanged(string propertyName)
@@ -2034,7 +2034,7 @@ namespace XeryonMotionGUI.Classes
             var pto2Param = Parameters.FirstOrDefault(p => p.Command == "PTO2");
             if (pto2Param != null)
             {
-                pto2 = pto2Param.Value;
+                pto2 = pto2Param.Value +1;
             }
             return (diff <= pto2);
         }
