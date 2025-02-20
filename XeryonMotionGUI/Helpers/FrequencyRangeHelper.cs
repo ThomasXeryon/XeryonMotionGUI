@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,17 +15,23 @@ public static class FrequencyRangeHelper
     /// </summary>
     public static void UpdateFrequency(Parameter freqParam)
     {
-        // If freq < 100,000 => Min=80k, Max=90k
-        // else => Min=160k, Max=170k
+        // Log the incoming value
+        Debug.WriteLine($"[UpdateFrequency] Called with freqParam.Value = {freqParam.Value}");
+
         if (freqParam.Value < 100000)
         {
             freqParam.Min = 80000;
             freqParam.Max = 90000;
+            Debug.WriteLine($"[UpdateFrequency] freqParam.Value < 100000 => setting Min=80000, Max=90000");
         }
-        if (freqParam.Value >= 100000)
+        else
         {
             freqParam.Min = 160000;
             freqParam.Max = 175000;
+            Debug.WriteLine($"[UpdateFrequency] freqParam.Value >= 100000 => setting Min=160000, Max=175000");
         }
+
+        // Log the final assigned range
+        Debug.WriteLine($"[UpdateFrequency] Final freqParam.Min={freqParam.Min}, freqParam.Max={freqParam.Max}");
     }
 }

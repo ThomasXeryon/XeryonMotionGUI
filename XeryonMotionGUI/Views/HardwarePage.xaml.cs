@@ -1,6 +1,8 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.Windows.AppNotifications;
+using Microsoft.Windows.AppNotifications.Builder;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -12,6 +14,11 @@ using Windows.Devices.Enumeration;
 using XeryonMotionGUI.Classes;
 using XeryonMotionGUI.Helpers;
 using Microsoft.UI.Xaml.Media.Animation;
+using XeryonMotionGUI.Contracts.Services;
+using CommunityToolkit.Mvvm.DependencyInjection;
+using Microsoft.Windows.AppNotifications.Builder;
+using Microsoft.Windows.AppNotifications;
+using XeryonMotionGUI.Services;
 
 namespace XeryonMotionGUI.Views
 {
@@ -19,13 +26,15 @@ namespace XeryonMotionGUI.Views
     {
         public ObservableCollection<Controller> FoundControllers => Controller.FoundControllers;
         private DeviceWatcher deviceWatcher;
+        private readonly IAppNotificationService _notificationService;
+
 
         public HardwarePage()
         {
             this.InitializeComponent();
             DataContext = this;
-            this.NavigationCacheMode = NavigationCacheMode.Required;
-            StartDeviceWatcher();
+            this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
+            //StartDeviceWatcher();
         }
 
         #region DeviceWatcher Setup
@@ -97,26 +106,24 @@ namespace XeryonMotionGUI.Views
             // 1) Gather current enumerated COM ports
             string[] ports = SerialPort.GetPortNames();
 
-            // 2) (Optional) Mark running controllers as not running if their port is missing
-            // so that if the device was unplugged, next re-discovery triggers reconnect.
+            // 2) Mark running controllers as not running if their port is missing
             foreach (var ctrl in Controller.FoundControllers)
             {
                 if (ctrl.Running && !ports.Contains(ctrl.FriendlyPort))
                 {
                     Debug.WriteLine($"Port {ctrl.FriendlyPort} no longer present => marking {ctrl.Name} as not running.");
                     ctrl.Running = false;
-                    ctrl.Status = "Idle"; // Or "Unplugged," etc.
+                    ctrl.Status = "Idle"; // or "Disconnected"
                 }
             }
 
             // 3) Enumerate each port, try identifying
             foreach (var portName in ports)
             {
-                // We'll create a temp SerialPort to do the identification
                 using (var tempPort = new SerialPort(portName)
                 {
                     BaudRate = 115200,
-                    ReadTimeout = 200 // Adjust to taste
+                    ReadTimeout = 200 // Adjust as needed
                 })
                 {
                     try
@@ -154,7 +161,7 @@ namespace XeryonMotionGUI.Views
                         {
                             if (!existing.Running)
                             {
-                                // If we have it, but it's not running => do "auto reconnect"
+                                // If we have it but it's not running => do auto reconnect
                                 Debug.WriteLine($"Auto reconnecting to {portName}...");
                                 tempPort.Close(); // we won't need this tempPort now
                                 existing.ReconnectController();
@@ -222,32 +229,69 @@ namespace XeryonMotionGUI.Views
                         tempPort.Close();
 
                         Controller.FoundControllers.Add(controller);
+                        // Suppose you just discovered a new controller: 
+                        //  - 'controller.FriendlyName' = "Xeryon Device"
+                        //  - 'controller.FriendlyPort' = "COM3"
+
+                        // 1) Build the XML string for the toast
+                        // Suppose 'controller.FriendlyPort' = "COM3" and 'controller.FriendlyName' = "XeryonDevice"
+                        string toastXml = $@"
+<toast>
+    <visual>
+        <binding template='ToastGeneric'>
+            <text>New Controller Found</text>
+            <text>Discovered {controller.FriendlyName} on port {controller.FriendlyPort}</text>
+        </binding>
+    </visual>
+    <actions>
+        <!-- The button to connect this controller -->
+        <action 
+            activationType='foreground' 
+            arguments='action=ConnectController&amp;port={controller.FriendlyPort}'
+            content='Connect' />
+    </actions>
+</toast>
+";
+
+                        // Show the toast
+                        App.GetService<IAppNotificationService>().Show(toastXml);
+
                     }
                     catch (FileNotFoundException ex)
                     {
-                        // 4) Catch the "Could not find file 'COMx'" scenario
                         Debug.WriteLine($"Error processing port {portName}: {ex.Message}");
 
-                        // If there's an existing running controller for 'portName', mark it as idle
                         var existing = Controller.FoundControllers
                             .FirstOrDefault(c => c.FriendlyPort == portName);
                         if (existing != null && existing.Running)
                         {
                             existing.Running = false;
-                            existing.Status = "Idle"; // or "Unplugged"
+                            existing.Status = "Idle";
                             Debug.WriteLine($"Marked controller on {portName} as Idle due to FileNotFoundException.");
                         }
                     }
                     catch (Exception ex)
                     {
-                        // Handle other errors (IO, Timeout, etc.)
                         Debug.WriteLine($"Error processing port {portName}: {ex.Message}");
                     }
                 }
             }
 
+            // 4) Now remove controllers whose port is *still* not found (and not running)
+            //    so they are cleared from FoundControllers entirely.
+            var toRemove = Controller.FoundControllers
+                .Where(ctrl => !ctrl.Running && !ports.Contains(ctrl.FriendlyPort))
+                .ToList();
+
+            foreach (var deadCtrl in toRemove)
+            {
+                Debug.WriteLine($"Removing controller {deadCtrl.Name} on {deadCtrl.FriendlyPort}, since port not present & not running.");
+                Controller.FoundControllers.Remove(deadCtrl);
+            }
+
             RefreshProgressBar.Visibility = Visibility.Collapsed;
         }
+
 
 
         #endregion
@@ -309,3 +353,7 @@ namespace XeryonMotionGUI.Views
         }
     }
 }
+
+
+
+

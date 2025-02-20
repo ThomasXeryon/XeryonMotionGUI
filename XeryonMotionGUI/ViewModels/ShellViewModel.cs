@@ -6,6 +6,8 @@ using Windows.Storage;
 
 using XeryonMotionGUI.Contracts.Services;
 using XeryonMotionGUI.Views;
+using System.Collections.ObjectModel;
+using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI.ViewModels;
 
@@ -22,6 +24,10 @@ public partial class ShellViewModel : ObservableRecipient
     [ObservableProperty]
     private object? selected;
 
+    public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
+
+    public bool HasRunningControllers => RunningControllers != null && RunningControllers.Any();
+
     public INavigationService NavigationService
     {
         get;
@@ -32,6 +38,8 @@ public partial class ShellViewModel : ObservableRecipient
         get;
     }
 
+
+
     public ShellViewModel(INavigationService navigationService, INavigationViewService navigationViewService)
     {
         // Load saved background color or set default
@@ -40,6 +48,15 @@ public partial class ShellViewModel : ObservableRecipient
         NavigationService = navigationService;
         NavigationService.Navigated += OnNavigated;
         NavigationViewService = navigationViewService;
+
+        if (RunningControllers != null)
+        {
+            RunningControllers.CollectionChanged += (s, e) =>
+            {
+                // Whenever the collection changes, notify that HasRunningControllers may have changed
+                OnPropertyChanged(nameof(HasRunningControllers));
+            };
+        }
     }
 
     private void OnNavigated(object sender, NavigationEventArgs e)

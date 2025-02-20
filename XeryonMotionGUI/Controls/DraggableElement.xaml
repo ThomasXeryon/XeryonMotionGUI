@@ -5,6 +5,7 @@
     xmlns:helpers="using:XeryonMotionGUI.Helpers"
     xmlns:local="using:XeryonMotionGUI"
     x:Name="DraggableElementRoot"
+    Background="Transparent"
     DataContext="{Binding RelativeSource={RelativeSource Self}}"
     Width="{Binding Block.Width, Mode=TwoWay}"
     Height="{Binding Block.Height, Mode=TwoWay}">
@@ -46,6 +47,26 @@
                     PlaceholderText="Select Axis"
                     Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" />
 
+                <!-- Step Size Input -->
+                <NumberBox
+                    Header="Step Size"
+                    Value="{Binding Block.StepSize, Mode=TwoWay}"
+                    Margin="0,5,0,5"
+                    SpinButtonPlacementMode="Compact"
+                    SmallChange="1"
+                    LargeChange="10"
+                    PlaceholderText="Enter step size"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step'}" />
+
+                <!-- Unit Selection -->
+                <ComboBox
+                    Header="Unit"
+                    ItemsSource="{Binding Block.AvailableUnits}"
+                    SelectedItem="{Binding Block.SelectedUnit, Mode=TwoWay}"
+                    Margin="0,5,0,5"
+                    PlaceholderText="Select Unit"
+                    Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step'}" />
+
                 <!-- ToggleSwitch for Direction (Step, Move, Scan) -->
                 <ToggleSwitch
                     Header="Direction"
@@ -69,7 +90,7 @@
                     Header="Wait time (ms)"
                     Value="{Binding Block.WaitTime, Mode=TwoWay}"
                     Margin="0,5,0,5"
-                    SpinButtonPlacementMode="Inline"
+                    SpinButtonPlacementMode="Compact"
                     SmallChange="100"
                     LargeChange="1000"
                     PlaceholderText="Enter wait time"
@@ -122,6 +143,7 @@
             Header="Value"
             Value="{Binding Block.ParameterValue, Mode=TwoWay}"
             Margin="0,5,0,5"
+            SpinButtonPlacementMode="Compact"
             PlaceholderText="Enter value" />
             </StackPanel>
         </Border>
@@ -146,7 +168,7 @@
                     Header="Repeat count"
                     Value="{Binding Block.RepeatCount, Mode=TwoWay}"
                     Margin="0,5,0,5"
-                    SpinButtonPlacementMode="Inline"
+                    SpinButtonPlacementMode="Compact"
                     SmallChange="1"
                     LargeChange="1"
                     PlaceholderText="Enter repeat times" />
@@ -156,7 +178,7 @@
                     Header="Blocks to repeat"
                     Value="{Binding Block.BlocksToRepeat, Mode=TwoWay}"
                     Margin="0,5,0,5"
-                    SpinButtonPlacementMode="Inline"
+                    SpinButtonPlacementMode="Compact"
                     SmallChange="1"
                     LargeChange="1"
                     PlaceholderText="Enter number of blocks" />

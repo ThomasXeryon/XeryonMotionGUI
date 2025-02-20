@@ -39,6 +39,8 @@ namespace XeryonMotionGUI.Classes
         private string _deviceSerial;
         private bool _isConnected;
         private bool _loadingSettings;
+        private Thread _dataHandlingThread;
+        private CancellationTokenSource _dataHandlingCts;
 
         private string _Status;
         private bool _running;
@@ -390,10 +392,13 @@ namespace XeryonMotionGUI.Classes
             Debug.WriteLine("Trying to close controller");
             try
             {
-                Port.DataReceived -= DataReceivedHandler; // Remove event handler
+                if (Port.IsOpen)
+                {
+                    Port.DataReceived -= DataReceivedHandler; // Remove event handler
                 Port.DiscardInBuffer();
                 Port.DiscardOutBuffer();
                 Port.Close();
+                }
             }
             catch (Exception)
             {

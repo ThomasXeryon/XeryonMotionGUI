@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Collections.Specialized; // For CollectionChanged
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Input;
@@ -7,6 +8,8 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
 using OxyPlot;
 using XeryonMotionGUI.Classes;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace XeryonMotionGUI.ViewModels
 {
@@ -18,20 +21,21 @@ namespace XeryonMotionGUI.ViewModels
         private string _infoBarMessage;
 
         private Axis _selectedAxis;
-        private Controller _selectedController;
         private readonly DispatcherQueue _dispatcherQueue;
 
         public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
 
-        // Property to bind the selected axis
+        // Optional convenience property (useful if you want to bind something to this in the UI)
+        public bool HasRunningControllers => RunningControllers != null && RunningControllers.Any();
+
         public Axis SelectedAxis
         {
             get => _selectedAxis;
             set
             {
-                if (_selectedAxis != value)
+                if (SetProperty(ref _selectedAxis, value))
                 {
-                    SetProperty(ref _selectedAxis, value);
+                    // Refresh command properties, PlotModel, etc.
                     OnPropertyChanged(nameof(PlotModel));
                     OnPropertyChanged(nameof(MoveNegativeCommand));
                     OnPropertyChanged(nameof(StepNegativeCommand));
@@ -46,14 +50,20 @@ namespace XeryonMotionGUI.ViewModels
                     OnPropertyChanged(nameof(ScanNegativeCommand));
                     OnPropertyChanged(nameof(IndexMinusCommand));
                     OnPropertyChanged(nameof(IndexPlusCommand));
+
+                    // If user picks an axis from another controller, keep them in sync
+                    if (_selectedAxis?.ParentController != null
+                        && _selectedAxis.ParentController != _selectedController)
+                    {
+                        SelectedController = _selectedAxis.ParentController;
+                    }
                 }
             }
         }
 
         public PlotModel PlotModel => SelectedAxis?.PlotModel;
 
-
-        // Property to bind the selected controller
+        private Controller _selectedController;
         public Controller SelectedController
         {
             get => _selectedController;
@@ -61,19 +71,23 @@ namespace XeryonMotionGUI.ViewModels
             {
                 if (SetProperty(ref _selectedController, value))
                 {
-                    // Notify changes for UI updates
-                    OnPropertyChanged(nameof(SelectedController));
-                    OnPropertyChanged(nameof(SelectedController.LoadingSettings));
-
-                    // Update SelectedAxis based on the new controller or clear it if none
-                    if (_selectedController?.Axes?.Count > 0)
+                    // Always pick first axis from the newly selected controller (if any),
+                    // unless the currently selected axis belongs to it
+                    if (_selectedController?.Axes?.Any() == true)
                     {
-                        SelectedAxis = _selectedController.Axes[0];
+                        if (SelectedAxis == null || SelectedAxis.ParentController != _selectedController)
+                        {
+                            SelectedAxis = _selectedController.Axes[0];
+                        }
                     }
                     else
                     {
                         SelectedAxis = null;
                     }
+
+                    // Optional UI notifications
+                    OnPropertyChanged(nameof(SelectedController));
+                    OnPropertyChanged(nameof(SelectedController.LoadingSettings));
                 }
             }
         }
@@ -93,8 +107,7 @@ namespace XeryonMotionGUI.ViewModels
             }
         }
 
-
-        // Expose the commands from the selected axis
+        // Expose the commands from the SelectedAxis
         public ICommand MoveNegativeCommand => SelectedAxis?.MoveNegativeCommand;
         public ICommand StepNegativeCommand => SelectedAxis?.StepNegativeCommand;
         public ICommand HomeCommand => SelectedAxis?.HomeCommand;
@@ -104,7 +117,6 @@ namespace XeryonMotionGUI.ViewModels
         public ICommand IndexCommand => SelectedAxis?.IndexCommand;
         public ICommand ResetCommand => SelectedAxis?.ResetCommand;
         public ICommand ResetEncoderCommand => SelectedAxis?.ResetEncoderCommand;
-
         public ICommand ScanPositiveCommand => SelectedAxis?.ScanPositiveCommand;
         public ICommand ScanNegativeCommand => SelectedAxis?.ScanNegativeCommand;
         public ICommand IndexMinusCommand => SelectedAxis?.IndexMinusCommand;
@@ -115,32 +127,47 @@ namespace XeryonMotionGUI.ViewModels
             // Initialize the DispatcherQueue to handle UI updates from other threads
             _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
+            // Listen for changes to RunningControllers so we can maintain the "first controller" selection
+            if (RunningControllers != null)
+            {
+                RunningControllers.CollectionChanged += (s, e) =>
+                {
+                    OnPropertyChanged(nameof(HasRunningControllers));
+                    ForceSelectFirstControllerAndAxis();
+                };
+            }
+
+            ForceSelectFirstControllerAndAxis();
+
+        }
+
+        private void OnRunningControllersChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(HasRunningControllers));
+            ForceSelectFirstControllerAndAxis();
+        }
+
+        private void ForceSelectFirstControllerAndAxis()
+        {
             if (RunningControllers?.Any() == true)
             {
                 SelectedController = RunningControllers.First();
-
-                // Select the first axis of the first controller if available
-                if (SelectedController.Axes?.Any() == true)
-                {
-                    SelectedAxis = SelectedController.Axes.First();
-                }
+                // The SelectedController setter automatically picks its first axis
+            }
+            else
+            {
+                SelectedController = null;
+                SelectedAxis = null;
             }
         }
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
 
-        // Suppose your view model has a property called Controllers, 
-        // each with an Axes collection. Combine them into a single list:
+        // If you need this for some UI binding:
         public IReadOnlyList<Axis> AllAxes
         {
             get
             {
-                // If RunningControllers is null or empty, return empty.
                 if (RunningControllers == null || RunningControllers.Count == 0)
-                    return Array.Empty<Axis>();
+                    return System.Array.Empty<Axis>();
 
                 var axisList = new List<Axis>();
                 foreach (var controller in RunningControllers)
@@ -152,7 +179,13 @@ namespace XeryonMotionGUI.ViewModels
             }
         }
 
+        // InfoBar & logging or other logic
 
-
+        // For INotifyPropertyChanged
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 }

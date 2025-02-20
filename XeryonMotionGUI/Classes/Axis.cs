@@ -124,16 +124,10 @@ namespace XeryonMotionGUI.Classes
                 Parameters.Add(parameter);
             }
 
-            // 2) After creation, also do an initial check:
-            var freqParam = newParameters.FirstOrDefault(p => p.Command == "FREQ");
-            if (freqParam != null) FrequencyRangeHelper.UpdateFrequency(freqParam);
-
-            var frq2Param = newParameters.FirstOrDefault(p => p.Command == "FRQ2");
-            if (frq2Param != null) FrequencyRangeHelper.UpdateFrequency(frq2Param);
+            // Do NOT call UpdateFrequency here anymore.
 
             OnPropertyChanged(nameof(Parameters));
         }
-
         private void OnParameterPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName != nameof(Parameter.Value))
@@ -197,27 +191,41 @@ namespace XeryonMotionGUI.Classes
 
         #region Plot Update Method
 
-        private void UpdatePlotFromQueue(object sender, object e)
+        // In your Axis (or wherever it lives):
+        private async Task UpdatePlotFromQueueAsync(object sender, object e)
         {
-            List<(double EPOS, double SyncTime)> pointsToPlot = new List<(double, double)>();
+            // 1) Collect points from the concurrent queue
+            var pointsToPlot = new List<(double EPOS, double SyncTime)>();
             while (_dataQueue.TryDequeue(out var point))
             {
                 pointsToPlot.Add(point);
             }
 
-            _dispatcherQueue.TryEnqueue(() =>
+            // 2) We want to update the chart on the DispatcherQueue and await until it's finished.
+            //    We'll use a TaskCompletionSource to signal completion.
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            _dispatcherQueue.TryEnqueue(async () =>
             {
-                foreach (var point in pointsToPlot)
+                // This code runs on the UI thread:
+                foreach (var p in pointsToPlot)
                 {
                     // Compute relative time: subtract the baseline.
-                    double relativeTime = point.SyncTime - _startSyncTime;
-                    _positionSeries.Points.Add(new DataPoint(relativeTime, point.EPOS));
+                    double relativeTime = p.SyncTime - _startSyncTime;
+                    _positionSeries.Points.Add(new OxyPlot.DataPoint(relativeTime, p.EPOS));
                 }
 
-                AdjustAxesBasedOnData();
+                await AdjustAxesBasedOnDataAsync();
                 _plotModel.InvalidatePlot(true);
+
+                // Once we’ve finished updating the UI/plot, signal the TCS
+                tcs.SetResult(true);
             });
+
+            // 3) Wait until the UI update is done
+            await tcs.Task;
         }
+
 
         public ICommand StartManualLoggingCommand => new RelayCommand(() => StartManualLogging());
         public ICommand StopManualLoggingCommand => new RelayCommand(() => StopManualLogging());
@@ -240,59 +248,79 @@ namespace XeryonMotionGUI.Classes
         }
 
 
-        private void AdjustAxesBasedOnData()
+        private async Task AdjustAxesBasedOnDataAsync()
         {
-            if (_positionSeries.Points.Count == 0)
-                return;
+            // We'll use a TaskCompletionSource to await the end of the UI work.
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            var xAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom) as LinearAxis;
-            var yAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left) as LinearAxis;
-            if (xAxis == null || yAxis == null)
-                return;
-
-            double minTime = _positionSeries.Points.Min(p => p.X);
-            double maxTime = _positionSeries.Points.Max(p => p.X);
-            double minEpos = _positionSeries.Points.Min(p => p.Y);
-            double maxEpos = _positionSeries.Points.Max(p => p.Y);
-
-            // Force time to start at zero
-            if (minTime < 0)
-                minTime = 0;
-
-            // If there's no range in time, give at least 1 second
-            if (maxTime <= minTime)
-                maxTime = minTime + 1.0;
-
-            xAxis.Minimum = minTime;
-            xAxis.Maximum = maxTime;
-
-            double eposRange = maxEpos - minEpos;
-            if (eposRange < 1e-6)
+            _dispatcherQueue.TryEnqueue(() =>
             {
-                // If all EPOS values are nearly identical
-                minEpos -= 0.5;
-                maxEpos += 0.5;
-            }
-            else
-            {
-                // 5% padding
-                double padding = eposRange * 0.05;
-                minEpos -= padding;
-                maxEpos += padding;
-            }
+                // Synchronous logic, but we are now on the UI thread.
+                if (_positionSeries.Points.Count == 0)
+                {
+                    tcs.SetResult(true);
+                    return;
+                }
 
-            yAxis.Minimum = minEpos;
-            yAxis.Maximum = maxEpos;
+                var xAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom) as LinearAxis;
+                var yAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left) as LinearAxis;
+                if (xAxis == null || yAxis == null)
+                {
+                    tcs.SetResult(true);
+                    return;
+                }
 
-            var xxAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom);
-            var yyAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left);
+                double minTime = _positionSeries.Points.Min(p => p.X);
+                double maxTime = _positionSeries.Points.Max(p => p.X);
+                double minEpos = _positionSeries.Points.Min(p => p.Y);
+                double maxEpos = _positionSeries.Points.Max(p => p.Y);
 
-            if (xxAxis != null && yyAxis != null)
-            {
-                xxAxis.Reset();
-                yyAxis.Reset();
-            }
+                // Force time to start at zero
+                if (minTime < 0)
+                    minTime = 0;
+
+                // If there's no range in time, give at least 1 second
+                if (maxTime <= minTime)
+                    maxTime = minTime + 1.0;
+
+                xAxis.Minimum = minTime;
+                xAxis.Maximum = maxTime;
+
+                double eposRange = maxEpos - minEpos;
+                if (eposRange < 1e-6)
+                {
+                    // If all EPOS values are nearly identical
+                    minEpos -= 0.5;
+                    maxEpos += 0.5;
+                }
+                else
+                {
+                    // 5% padding
+                    double padding = eposRange * 0.05;
+                    minEpos -= padding;
+                    maxEpos += padding;
+                }
+
+                yAxis.Minimum = minEpos;
+                yAxis.Maximum = maxEpos;
+
+                var xxAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom);
+                var yyAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left);
+
+                if (xxAxis != null && yyAxis != null)
+                {
+                    xxAxis.Reset();
+                    yyAxis.Reset();
+                }
+
+                // Once we’ve finished the synchronous logic, let the caller know.
+                tcs.SetResult(true);
+            });
+
+            // Finally, await the TCS to block until the UI update is done
+            await tcs.Task;
         }
+
 
 
         #region Plot Initialization
@@ -1848,7 +1876,7 @@ namespace XeryonMotionGUI.Classes
 
         public void StepNegative()
         {
-            TakeStep(-StepSize);
+            TakeStep(-StepSize, SelectedUnit, Resolution);
         }
 
         public async void Home()
@@ -1859,7 +1887,7 @@ namespace XeryonMotionGUI.Classes
 
         public void StepPositive()
         {
-            TakeStep(StepSize);
+            TakeStep(StepSize, SelectedUnit, Resolution);
         }
 
         public void Stop()
@@ -1958,7 +1986,7 @@ namespace XeryonMotionGUI.Classes
             ParentController.SendCommand($"DPOS={value}", AxisLetter);
 
             // If the current encoder position is already within tolerance, finish immediately.
-            if (IsWithinTolerance(value) && PositionReached)
+            if (PositionReached && IsWithinTolerance(value))
             {
                 var duration = DateTime.Now - commandSentTime;
                 Debug.WriteLine($"SetDPOS executed in {duration.TotalMilliseconds} ms (immediate).");
@@ -1969,15 +1997,15 @@ namespace XeryonMotionGUI.Classes
             // Otherwise, wait until the property changes and the axis reaches the target.
             var tcs = new TaskCompletionSource<bool>();
             PropertyChangedEventHandler handler = null;
-            handler = (sender, args) =>
+            handler = async (sender, args) =>
             {
-                if (IsWithinTolerance(value) && PositionReached)
+                if (PositionReached && IsWithinTolerance(value))
                 {
                     this.PropertyChanged -= handler;
                     var duration = DateTime.Now - commandSentTime;
                     Debug.WriteLine($"SetDPOS executed in {duration.TotalMilliseconds} ms.");
                     CommandToPositionReachedDelayValue = duration;
-                    UpdatePlotFromQueue(null, null);
+                    await UpdatePlotFromQueueAsync(null, null);
                     SPEED = 0;
                     if (AutoLogging)
                     {
@@ -1991,13 +2019,28 @@ namespace XeryonMotionGUI.Classes
         }
 
 
-        public async Task TakeStep(double value)
+        public async Task TakeStep(double stepValue, Units stepUnit, double stepResolution)
         {
-            // Convert the step value (in the selected unit) to encoder units
-            double stepEnc = UnitConversion.ToEncoder(value, SelectedUnit, Resolution);
-            DPOS += stepEnc;
+            // 1) Convert the step from (stepValue in stepUnit) to encoder counts.
+            double stepEnc = UnitConversion.ToEncoder(stepValue, stepUnit, stepResolution);
+
+            // 2) If we're NOT within tolerance of the old DPOS, jump from current EPOS;
+            //    otherwise, increment from old DPOS.
+            if (!IsWithinTolerance(DPOS))
+            {
+                // Jump from EPOS.
+                DPOS = EPOS + stepEnc;
+            }
+            else
+            {
+                // Increment from old DPOS.
+                DPOS += stepEnc;
+            }
+
+            // 3) Actually move the axis to the new DPOS value (already in counts).
             await SetDPOS(DPOS);
         }
+
 
         #endregion
 

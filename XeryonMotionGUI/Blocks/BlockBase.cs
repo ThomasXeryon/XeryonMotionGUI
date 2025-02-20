@@ -77,7 +77,7 @@ public abstract class BlockBase : INotifyPropertyChanged
 
     public bool RequiresAxis { get; protected set; } = true; // Default to true, override in child classes if not needed
 
-    public Axis SelectedAxis
+    public virtual Axis SelectedAxis
     {
         get; set;
     }

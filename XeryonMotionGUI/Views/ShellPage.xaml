@@ -32,7 +32,7 @@
             IsBackEnabled="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}"
             SelectedItem="{x:Bind ViewModel.Selected, Mode=OneWay}"
             IsSettingsVisible="True"
-            ExpandedModeThresholdWidth="1450"
+            ExpandedModeThresholdWidth="1500"
             DisplayModeChanged="NavigationViewControl_DisplayModeChanged"
             Header="{x:Bind ((ContentControl)ViewModel.Selected).Content, Mode=OneWay}">
             <NavigationView.MenuItems>
@@ -46,17 +46,25 @@
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xe990;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Uid="Shell_Parameters" helpers:NavigationHelper.NavigateTo="XeryonMotionGUI.ViewModels.ParametersViewModel">
+                <NavigationViewItem x:Uid="Shell_Parameters"
+                            helpers:NavigationHelper.NavigateTo="XeryonMotionGUI.ViewModels.ParametersViewModel"
+                            IsEnabled="{x:Bind ViewModel.HasRunningControllers, Mode=OneWay}">
                     <NavigationViewItem.Icon>
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xec4a;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Uid="Shell_Motion" helpers:NavigationHelper.NavigateTo="XeryonMotionGUI.ViewModels.MotionViewModel">
+
+                <NavigationViewItem x:Uid="Shell_Motion"
+                            helpers:NavigationHelper.NavigateTo="XeryonMotionGUI.ViewModels.MotionViewModel"
+                            IsEnabled="{x:Bind ViewModel.HasRunningControllers, Mode=OneWay}">
                     <NavigationViewItem.Icon>
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xe7c2;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Uid="Shell_DemoBuilder" helpers:NavigationHelper.NavigateTo="XeryonMotionGUI.ViewModels.DemoBuilderViewModel">
+
+                <NavigationViewItem x:Uid="Shell_DemoBuilder"
+                            helpers:NavigationHelper.NavigateTo="XeryonMotionGUI.ViewModels.DemoBuilderViewModel"
+                            IsEnabled="{x:Bind ViewModel.HasRunningControllers, Mode=OneWay}">
                     <NavigationViewItem.Icon>
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE943;"/>
                     </NavigationViewItem.Icon>

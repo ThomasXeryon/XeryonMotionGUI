@@ -330,6 +330,7 @@
                                     Width="70"/>
                             <controls:NumberBox Value="{Binding SelectedAxis.StepSize, Mode=TwoWay}"
                                                 Width="70"
+                                                MinWidth="70"
                                                 SpinButtonPlacementMode="Compact"
                                                 Minimum="0"/>
                             <Button Content="Step +"
