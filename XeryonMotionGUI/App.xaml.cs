@@ -64,7 +64,6 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
-        //StartDeviceWatcher();
 
         Host = Microsoft.Extensions.Hosting.Host.
         CreateDefaultBuilder().
@@ -136,6 +135,8 @@ public partial class App : Application
 
         // 2) Attempt to set real-time priority
         TrySetRealTimePriority();
+        StartDeviceWatcher();
+
     }
 
     private void TrySetRealTimePriority()
