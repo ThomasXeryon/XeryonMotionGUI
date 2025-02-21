@@ -13,11 +13,14 @@ using System.Threading;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using XeryonMotionGUI.Helpers;
 
 namespace XeryonMotionGUI.Views
 {
     public sealed partial class DemoBuilderPage : Page
     {
+        private StatsAggregator _statsAggregator;
+
         private CancellationTokenSource _executionCts;
         private bool _isRunning = false;
         private const double SnapThreshold = 30.0;
@@ -25,8 +28,13 @@ namespace XeryonMotionGUI.Views
         private DraggableElement _draggedBlock;
         private Point _dragStartOffset;
 
+
+
         public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
         private Dictionary<RepeatBlock, Arrow> _repeatArrows = new Dictionary<RepeatBlock, Arrow>();
+
+        public Dictionary<string, DeviationStats> _stepDeviationDictionary = new Dictionary<string, DeviationStats>();
+
 
         private readonly List<string> BlockTypes = new()
         {
@@ -35,10 +43,12 @@ namespace XeryonMotionGUI.Views
 
         public DemoBuilderPage()
         {
+            PageLocator.CurrentDemoBuilderPage = this;
             this.InitializeComponent();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
             InitializeGreenFlag();
             InitializeBlockPalette();
+            _statsAggregator = new StatsAggregator();
         }
 
         // Initialize the GreenFlagBlock
@@ -577,28 +587,62 @@ namespace XeryonMotionGUI.Views
         }
 
         // Start execution
+        private Dictionary<string, BlockExecutionStat> _blockStats;
+        private Stopwatch _executionStopwatch;
+
         private async void StartButton_Click(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("Start button clicked. Executing block actions...");
-
+            // UI toggles
             StartButton.IsEnabled = false;
             StopButton.IsEnabled = true;
 
+            // Reset execution state and stats before starting a new run.
             _executionCts = new CancellationTokenSource();
             _isRunning = true;
+            _executionStopwatch = Stopwatch.StartNew();
+            double singleLongestMs = 0.0;
+
+            // Reinitialize our stat dictionaries to clear any previous run's data.
+            _statsAggregator = new StatsAggregator();
+            _blockStats = new Dictionary<string, BlockExecutionStat>(StringComparer.OrdinalIgnoreCase);
+            _stepDeviationDictionary = new Dictionary<string, DeviationStats>();  // Reset step deviation stats
+
+            // Assign the new aggregator to all blocks (top-level and children)
+            AssignStatsToAllBlocks(GreenFlagBlock.Block, _statsAggregator);
 
             try
             {
-                var currentBlock = GreenFlagBlock.Block.NextBlock;
+                // Use ONE aggregator for the entire run
+                _statsAggregator = new StatsAggregator();
+                AssignStatsToAllBlocks(GreenFlagBlock.Block, _statsAggregator);
 
+                var currentBlock = GreenFlagBlock.Block.NextBlock;
                 while (currentBlock != null && !_executionCts.Token.IsCancellationRequested)
                 {
-                    var blockToProcess = currentBlock;
-                    Debug.WriteLine($"Executing block: {blockToProcess.Text}");
+                    // 1) Time the block, no matter what type it is
+                    var sw = Stopwatch.StartNew();
 
-                    await blockToProcess.ExecuteAsync(_executionCts.Token);
+                    // 2) Execute the block
+                    await currentBlock.ExecuteAsync(_executionCts.Token);
 
-                    currentBlock = blockToProcess.NextBlock;
+                    sw.Stop();
+                    double thisBlockMs = sw.Elapsed.TotalMilliseconds;
+
+                    // 3) Record top-level time in _blockStats
+                    string blockType = currentBlock.Text ?? "Unknown";
+                    if (!_blockStats.ContainsKey(blockType))
+                    {
+                        _blockStats[blockType] = new BlockExecutionStat { BlockType = blockType };
+                    }
+
+                    var stat = _blockStats[blockType];
+                    stat.Count++;
+                    stat.TotalMs += thisBlockMs;
+                    if (thisBlockMs < stat.MinMs) stat.MinMs = thisBlockMs;
+                    if (thisBlockMs > stat.MaxMs) stat.MaxMs = thisBlockMs;
+
+                    // 4) Move to the next block
+                    currentBlock = currentBlock.NextBlock;
                 }
             }
             catch (OperationCanceledException)
@@ -611,6 +655,7 @@ namespace XeryonMotionGUI.Views
             }
             finally
             {
+                _executionStopwatch.Stop();
                 _isRunning = false;
                 _executionCts.Dispose();
                 _executionCts = null;
@@ -620,8 +665,200 @@ namespace XeryonMotionGUI.Views
                     StartButton.IsEnabled = true;
                     StopButton.IsEnabled = false;
                 });
+
+                // Show final summary
+                ShowFinalSummary(singleLongestMs);
             }
         }
+
+
+        private void AssignStatsToAllBlocks(BlockBase start, IStatsAggregator aggregator)
+        {
+            var visited = new HashSet<BlockBase>();
+            var queue = new Queue<BlockBase>();
+            queue.Enqueue(start);
+
+            while (queue.Count > 0)
+            {
+                var b = queue.Dequeue();
+                if (b == null || visited.Contains(b)) continue;
+
+                b.Stats = aggregator;
+                visited.Add(b);
+
+                // Also push b.PreviousBlock, b.NextBlock, etc.
+                queue.Enqueue(b.PreviousBlock);
+                queue.Enqueue(b.NextBlock);
+            }
+        }
+
+        private async void ShowFinalSummary(double singleLongestMs)
+        {
+            // == 1) Gather aggregator stats (all steps, including repeats) ==
+            var allStats = _statsAggregator.GetStats();  // from all executed blocks
+            double totalProgramMs = _executionStopwatch?.Elapsed.TotalMilliseconds ?? 0.0;
+            int allBlocksExecuted = allStats.Sum(kvp => kvp.Value.Count);
+            double totalAllMs = allStats.Sum(kvp => kvp.Value.TotalMs);
+            double overallAvgMs = (allBlocksExecuted == 0) ? 0.0 : (totalAllMs / allBlocksExecuted);
+
+            var slowestAll = allStats.Values.OrderByDescending(s => s.AverageMs).FirstOrDefault();
+            var fastestAll = allStats.Values.OrderBy(s => s.AverageMs).FirstOrDefault();
+
+            // == 2) Gather top-level stats (primary loop blocks only) ==
+            double totalTopMs = _blockStats.Sum(kvp => kvp.Value.TotalMs);
+            int topLevelBlocksExecuted = _blockStats.Sum(kvp => kvp.Value.Count);
+            double overallTopAvg = (topLevelBlocksExecuted == 0) ? 0.0 : (totalTopMs / topLevelBlocksExecuted);
+
+            var slowestTop = _blockStats.Values.OrderByDescending(s => s.AverageMs).FirstOrDefault();
+            var fastestTop = _blockStats.Values.OrderBy(s => s.AverageMs).FirstOrDefault();
+
+            // == 3) Build the main report ==
+            var msg = new System.Text.StringBuilder();
+            msg.AppendLine("========== PROGRAM FINISHED ==========\n");
+            msg.AppendLine($"• Total Program Time: {totalProgramMs:F2} ms  ({(totalProgramMs / 1000.0):F2} s)");
+            msg.AppendLine($"• Single Longest Block Execution: {singleLongestMs:F2} ms");
+            msg.AppendLine();
+
+            // --- 3A) Aggregator-based (ALL) stats ---
+            msg.AppendLine("=== ALL BLOCKS (including repeats) ===");
+            msg.AppendLine($"  - Total Blocks Executed (allStats): {allBlocksExecuted}");
+            msg.AppendLine($"  - Overall Avg Time per Block: {overallAvgMs:F2} ms\n");
+
+            if (slowestAll != null && slowestAll.Count > 0)
+            {
+                msg.AppendLine($"  - Slowest (avg): {slowestAll.BlockType}");
+                msg.AppendLine($"     Count: {slowestAll.Count},  Avg: {slowestAll.AverageMs:F2} ms");
+                msg.AppendLine($"     Min: {slowestAll.MinMs:F2}, Max: {slowestAll.MaxMs:F2}\n");
+            }
+            if (fastestAll != null && fastestAll.Count > 0)
+            {
+                msg.AppendLine($"  - Fastest (avg): {fastestAll.BlockType}");
+                msg.AppendLine($"     Count: {fastestAll.Count},  Avg: {fastestAll.AverageMs:F2} ms");
+                msg.AppendLine($"     Min: {fastestAll.MinMs:F2}, Max: {fastestAll.MaxMs:F2}\n");
+            }
+
+            msg.AppendLine("--- Detailed Aggregator Breakdown ---");
+            foreach (var kvp in allStats.OrderBy(k => k.Key))
+            {
+                var s = kvp.Value;
+                double pct = (totalAllMs > 0.0) ? ((s.TotalMs / totalAllMs) * 100.0) : 0.0;
+                msg.AppendLine($"[{s.BlockType}]");
+                msg.AppendLine($"   Count   = {s.Count}");
+                msg.AppendLine($"   TotalMs = {s.TotalMs:F2}");
+                msg.AppendLine($"   AvgMs   = {s.AverageMs:F2}");
+                msg.AppendLine($"   MinMs   = {s.MinMs:F2}");
+                msg.AppendLine($"   MaxMs   = {s.MaxMs:F2}");
+                msg.AppendLine($"   % of All= {pct:F1}%");
+                msg.AppendLine();
+            }
+
+            // --- 3B) Top-level block stats ---
+            msg.AppendLine("=== TOP-LEVEL BLOCKS (main loop) ===");
+            msg.AppendLine($"  - Top-Level Blocks Executed: {topLevelBlocksExecuted}");
+            msg.AppendLine($"  - Avg Time per Top-Level Block: {overallTopAvg:F2} ms\n");
+
+            if (slowestTop != null && slowestTop.Count > 0)
+            {
+                msg.AppendLine($"  - Slowest (avg): {slowestTop.BlockType}");
+                msg.AppendLine($"     Count: {slowestTop.Count},  Avg: {slowestTop.AverageMs:F2} ms");
+                msg.AppendLine($"     Min: {slowestTop.MinMs:F2}, Max: {slowestTop.MaxMs:F2}\n");
+            }
+            if (fastestTop != null && fastestTop.Count > 0)
+            {
+                msg.AppendLine($"  - Fastest (avg): {fastestTop.BlockType}");
+                msg.AppendLine($"     Count: {fastestTop.Count},  Avg: {fastestTop.AverageMs:F2} ms");
+                msg.AppendLine($"     Min: {fastestTop.MinMs:F2}, Max: {fastestTop.MaxMs:F2}\n");
+            }
+
+            msg.AppendLine("--- Top-Level Breakdown ---");
+            foreach (var kvp in _blockStats.OrderBy(k => k.Key))
+            {
+                var s = kvp.Value;
+                double pct = (totalTopMs > 0.0) ? ((s.TotalMs / totalTopMs) * 100.0) : 0.0;
+                msg.AppendLine($"[{s.BlockType}]");
+                msg.AppendLine($"   Count   = {s.Count}");
+                msg.AppendLine($"   TotalMs = {s.TotalMs:F2}");
+                msg.AppendLine($"   AvgMs   = {s.AverageMs:F2}");
+                msg.AppendLine($"   MinMs   = {s.MinMs:F2}");
+                msg.AppendLine($"   MaxMs   = {s.MaxMs:F2}");
+                msg.AppendLine($"   % of All= {pct:F1}%");
+                msg.AppendLine();
+            }
+
+            // == 4) Append the Step Deviation Summary ==
+            // Here we assume _stepDeviationDictionary is a Dictionary<string, DeviationStats>,
+            // where the key is the StepBlock's text (type) so that all executions of the same step aggregate.
+            if (_stepDeviationDictionary != null && _stepDeviationDictionary.Any())
+            {
+                msg.AppendLine("=== STEP DEVIATION SUMMARY ===");
+
+                // Merge all deviation stats across all StepBlock types.
+                double globalMinDev = double.MaxValue;
+                double globalMaxDev = double.MinValue;
+                double globalSumDev = 0.0;
+                int globalCountDev = 0;
+
+                foreach (var kvp in _stepDeviationDictionary)
+                {
+                    var devStats = kvp.Value;
+                    globalCountDev += devStats.Count;
+                    globalSumDev += devStats.SumDeviation;
+                    if (devStats.MinDeviation < globalMinDev)
+                        globalMinDev = devStats.MinDeviation;
+                    if (devStats.MaxDeviation > globalMaxDev)
+                        globalMaxDev = devStats.MaxDeviation;
+                }
+
+                double globalAvgDev = (globalCountDev == 0) ? 0.0 : globalSumDev / globalCountDev;
+
+                msg.AppendLine($"Total Steps (from StepBlocks): {globalCountDev}");
+                msg.AppendLine($"Average Deviation: {globalAvgDev:F2} enc");
+                msg.AppendLine($"Minimum Deviation: {globalMinDev:F2} enc");
+                msg.AppendLine($"Maximum Deviation: {globalMaxDev:F2} enc");
+                msg.AppendLine("(Enc = raw encoder counts. Convert to mm if needed.)");
+                msg.AppendLine();
+
+                // Optionally, list each step type's deviation stats:
+                msg.AppendLine("--- Detailed Step Deviation Breakdown ---");
+                foreach (var kvp in _stepDeviationDictionary.OrderBy(k => k.Key))
+                {
+                    var dev = kvp.Value;
+                    double pct = (globalSumDev > 0.0) ? ((dev.SumDeviation / globalSumDev) * 100.0) : 0.0;
+                    msg.AppendLine($"Step Type '{kvp.Key}':");
+                    msg.AppendLine($"   Count      = {dev.Count}");
+                    msg.AppendLine($"   TotalDev   = {dev.SumDeviation:F2} enc");
+                    msg.AppendLine($"   AvgDev     = {dev.AverageDeviation:F2} enc");
+                    msg.AppendLine($"   MinDev     = {dev.MinDeviation:F2} enc");
+                    msg.AppendLine($"   MaxDev     = {dev.MaxDeviation:F2} enc");
+                    msg.AppendLine($"   % of Total = {pct:F1}%");
+                    msg.AppendLine();
+                }
+            }
+
+            // == 5) Show the final message in a ContentDialog ==
+            var dialog = new ContentDialog
+            {
+                Title = "Full Program Summary",
+                Content = new ScrollViewer
+                {
+                    Content = new TextBlock
+                    {
+                        Text = msg.ToString(),
+                        TextWrapping = TextWrapping.Wrap,
+                        FontFamily = new FontFamily("Consolas"),
+                        FontSize = 14,
+                    },
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                },
+                PrimaryButtonText = "OK",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.XamlRoot
+            };
+
+            await dialog.ShowAsync();
+        }
+
+
 
         // Stop execution
         private void StopButton_Click(object sender, RoutedEventArgs e)
@@ -688,4 +925,63 @@ namespace XeryonMotionGUI.Views
             Debug.WriteLine("End of block connections debug.");
         }
     }
+
+    public class DeviationStats
+    {
+        public int Count { get; set; } = 0;
+        public double SumDeviation { get; set; } = 0.0;
+        public double MinDeviation { get; set; } = double.MaxValue;
+        public double MaxDeviation { get; set; } = double.MinValue;
+
+        public double AverageDeviation => Count == 0 ? 0.0 : SumDeviation / Count;
+    }
+
+
+    public class BlockExecutionStat
+    {
+        public string BlockType
+        {
+            get; set;
+        }
+        public int Count
+        {
+            get; set;
+        }
+        public double TotalMs
+        {
+            get; set;
+        }
+        public double MinMs { get; set; } = double.MaxValue;
+        public double MaxMs { get; set; } = double.MinValue;
+
+        public double AverageMs => Count == 0 ? 0.0 : TotalMs / Count;
+    }
+
+    public interface IStatsAggregator
+    {
+        void RecordBlockExecution(string blockType, double elapsedMs);
+    }
+
+    public class StatsAggregator : IStatsAggregator
+    {
+        private readonly Dictionary<string, BlockExecutionStat> _blockStats
+            = new Dictionary<string, BlockExecutionStat>(StringComparer.OrdinalIgnoreCase);
+
+        public void RecordBlockExecution(string blockType, double elapsedMs)
+        {
+            if (!_blockStats.ContainsKey(blockType))
+            {
+                _blockStats[blockType] = new BlockExecutionStat { BlockType = blockType };
+            }
+
+            var stat = _blockStats[blockType];
+            stat.Count++;
+            stat.TotalMs += elapsedMs;
+            if (elapsedMs < stat.MinMs) stat.MinMs = elapsedMs;
+            if (elapsedMs > stat.MaxMs) stat.MaxMs = elapsedMs;
+        }
+
+        public Dictionary<string, BlockExecutionStat> GetStats() => _blockStats;
+    }
+
 }

@@ -161,31 +161,24 @@ namespace XeryonMotionGUI.Classes
 
         #region EPOS Update Method
 
-        public void OnEPOSUpdate(double epos, double dummy)
+        public async void OnEPOSUpdate(double epos, double dummy)
         {
-            // 1) Bail out if not logging
             if (!_isLogging) return;
 
-            // 2) Compute the new time in seconds
-            double t = UseControllerTime
-                ? (this._timeOffset + this.TIME) / 10000.0
-                : ParentController.GlobalTimeSeconds;
+            // Pick the correct time in seconds, depending on controller vs system mode
+            double tSeconds = UseControllerTime
+                ? (_timeOffset + TIME) / 10000.0  // controller ticks → seconds
+                : ParentController.GlobalTimeSeconds; // system time from controller
 
-            // 3) Enqueue data for plotting (unchanged)
-            _dataQueue.Enqueue((epos, t));
+            _dataQueue.Enqueue((epos, tSeconds));
 
-            // 4) Update speed calculation
-            CalculateSpeed();
-
-            // 5) Update references for next iteration
-            _lastEncoder = (int)Math.Round(epos);
-            _lastSpeedTime = t;
-            _hasLastEncoder = true;
-
-            // 6) Update min/max for plotting if needed
+            CalculateSpeed();  // use the same logic in there for speed
             if (epos < _minEpos) _minEpos = epos;
             if (epos > _maxEpos) _maxEpos = epos;
+            await UpdatePlotFromQueueAsync(null, null);
+
         }
+
 
         #endregion
 
@@ -194,37 +187,30 @@ namespace XeryonMotionGUI.Classes
         // In your Axis (or wherever it lives):
         private async Task UpdatePlotFromQueueAsync(object sender, object e)
         {
-            // 1) Collect points from the concurrent queue
             var pointsToPlot = new List<(double EPOS, double SyncTime)>();
             while (_dataQueue.TryDequeue(out var point))
             {
                 pointsToPlot.Add(point);
             }
 
-            // 2) We want to update the chart on the DispatcherQueue and await until it's finished.
-            //    We'll use a TaskCompletionSource to signal completion.
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<bool>();
 
             _dispatcherQueue.TryEnqueue(async () =>
             {
-                // This code runs on the UI thread:
                 foreach (var p in pointsToPlot)
                 {
-                    // Compute relative time: subtract the baseline.
                     double relativeTime = p.SyncTime - _startSyncTime;
-                    _positionSeries.Points.Add(new OxyPlot.DataPoint(relativeTime, p.EPOS));
+                    _positionSeries.Points.Add(new DataPoint(relativeTime, p.EPOS));
                 }
 
                 await AdjustAxesBasedOnDataAsync();
                 _plotModel.InvalidatePlot(true);
-
-                // Once we’ve finished updating the UI/plot, signal the TCS
                 tcs.SetResult(true);
             });
 
-            // 3) Wait until the UI update is done
             await tcs.Task;
         }
+
 
 
         public ICommand StartManualLoggingCommand => new RelayCommand(() => StartManualLogging());
@@ -232,14 +218,22 @@ namespace XeryonMotionGUI.Classes
 
         public void StartManualLogging()
         {
-            // Here we simply set a flag that OnEPOSUpdate will check.
-            // You might choose to log a debug message:
             Debug.WriteLine($"Manual logging started for Axis {AxisLetter}.");
-            // Set your internal flag to true (or call a method that starts logging)
             _isLogging = true;
+
+            // Whichever time source is in use, we treat "now" as t=0
+            if (UseControllerTime)
+            {
+                _startSyncTime = (_timeOffset + TIME) / 10000.0;
+            }
+            else
+            {
+                _startSyncTime = ParentController.GlobalTimeSeconds;
+            }
+
             ResetPlot();
-            // Optionally, if you have a property for manual logging, you could set it here.
         }
+
 
         public void StopManualLogging()
         {
@@ -577,7 +571,7 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        private bool _autoLogging = false;
+        private bool _autoLogging = true;
         public bool AutoLogging
         {
             get => _autoLogging;
@@ -918,13 +912,13 @@ namespace XeryonMotionGUI.Classes
             {
                 if (_TIME != value)
                 {
-                    // Check for wrap-around: if the new TIME is less than the previous value, a wrap occurred.
+                    // Check for wrap-around
                     if (value < _prevTime)
                     {
-                        // Increase the offset by the maximum value of TIME (65,536).
-                        // (Make sure to adjust if your controller actually wraps at 65,536 or 65,535.)
-                        _timeOffset += 65535;
+                        // TIME wraps at 65536, so add that amount to the offset
+                        _timeOffset += 65536;
                     }
+
                     _prevTime = value;
                     _TIME = value;
                     OnPropertyChanged(nameof(TIME));
@@ -1790,8 +1784,9 @@ namespace XeryonMotionGUI.Classes
             {
                 // Determine the current time based on the selected time source
                 double currentTime = UseControllerTime
-                    ? (this._timeOffset + this.TIME) / 10000.0 // Convert controller time to seconds
-                    : ParentController.GlobalTimeSeconds; // Use system time
+                       ? (_timeOffset + TIME) / 10000.0
+                       : ParentController.GlobalTimeSeconds;
+
 
                 if (_lastSpeedTime != 0) // Ensure we have a previous time reading
                 {
@@ -2092,25 +2087,32 @@ namespace XeryonMotionGUI.Classes
         // Add a field to store the baseline (in seconds)
         private void ResetPlot()
         {
-            _dispatcherQueue.TryEnqueue(() =>
+            // Baseline depends on which time mode is active
+            if (UseControllerTime)
             {
-                // Clear the plot data.
-                _positionSeries.Points.Clear();
-                _minEpos = double.MaxValue;
-                _maxEpos = double.MinValue;
-                ParentController.Flush();
+                _startSyncTime = (_timeOffset + TIME) / 10000.0;
+            }
+            else
+            {
+                _startSyncTime = ParentController.GlobalTimeSeconds;
+            }
 
-                // Reset the wrap-around tracking variables.
-                _timeOffset = 0;
-                _prevTime = this.TIME;  // Start tracking from the current TIME
+            // Empty out any old data from the queue
+            while (_dataQueue.TryDequeue(out _)) { /* discard */ }
 
-                // Reset the time baseline based on the current time source.
-                _startSyncTime = UseControllerTime ? (this.TIME / 10000.0) : ParentController.GlobalTimeSeconds;
+            // Clear the plot
+            _positionSeries.Points.Clear();
+            _minEpos = double.MaxValue;
+            _maxEpos = double.MinValue;
+            ParentController.Flush();
+            _plotModel.InvalidatePlot(true);
 
-                // Invalidate the plot to force a redraw.
-                _plotModel.InvalidatePlot(true);
-            });
+            // So we keep tracking future overflows properly:
+            _prevTime = TIME;
         }
+
+
+
 
 
 

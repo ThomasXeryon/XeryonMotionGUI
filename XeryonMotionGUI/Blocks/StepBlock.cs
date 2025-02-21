@@ -7,11 +7,17 @@ using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using XeryonMotionGUI.Classes;
 using XeryonMotionGUI.Helpers;
+using XeryonMotionGUI.Views;
 
 namespace XeryonMotionGUI.Blocks
 {
     public class StepBlock : BlockBase
     {
+
+        private DeviationStats _deviationStats = new DeviationStats();
+
+        public DeviationStats DeviationStats => _deviationStats;
+
         private bool _isPositive = true; // Default to positive direction
         private double _stepSize = 1.0;
         private Units _selectedUnit = Units.mm; // default for linear
@@ -115,27 +121,35 @@ namespace XeryonMotionGUI.Blocks
                 return;
             }
 
-            // 1) Indicate we’re executing:
+            // Highlight the block in the UI
             _dispatcherQueue?.TryEnqueue(() => UiElement?.HighlightBlock(true));
 
             try
             {
-                // 2) Instead of letting the axis read its own properties,
-                //    pass the numeric step, unit, and resolution directly:
-                double stepValue = StepSize;          // e.g. 2.5
-                Units stepUnit = SelectedUnit;        // e.g. mm
-                double stepResolution = SelectedAxis.Resolution;
-                bool isPositive = IsPositive;
+                double finalStepVal = IsPositive ? StepSize : -StepSize;
+                // 1) Capture the desired endpoint BEFORE calling TakeStep,
+                //    rounding the encoder values to whole numbers.
+                int oldEPOS = (int)Math.Round(SelectedAxis.EPOS);
+                int target = oldEPOS + (int)Math.Round(UnitConversion.ToEncoder(finalStepVal, SelectedUnit, SelectedAxis.Resolution));
 
-                // If user wants negative direction, multiply by -1:
-                double finalStepVal = isPositive ? stepValue : -stepValue;
+                // 2) Execute the actual step
+                await SelectedAxis.TakeStep(finalStepVal, SelectedUnit, SelectedAxis.Resolution);
 
-                // 3) Now call the new method on the axis:
-                await SelectedAxis.TakeStep(finalStepVal, stepUnit, stepResolution);
+                // 3) Once done, measure final deviation
+                int finalEPOS = (int)Math.Round(SelectedAxis.EPOS);
+                int diff = Math.Abs(finalEPOS - target);
+
+                // 4) Update local deviation stats (these remain as integers)
+                _deviationStats.Count++;
+                _deviationStats.SumDeviation += diff;
+                if (diff < _deviationStats.MinDeviation)
+                    _deviationStats.MinDeviation = diff;
+                if (diff > _deviationStats.MaxDeviation)
+                    _deviationStats.MaxDeviation = diff;
             }
             finally
             {
-                // 4) Stop highlighting
+                // Stop highlighting
                 _dispatcherQueue?.TryEnqueue(() => UiElement?.HighlightBlock(false));
             }
         }

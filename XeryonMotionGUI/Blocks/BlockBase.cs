@@ -4,9 +4,15 @@ using System.Runtime.CompilerServices;
 using Microsoft.UI.Dispatching;
 using XeryonMotionGUI;
 using XeryonMotionGUI.Classes;
+using XeryonMotionGUI.Views;
 
 public abstract class BlockBase : INotifyPropertyChanged
 {
+    public IStatsAggregator Stats
+    {
+        get; set;
+    }
+
     public DraggableElement UiElement
     {
         get; set;
@@ -19,6 +25,8 @@ public abstract class BlockBase : INotifyPropertyChanged
     {
         _dispatcherQueue = queue;
     }
+
+
 
 
     private Controller _selectedController;

@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
+using XeryonMotionGUI.Views;
 
 namespace XeryonMotionGUI.Blocks
 {
@@ -86,56 +87,70 @@ namespace XeryonMotionGUI.Blocks
         {
             Debug.WriteLine($"[RepeatBlock] Repeating {RepeatCount} times for {BlocksToRepeat} blocks above.");
 
-            // Ensure the block above is set
             if (PreviousBlock == null)
             {
                 Debug.WriteLine("[RepeatBlock] Error: No blocks above to repeat.");
                 return;
             }
 
-            // Collect the blocks to repeat
+            // 1) Collect the blocks above
             var blocksToRepeat = new List<BlockBase>();
-            var currentBlock = PreviousBlock;
-
-            while (currentBlock != null && blocksToRepeat.Count < BlocksToRepeat)
+            var cur = PreviousBlock;
+            while (cur != null && blocksToRepeat.Count < BlocksToRepeat)
             {
-                blocksToRepeat.Add(currentBlock);
-                currentBlock = currentBlock.PreviousBlock;
+                blocksToRepeat.Add(cur);
+                cur = cur.PreviousBlock;
             }
-
-            // Reverse the list to execute from top to bottom
             blocksToRepeat.Reverse();
 
-            Debug.WriteLine($"[RepeatBlock] Found {blocksToRepeat.Count} blocks to repeat: {string.Join(", ", blocksToRepeat.Select(b => b.Text))}");
-
-            // Repeat the blocks
+            // 2) Repeat them
             for (int i = 0; i < RepeatCount; i++)
             {
                 Debug.WriteLine($"[RepeatBlock] Iteration {i + 1} of {RepeatCount}.");
 
-                foreach (var block in blocksToRepeat)
+                foreach (var childBlock in blocksToRepeat)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        Debug.WriteLine("[RepeatBlock] Execution cancelled.");
+                        Debug.WriteLine("[RepeatBlock] Execution canceled.");
                         return;
                     }
 
-                    Debug.WriteLine($"[RepeatBlock] Executing block: {block.Text}");
+                    // Time the child block
+                    var sw = Stopwatch.StartNew();
+                    await childBlock.ExecuteAsync(cancellationToken);
+                    sw.Stop();
+                    double elapsedMs = sw.Elapsed.TotalMilliseconds;
 
-                    // Highlight the block
-                    if (this.UiElement != null && _dispatcherQueue != null)
+                    // Record normal aggregator stats (top-level Stats aggregator)
+                    Stats?.RecordBlockExecution(childBlock.Text, elapsedMs);
+
+                    // [NEW] If the child is a StepBlock, merge its local DeviationStats
+                    if (childBlock is StepBlock stepB)
                     {
-                        _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(true));
-                    }
+                        // Get a reference to your main page (ensure PageLocator returns the current DemoBuilderPage instance)
+                        var mainPage = XeryonMotionGUI.Helpers.PageLocator.GetDemoBuilderPage();
+                        // Use the step's Text as a key (or any other unique identifier for the step type)
+                        string stepKey = stepB.Text;
+                        if (!mainPage._stepDeviationDictionary.ContainsKey(stepKey))
+                        {
+                            mainPage._stepDeviationDictionary[stepKey] = new DeviationStats();
+                        }
+                        var globalStats = mainPage._stepDeviationDictionary[stepKey];
+                        var localStats = stepB.DeviationStats;
 
-                    // Call the block's ExecuteAsync method
-                    await block.ExecuteAsync(cancellationToken);
+                        globalStats.Count += localStats.Count;
+                        globalStats.SumDeviation += localStats.SumDeviation;
+                        if (localStats.MinDeviation < globalStats.MinDeviation)
+                            globalStats.MinDeviation = localStats.MinDeviation;
+                        if (localStats.MaxDeviation > globalStats.MaxDeviation)
+                            globalStats.MaxDeviation = localStats.MaxDeviation;
 
-                    // Remove the highlight
-                    if (this.UiElement != null && _dispatcherQueue != null)
-                    {
-                        _dispatcherQueue.TryEnqueue(() => this.UiElement.HighlightBlock(false));
+                        // Reset the block's local deviation stats after merging
+                        localStats.Count = 0;
+                        localStats.SumDeviation = 0.0;
+                        localStats.MinDeviation = double.MaxValue;
+                        localStats.MaxDeviation = double.MinValue;
                     }
                 }
             }
@@ -143,10 +158,13 @@ namespace XeryonMotionGUI.Blocks
             Debug.WriteLine($"[RepeatBlock] Repeat completed.");
         }
 
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
+
+
 }

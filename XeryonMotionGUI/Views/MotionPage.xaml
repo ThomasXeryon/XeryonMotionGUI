@@ -329,8 +329,7 @@
                                     Command="{Binding SelectedAxis.StepNegativeCommand}"
                                     Width="70"/>
                             <controls:NumberBox Value="{Binding SelectedAxis.StepSize, Mode=TwoWay}"
-                                                Width="70"
-                                                MinWidth="70"
+                                                Width="90"
                                                 SpinButtonPlacementMode="Compact"
                                                 Minimum="0"/>
                             <Button Content="Step +"
@@ -357,7 +356,7 @@
                                     Width="70"/>
                             <Button Content="Home"
                                     Command="{Binding SelectedAxis.HomeCommand}"
-                                    Width="70"/>
+                                    Width="90"/>
                             <Button Content="Scan +"
                                     Command="{Binding SelectedAxis.ScanPositiveCommand}"
                                     Width="70"/>
@@ -373,7 +372,7 @@
                                     Width="70"/>
                             <Button Content="STOP"
                                     Command="{Binding SelectedAxis.StopCommand}"
-                                    Width="70"
+                                    Width="90"
                                     FontWeight="Bold"
                                     Foreground="Red"/>
                             <Button Content="Move +"
@@ -395,7 +394,7 @@
 
                             <!-- Index -->
                             <controls:SplitButton Content="Index"
-                                                  Width="110"
+                                                  Width="120"
                                                   Margin="0"
                                                   Grid.Row="0"
                                                   Grid.Column="0"
@@ -422,7 +421,7 @@
 
                             <!-- Reset -->
                             <controls:SplitButton Content="Reset"
-                                                  Width="110"
+                                                  Width="120"
                                                   Margin="10,0,0,0"
                                                   Grid.Row="0"
                                                   Grid.Column="1"
@@ -455,7 +454,7 @@
                                     Margin="0,10,0,0"
                                     Visibility="{Binding SelectedAxis.Linear, 
                                                  Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="DPOS Slider (Linear)" 
+                            <TextBlock Text="Position slider" 
                                        FontWeight="Bold" 
                                        Margin="0,0,0,5"/>
                             <Slider x:Name="PositionSlider"
@@ -463,6 +462,7 @@
                                     Maximum="{Binding SelectedAxis.PositiveRange}"
                                     Value="{Binding SelectedAxis.SliderValue, Mode=TwoWay}"
                                     StepFrequency="0.1"
+                                    HorizontalAlignment="Left"
                                     Width="400"/>
                         </StackPanel>
 
@@ -471,7 +471,7 @@
                                     Margin="0,10,0,0"
                                     Visibility="{Binding SelectedAxis.Linear, 
                                                  Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                            <TextBlock Text="DPOS Slider (Rotational)" 
+                            <TextBlock Text="Position slider" 
                                        FontWeight="Bold" 
                                        Margin="0,0,0,5"/>
 
@@ -492,6 +492,7 @@
                                 ScalePadding="10"
                                 TickPadding="5"
                                 TickLength="5"
+                                HorizontalAlignment="Left"
                                 PointerPressed="RadialGauge_PointerPressed"
                                 PointerReleased="RadialGauge_PointerReleased"/>
                         </StackPanel>
