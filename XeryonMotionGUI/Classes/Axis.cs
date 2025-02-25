@@ -586,6 +586,21 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
+        private string _deviceSerial;
+
+        public string DeviceSerial
+        {
+            get => _deviceSerial;
+            set
+            {
+                if (_deviceSerial != value)
+                {
+                    _deviceSerial = value;
+                    OnPropertyChanged(nameof(DeviceSerial));
+                }
+            }
+        }
+
         public string GraphYAxisTitle
         {
             get

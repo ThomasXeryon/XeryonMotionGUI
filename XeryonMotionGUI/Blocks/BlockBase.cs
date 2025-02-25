@@ -26,7 +26,18 @@ public abstract class BlockBase : INotifyPropertyChanged
         _dispatcherQueue = queue;
     }
 
-
+    public string BlockType
+    {
+        get; set;
+    }
+    public double X
+    {
+        get; set;
+    }
+    public double Y
+    {
+        get; set;
+    }
 
 
     private Controller _selectedController;
