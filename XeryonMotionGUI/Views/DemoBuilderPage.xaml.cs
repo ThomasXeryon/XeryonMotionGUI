@@ -21,6 +21,7 @@ using System.Threading.Tasks;
 using XeryonMotionGUI.Helpers;
 using XeryonMotionGUI.ViewModels;
 using XeryonMotionGUI.Classes;
+using XeryonMotionGUI.Models;
 
 namespace XeryonMotionGUI.Views
 {
@@ -42,37 +43,56 @@ namespace XeryonMotionGUI.Views
             "Step", "Wait", "Repeat", "Move", "Home", "Stop", "Scan", "Index", "Log", "Edit Parameter"
         };
 
-        // Fields instead of properties to avoid CS0229
-        private Canvas _workspaceCanvas;
-        private DraggableElement _snapShadow;
-        private DraggableElement _greenFlagBlock;
-
-        public Canvas WorkspaceCanvas => _workspaceCanvas ??= (Canvas)FindName("WorkspaceCanvas");
-        public DraggableElement SnapShadow => _snapShadow ??= (DraggableElement)FindName("SnapShadow");
-        public DraggableElement GreenFlagBlock => _greenFlagBlock ??= (DraggableElement)FindName("GreenFlagBlock");
-
         public DemoBuilderPage()
         {
+            Debug.WriteLine("DemoBuilderPage constructor started.");
             PageLocator.CurrentDemoBuilderPage = this;
             this.InitializeComponent();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
             InitializeGreenFlag();
             InitializeBlockPalette();
             _statsAggregator = new StatsAggregator();
+            Loaded += DemoBuilderPage_Loaded;
+            Debug.WriteLine("DemoBuilderPage constructor completed.");
+        }
+
+        private async void DemoBuilderPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            Debug.WriteLine("DemoBuilderPage_Loaded started.");
+            await EnsureDefaultProgramAsync();
+            Debug.WriteLine("DemoBuilderPage_Loaded completed.");
+        }
+
+        private async Task EnsureDefaultProgramAsync()
+        {
+            var vm = (DemoBuilderViewModel)DataContext;
+            Debug.WriteLine("Ensuring default program...");
+            if (vm.AllSavedPrograms.Count == 0)
+            {
+                await vm.AddNewProgramAsync();
+                Debug.WriteLine("Created default program asynchronously.");
+            }
+            else
+            {
+                Debug.WriteLine($"Existing programs found: {vm.AllSavedPrograms.Count}");
+            }
         }
 
         private void InitializeGreenFlag()
         {
+            Debug.WriteLine("Initializing GreenFlagBlock...");
             Canvas.SetLeft(GreenFlagBlock, 50);
             Canvas.SetTop(GreenFlagBlock, 10);
             GreenFlagBlock.Block = new StartBlock();
             GreenFlagBlock.Block.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
             GreenFlagBlock.WorkspaceCanvas = WorkspaceCanvas;
             GreenFlagBlock.RunningControllers = RunningControllers;
+            Debug.WriteLine("GreenFlagBlock initialized.");
         }
 
         private void InitializeBlockPalette()
         {
+            Debug.WriteLine("Initializing block palette...");
             foreach (var blockType in BlockTypes)
             {
                 var block = new DraggableElement
@@ -87,7 +107,9 @@ namespace XeryonMotionGUI.Views
                 block.PointerPressed += PaletteBlock_PointerPressed;
                 block.PositionChanged += Block_PositionChanged;
                 BlockPalette.Children.Add(block);
+                Debug.WriteLine($"Palette block '{blockType}' added.");
             }
+            Debug.WriteLine("Block palette initialized.");
         }
 
         public void ClearWorkspace()
@@ -103,6 +125,17 @@ namespace XeryonMotionGUI.Views
             }
             GreenFlagBlock.NextBlock = null;
             _repeatArrows.Clear();
+            Debug.WriteLine($"Workspace cleared. Remaining children: {WorkspaceCanvas.Children.Count} (Expected: 2 - GreenFlagBlock, SnapShadow)");
+        }
+
+        public List<DraggableElement> GetWorkspaceBlocks()
+        {
+            var blocks = WorkspaceCanvas.Children
+                .OfType<DraggableElement>()
+                .Where(de => de != SnapShadow && !(de.Block is Blocks.StartBlock))
+                .ToList();
+            Debug.WriteLine($"GetWorkspaceBlocks returned {blocks.Count} blocks.");
+            return blocks;
         }
 
         private void Block_PositionChanged(object sender, EventArgs e)
@@ -112,11 +145,13 @@ namespace XeryonMotionGUI.Views
 
         private void PaletteBlock_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
+            Debug.WriteLine("PaletteBlock_PointerPressed triggered.");
             if (sender is DraggableElement paletteBlock)
             {
                 var vm = (DemoBuilderViewModel)DataContext;
                 if (vm.SelectedProgram == null)
                 {
+                    Debug.WriteLine("No program selected; creating a new one asynchronously.");
                     vm.AddNewProgramAsync().GetAwaiter().GetResult();
                 }
 
@@ -135,10 +170,14 @@ namespace XeryonMotionGUI.Views
                 };
                 WorkspaceCanvas.Children.Add(_draggedBlock);
                 var initialPosition = e.GetCurrentPoint(WorkspaceCanvas).Position;
-                Canvas.SetLeft(_draggedBlock, initialPosition.X);
-                Canvas.SetTop(_draggedBlock, initialPosition.Y);
+                _dragStartOffset = new Point(_draggedBlock.ActualWidth / 2, _draggedBlock.ActualHeight / 2); // Center on cursor
+                Canvas.SetLeft(_draggedBlock, initialPosition.X - _dragStartOffset.X);
+                Canvas.SetTop(_draggedBlock, initialPosition.Y - _dragStartOffset.Y);
                 AttachDragEvents(_draggedBlock);
-                AddBlockToSelectedProgram(newBlockInstance);
+                WorkspaceCanvas.PointerMoved += WorkspaceCanvas_PointerMoved;
+                WorkspaceCanvas.PointerReleased += WorkspaceCanvas_PointerReleased;
+                AddBlockToSelectedProgram(_draggedBlock);
+                Debug.WriteLine($"Dragged block '{_draggedBlock.Text}' added to canvas at ({Canvas.GetLeft(_draggedBlock)}, {Canvas.GetTop(_draggedBlock)}). Program: '{vm.SelectedProgram?.ProgramName}', Blocks: {vm.SelectedProgram?.Blocks.Count}");
             }
         }
 
@@ -204,6 +243,7 @@ namespace XeryonMotionGUI.Views
                 _dragStartOffset = new Point(position.X - Canvas.GetLeft(block), position.Y - Canvas.GetTop(block));
                 WorkspaceCanvas.PointerMoved += WorkspaceCanvas_PointerMoved;
                 WorkspaceCanvas.PointerReleased += WorkspaceCanvas_PointerReleased;
+                Debug.WriteLine($"Started dragging block '{block.Text}' from ({Canvas.GetLeft(block)}, {Canvas.GetTop(block)}).");
             }
         }
 
@@ -230,6 +270,7 @@ namespace XeryonMotionGUI.Views
                         _draggedBlock.PreviousBlock.Block.NextBlock = null;
                         _draggedBlock.Block.PreviousBlock = null;
                         _draggedBlock.PreviousBlock = null;
+                        Debug.WriteLine($"Disconnected '{_draggedBlock.Text}' from previous block due to distance.");
                     }
                 }
                 MoveConnectedBlocks(_draggedBlock, newLeft, newTop);
@@ -258,7 +299,7 @@ namespace XeryonMotionGUI.Views
         {
             if (_draggedBlock != null)
             {
-                Debug.WriteLine($"PointerReleased: Block '{_draggedBlock.Text}' dropped.");
+                Debug.WriteLine($"PointerReleased: Block '{_draggedBlock.Text}' dropped at ({Canvas.GetLeft(_draggedBlock)}, {Canvas.GetTop(_draggedBlock)}).");
                 if (IsDroppedInTrash(_draggedBlock))
                 {
                     Debug.WriteLine($"Block '{_draggedBlock.Text}' dropped in trash. Removing entire chain.");
@@ -272,12 +313,16 @@ namespace XeryonMotionGUI.Views
                         blk.PreviousBlock = null;
                         blk.NextBlock = null;
                     }
+                    var vm = (DemoBuilderViewModel)DataContext;
+                    vm.SaveCurrentProgramState(this);
                 }
                 else
                 {
                     SnapToNearestBlock(_draggedBlock);
                     UpdateSnapConnections(_draggedBlock);
                     MoveConnectedBlocks(_draggedBlock, Canvas.GetLeft(_draggedBlock), Canvas.GetTop(_draggedBlock));
+                    var vm = (DemoBuilderViewModel)DataContext;
+                    vm.SaveCurrentProgramState(this);
                 }
                 SnapShadow.Visibility = Visibility.Collapsed;
                 WorkspaceCanvas.PointerMoved -= WorkspaceCanvas_PointerMoved;
@@ -322,7 +367,10 @@ namespace XeryonMotionGUI.Views
         private void SnapToNearestBlock(DraggableElement block)
         {
             if (WorkspaceCanvas == null || SnapShadow == null || SnapShadow.Visibility != Visibility.Visible)
+            {
+                Debug.WriteLine("WorkspaceCanvas or SnapShadow is null or not visible in SnapToNearestBlock.");
                 return;
+            }
             double snapLeft = Canvas.GetLeft(SnapShadow);
             double snapTop = Canvas.GetTop(SnapShadow);
             Canvas.SetLeft(block, snapLeft);
@@ -340,7 +388,7 @@ namespace XeryonMotionGUI.Views
                     {
                         block.PreviousBlock = targetBlock;
                         targetBlock.NextBlock = block;
-                        Debug.WriteLine($"Block snapped to: {targetBlock.Text}");
+                        Debug.WriteLine($"Block '{block.Text}' snapped to: '{targetBlock.Text}' at ({snapLeft}, {snapTop}).");
                         break;
                     }
                 }
@@ -410,11 +458,13 @@ namespace XeryonMotionGUI.Views
 
         private void UpdateSnapConnections(DraggableElement block)
         {
+            if (block == null) return;
+
             if (block.Block is RepeatBlock repeatBlock)
             {
                 repeatBlock.StartBlock = FindStartBlock(repeatBlock);
                 repeatBlock.EndBlock = FindEndBlock(repeatBlock);
-                Debug.WriteLine($"[RepeatBlock] StartBlock = {repeatBlock.StartBlock?.Text}, EndBlock = {repeatBlock.EndBlock?.Text}");
+                Debug.WriteLine($"[RepeatBlock] '{repeatBlock.Text}' StartBlock = {repeatBlock.StartBlock?.Text}, EndBlock = {repeatBlock.EndBlock?.Text}");
                 if (!_repeatArrows.ContainsKey(repeatBlock))
                 {
                     repeatBlock.PropertyChanged += RepeatBlock_PropertyChanged;
@@ -466,33 +516,7 @@ namespace XeryonMotionGUI.Views
                         targetBlock.NextBlock = block;
                         block.Block.PreviousBlock = targetBlock.Block;
                         targetBlock.Block.NextBlock = block.Block;
-                        Debug.WriteLine($"Snapped '{block.Text}' to '{targetBlock.Text}'. UI References: {block.PreviousBlock?.Text}, {targetBlock.NextBlock?.Text}; Logic References: {block.Block.PreviousBlock?.Text}, {targetBlock.Block.NextBlock?.Text}");
-                        if (block.Block is RepeatBlock repeatBlockk)
-                        {
-                            repeatBlockk.StartBlock = FindStartBlock(repeatBlockk);
-                            repeatBlockk.EndBlock = FindEndBlock(repeatBlockk);
-                            Debug.WriteLine($"[RepeatBlock] StartBlock = {repeatBlockk.StartBlock?.Text}, EndBlock = {repeatBlockk.EndBlock?.Text}");
-                            if (repeatBlockk.EndBlock != null)
-                            {
-                                if (!_repeatArrows.ContainsKey(repeatBlockk))
-                                {
-                                    var arrow = new Arrow();
-                                    arrow.AddToCanvas(WorkspaceCanvas);
-                                    _repeatArrows.Add(repeatBlockk, arrow);
-                                }
-                                var arrowToUpdate = _repeatArrows[repeatBlockk];
-                                var sourceElement = WorkspaceCanvas.Children
-                                    .OfType<DraggableElement>()
-                                    .FirstOrDefault(de => de.Block == repeatBlockk);
-                                var endBlockElement = WorkspaceCanvas.Children
-                                    .OfType<DraggableElement>()
-                                    .FirstOrDefault(de => de.Block == repeatBlockk.EndBlock);
-                                if (sourceElement != null && endBlockElement != null)
-                                {
-                                    arrowToUpdate.UpdatePosition(sourceElement, endBlockElement);
-                                }
-                            }
-                        }
+                        Debug.WriteLine($"Snapped '{block.Text}' to '{targetBlock.Text}'. UI Refs: Prev={block.PreviousBlock?.Text}, Next={targetBlock.NextBlock?.Text}; Logic Refs: Prev={block.Block.PreviousBlock?.Text}, Next={targetBlock.Block.NextBlock?.Text}");
                         return;
                     }
                 }
@@ -502,6 +526,7 @@ namespace XeryonMotionGUI.Views
                 block.PreviousBlock.NextBlock = null;
                 block.PreviousBlock = null;
                 block.Block.PreviousBlock = null;
+                Debug.WriteLine($"Disconnected '{block.Text}' from previous block.");
             }
         }
 
@@ -530,8 +555,8 @@ namespace XeryonMotionGUI.Views
             if (block.NextBlock != null)
             {
                 var nextBlock = block.NextBlock;
-                Debug.WriteLine($"Moving connected block: {nextBlock.Text}");
-                Debug.WriteLine($"Block '{nextBlock.Text}': PreviousBlock = {nextBlock.PreviousBlock?.Text}, NextBlock = {nextBlock.NextBlock?.Text}");
+                Debug.WriteLine($"Moving connected block: '{nextBlock.Text}'");
+                Debug.WriteLine($"Block '{nextBlock.Text}': Prev={nextBlock.PreviousBlock?.Text}, Next={nextBlock.NextBlock?.Text}");
                 double nextLeft = parentLeft;
                 double nextTop = parentTop + block.ActualHeight;
                 Canvas.SetLeft(nextBlock, nextLeft);
@@ -750,7 +775,7 @@ namespace XeryonMotionGUI.Views
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.XamlRoot
             };
-            await dialog.ShowAsync();
+            //await dialog.ShowAsync();
         }
 
         private void StopButton_Click(object sender, RoutedEventArgs e)
@@ -801,7 +826,7 @@ namespace XeryonMotionGUI.Views
                     string uiNext = block.NextBlock?.Text ?? "null";
                     string logicPrev = block.Block.PreviousBlock?.Text ?? "null";
                     string logicNext = block.Block.NextBlock?.Text ?? "null";
-                    Debug.WriteLine($"Block '{block.Text}': UI Previous = {uiPrev}, UI Next = {uiNext}; Logic Previous = {logicPrev}, Logic Next = {logicNext}");
+                    Debug.WriteLine($"Block '{block.Text}': UI Prev={uiPrev}, UI Next={uiNext}; Logic Prev={logicPrev}, Logic Next={logicNext}");
                 }
             }
             Debug.WriteLine("End of block connections debug.");
@@ -910,13 +935,17 @@ namespace XeryonMotionGUI.Views
         private async void SaveProgramButton_Click(object sender, RoutedEventArgs e)
         {
             var vm = (DemoBuilderViewModel)DataContext;
-            if (vm.SelectedProgram == null) return;
+            if (vm.SelectedProgram == null)
+            {
+                Debug.WriteLine("No program selected to save.");
+                return;
+            }
 
             var savePicker = new FileSavePicker();
             InitializeWithWindow.Initialize(savePicker, WindowNative.GetWindowHandle(App.MainWindow));
             savePicker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
             savePicker.FileTypeChoices.Add("JSON File", new List<string> { ".json" });
-            savePicker.SuggestedFileName = $"{vm.SelectedProgram.programName}.json"; // Changed to programName
+            savePicker.SuggestedFileName = $"{vm.SelectedProgram.ProgramName}.json";
 
             StorageFile file = await savePicker.PickSaveFileAsync();
             if (file != null)
@@ -925,7 +954,7 @@ namespace XeryonMotionGUI.Views
                 var blocksToSave = vm.SelectedProgram.Blocks.ToList();
                 string json = JsonSerializer.Serialize(blocksToSave, new JsonSerializerOptions { WriteIndented = true });
                 await FileIO.WriteTextAsync(file, json);
-                Debug.WriteLine($"Program '{vm.SelectedProgram.programName}' exported to {file.Path}"); // Changed to programName
+                Debug.WriteLine($"Program '{vm.SelectedProgram.ProgramName}' exported to {file.Path} with {blocksToSave.Count} blocks.");
             }
         }
 
@@ -939,19 +968,31 @@ namespace XeryonMotionGUI.Views
             StorageFile file = await openPicker.PickSingleFileAsync();
             if (file == null) return;
 
-            string jsonString = await FileIO.ReadTextAsync(file);
-            var blockDataList = JsonSerializer.Deserialize<List<XeryonMotionGUI.ViewModels.SavedBlockData>>(jsonString);
-            if (blockDataList == null || !blockDataList.Any()) return;
+            try
+            {
+                string jsonString = await FileIO.ReadTextAsync(file);
+                var blockDataList = JsonSerializer.Deserialize<List<XeryonMotionGUI.ViewModels.SavedBlockData>>(jsonString);
+                if (blockDataList == null || !blockDataList.Any())
+                {
+                    Debug.WriteLine("Invalid or empty program file.");
+                    return;
+                }
 
-            var vm = (DemoBuilderViewModel)DataContext;
-            vm.SaveCurrentProgramState(this);
-            ClearWorkspace();
+                var vm = (DemoBuilderViewModel)DataContext;
+                vm.SaveCurrentProgramState(this);
+                ClearWorkspace();
 
-            var newProgram = new XeryonMotionGUI.ViewModels.ProgramInfo(file.DisplayName.Replace(".json", ""), new ObservableCollection<XeryonMotionGUI.ViewModels.SavedBlockData>(blockDataList));
-            vm.AllSavedPrograms.Add(newProgram);
-            vm.SelectedProgram = newProgram;
-            LoadBlocksForSelectedProgram();
-            await vm.SaveAllProgramsAsync();
+                var newProgram = new ProgramInfo(file.DisplayName.Replace(".json", ""), new ObservableCollection<XeryonMotionGUI.ViewModels.SavedBlockData>(blockDataList));
+                vm.AllSavedPrograms.Add(newProgram);
+                vm.SelectedProgram = newProgram;
+                LoadBlocksForSelectedProgram();
+                await vm.SaveAllProgramsAsync();
+                Debug.WriteLine($"Loaded program '{newProgram.ProgramName}' with {newProgram.Blocks.Count} blocks from file.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading program file: {ex.Message}");
+            }
         }
 
         private List<DraggableElement> GetAllConnectedBlocks(DraggableElement start)
@@ -969,14 +1010,22 @@ namespace XeryonMotionGUI.Views
                 result.Add(down);
                 down = down.NextBlock;
             }
+            Debug.WriteLine($"GetAllConnectedBlocks for '{start.Text}' returned {result.Count} blocks.");
             return result;
         }
 
         public void LoadBlocksForSelectedProgram()
         {
+            Debug.WriteLine("LoadBlocksForSelectedProgram started.");
             var vm = (DemoBuilderViewModel)DataContext;
-            if (vm.SelectedProgram == null) return;
+            if (vm.SelectedProgram == null)
+            {
+                Debug.WriteLine("No program selected to load.");
+                return;
+            }
 
+            ClearWorkspace();
+            Debug.WriteLine($"Loading program '{vm.SelectedProgram.ProgramName}' with {vm.SelectedProgram.Blocks.Count} blocks.");
             var newDraggableList = new List<DraggableElement>();
             foreach (var savedBlockData in vm.SelectedProgram.Blocks)
             {
@@ -989,12 +1038,13 @@ namespace XeryonMotionGUI.Views
                     SnapShadow = SnapShadow,
                     RunningControllers = RunningControllers
                 };
-                Canvas.SetLeft(de, savedBlockData.X <= 0 ? 50 : savedBlockData.X);
-                Canvas.SetTop(de, savedBlockData.Y <= 0 ? Canvas.GetTop(GreenFlagBlock) + GreenFlagBlock.ActualHeight + 20 : savedBlockData.Y);
+                Canvas.SetLeft(de, savedBlockData.X);
+                Canvas.SetTop(de, savedBlockData.Y);
                 Canvas.SetZIndex(de, 1);
                 WorkspaceCanvas.Children.Add(de);
                 AttachDragEvents(de);
                 newDraggableList.Add(de);
+                Debug.WriteLine($"Loaded block '{de.Text}' at exact position ({savedBlockData.X}, {savedBlockData.Y}) into canvas.");
             }
 
             for (int i = 0; i < newDraggableList.Count; i++)
@@ -1005,11 +1055,13 @@ namespace XeryonMotionGUI.Views
                 {
                     de.PreviousBlock = newDraggableList[savedBlockData.PreviousBlockIndex.Value];
                     de.Block.PreviousBlock = de.PreviousBlock.Block;
+                    Debug.WriteLine($"Connected '{de.Text}' to previous block '{de.PreviousBlock.Text}' without snapping.");
                 }
                 if (savedBlockData.NextBlockIndex.HasValue && savedBlockData.NextBlockIndex.Value >= 0 && savedBlockData.NextBlockIndex.Value < newDraggableList.Count)
                 {
                     de.NextBlock = newDraggableList[savedBlockData.NextBlockIndex.Value];
                     de.Block.NextBlock = de.NextBlock.Block;
+                    Debug.WriteLine($"Connected '{de.Text}' to next block '{de.NextBlock.Text}' without snapping.");
                 }
             }
 
@@ -1018,18 +1070,11 @@ namespace XeryonMotionGUI.Views
             {
                 rootBlock.PreviousBlock = GreenFlagBlock;
                 GreenFlagBlock.NextBlock = rootBlock;
-                double finalLeft = Canvas.GetLeft(GreenFlagBlock);
-                double finalTop = Canvas.GetTop(GreenFlagBlock) + GreenFlagBlock.ActualHeight;
-                Canvas.SetLeft(rootBlock, finalLeft);
-                Canvas.SetTop(rootBlock, finalTop);
-                MoveConnectedBlocks(rootBlock, finalLeft, finalTop);
+                Debug.WriteLine($"Root block '{rootBlock.Text}' connected to GreenFlagBlock, kept at ({Canvas.GetLeft(rootBlock)}, {Canvas.GetTop(rootBlock)}).");
             }
 
-            foreach (var block in newDraggableList)
-            {
-                UpdateSnapConnections(block);
-            }
             UpdateAllArrows();
+            Debug.WriteLine($"Finished loading program '{vm.SelectedProgram.ProgramName}'. Canvas has {WorkspaceCanvas.Children.Count} children.");
         }
 
         private BlockBase ConvertSavedBlockDataToBlockBase(XeryonMotionGUI.ViewModels.SavedBlockData savedBlockData)
@@ -1061,14 +1106,14 @@ namespace XeryonMotionGUI.Views
                     wb.WaitTime = savedBlockData.WaitTime ?? 0;
                     break;
                 case StepBlock sb:
-                    sb.IsPositive = savedBlockData.IsPositive ?? false;
+                    sb.IsPositive = savedBlockData.IsPositive ?? true; // Ensure this is applied correctly
                     sb.StepSize = savedBlockData.StepSize ?? 0;
                     break;
                 case MoveBlock mb:
-                    mb.IsPositive = savedBlockData.IsPositive ?? false;
+                    mb.IsPositive = savedBlockData.IsPositive ?? true;
                     break;
                 case ScanBlock scanb:
-                    scanb.IsPositive = savedBlockData.IsPositive ?? false;
+                    scanb.IsPositive = savedBlockData.IsPositive ?? true;
                     break;
                 case ParameterEditBlock peb:
                     peb.SelectedParameter = savedBlockData.SelectedParameter;
@@ -1079,17 +1124,23 @@ namespace XeryonMotionGUI.Views
                     rb.BlocksToRepeat = savedBlockData.BlocksToRepeat ?? 0;
                     break;
             }
+            Debug.WriteLine($"Converted SavedBlockData to '{block.Text}' with Type={blockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsPositive={savedBlockData.IsPositive}, StepSize={savedBlockData.StepSize}");
             return block;
         }
 
-        private void AddBlockToSelectedProgram(BlockBase block)
+        private void AddBlockToSelectedProgram(DraggableElement draggable)
         {
             var vm = (DemoBuilderViewModel)DataContext;
-            if (vm.SelectedProgram != null)
+            if (vm.SelectedProgram == null)
             {
-                var savedBlockData = ConvertBlockBaseToSavedBlockData(block);
-                vm.SelectedProgram.Blocks.Add(savedBlockData);
+                Debug.WriteLine("SelectedProgram is null; creating a new program.");
+                vm.AddNewProgramAsync().GetAwaiter().GetResult(); // Ensure a program exists
             }
+            var savedBlockData = ConvertBlockBaseToSavedBlockData(draggable.Block);
+            savedBlockData.X = Canvas.GetLeft(draggable);
+            savedBlockData.Y = Canvas.GetTop(draggable);
+            vm.SelectedProgram.Blocks.Add(savedBlockData);
+            Debug.WriteLine($"Added block '{draggable.Text}' to '{vm.SelectedProgram.ProgramName}' at ({savedBlockData.X}, {savedBlockData.Y}). Total blocks: {vm.SelectedProgram.Blocks.Count}");
         }
 
         public XeryonMotionGUI.ViewModels.SavedBlockData ConvertBlockBaseToSavedBlockData(BlockBase block)
@@ -1097,8 +1148,8 @@ namespace XeryonMotionGUI.Views
             var savedBlockData = new XeryonMotionGUI.ViewModels.SavedBlockData
             {
                 BlockType = block.GetType().Name,
-                X = Canvas.GetLeft(block.UiElement),
-                Y = Canvas.GetTop(block.UiElement),
+                X = Canvas.GetLeft(block.UiElement ?? (block.UiElement = block.UiElement ?? new DraggableElement())),
+                Y = Canvas.GetTop(block.UiElement ?? (block.UiElement = block.UiElement ?? new DraggableElement())),
                 AxisSerial = block.SelectedAxis?.DeviceSerial,
                 ControllerFriendlyName = block.SelectedController?.FriendlyName
             };
@@ -1109,7 +1160,7 @@ namespace XeryonMotionGUI.Views
                     savedBlockData.WaitTime = wb.WaitTime;
                     break;
                 case StepBlock sb:
-                    savedBlockData.IsPositive = sb.IsPositive;
+                    savedBlockData.IsPositive = sb.IsPositive; // Ensure this reflects current state
                     savedBlockData.StepSize = (int)sb.StepSize;
                     break;
                 case MoveBlock mb:
@@ -1127,6 +1178,7 @@ namespace XeryonMotionGUI.Views
                     savedBlockData.BlocksToRepeat = rb.BlocksToRepeat;
                     break;
             }
+            Debug.WriteLine($"Converted block '{block.Text}' to SavedBlockData: Type={savedBlockData.BlockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsPositive={savedBlockData.IsPositive}, StepSize={savedBlockData.StepSize}");
             return savedBlockData;
         }
 
@@ -1135,24 +1187,15 @@ namespace XeryonMotionGUI.Views
             var vm = (DemoBuilderViewModel)DataContext;
             if (vm.SelectedProgram != null)
             {
-                vm.SaveCurrentProgramState(this);
+                Debug.WriteLine($"Switching to program '{vm.SelectedProgram.ProgramName}' with {vm.SelectedProgram.Blocks.Count} blocks.");
                 ClearWorkspace();
                 LoadBlocksForSelectedProgram();
             }
             else
             {
+                Debug.WriteLine("No program selected; clearing workspace.");
                 ClearWorkspace();
             }
-        }
-
-        // Supporting classes
-        public class DeviationStats
-        {
-            public int Count { get; set; } = 0;
-            public double SumDeviation { get; set; } = 0.0;
-            public double MinDeviation { get; set; } = double.MaxValue;
-            public double MaxDeviation { get; set; } = double.MinValue;
-            public double AverageDeviation => Count == 0 ? 0.0 : SumDeviation / Count;
         }
 
         public class BlockExecutionStat
@@ -1172,11 +1215,6 @@ namespace XeryonMotionGUI.Views
             public double MinMs { get; set; } = double.MaxValue;
             public double MaxMs { get; set; } = double.MinValue;
             public double AverageMs => Count == 0 ? 0.0 : TotalMs / Count;
-        }
-
-        public interface IStatsAggregator
-        {
-            void RecordBlockExecution(string blockType, double elapsedMs);
         }
 
         public class StatsAggregator : IStatsAggregator

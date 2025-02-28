@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.UI.Dispatching;
 using XeryonMotionGUI;
 using XeryonMotionGUI.Classes;
+using XeryonMotionGUI.Models;
 using XeryonMotionGUI.Views;
 
 public abstract class BlockBase : INotifyPropertyChanged

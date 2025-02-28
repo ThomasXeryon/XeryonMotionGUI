@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using XeryonMotionGUI.Models; // Add this
 using Microsoft.UI.Dispatching;
 using XeryonMotionGUI.Classes;
 using XeryonMotionGUI.Helpers;
@@ -14,10 +15,9 @@ namespace XeryonMotionGUI.Blocks
     public class StepBlock : BlockBase
     {
 
-        private DeviationStats _deviationStats = new DeviationStats();
 
+        private readonly DeviationStats _deviationStats = new DeviationStats();
         public DeviationStats DeviationStats => _deviationStats;
-
         private bool _isPositive = true; // Default to positive direction
         private double _stepSize = 1.0;
         private Units _selectedUnit = Units.mm; // default for linear
@@ -48,7 +48,7 @@ namespace XeryonMotionGUI.Blocks
             }
         }
 
-        public bool IsPositive
+        public bool IsPositive 
         {
             get => _isPositive;
             set

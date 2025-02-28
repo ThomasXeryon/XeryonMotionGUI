@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
+using XeryonMotionGUI.Models; // Already added
 using XeryonMotionGUI.Views;
 
 namespace XeryonMotionGUI.Blocks
@@ -125,10 +126,10 @@ namespace XeryonMotionGUI.Blocks
                     // Record normal aggregator stats (top-level Stats aggregator)
                     Stats?.RecordBlockExecution(childBlock.Text, elapsedMs);
 
-                    // [NEW] If the child is a StepBlock, merge its local DeviationStats
+                    // If the child is a StepBlock, merge its local DeviationStats
                     if (childBlock is StepBlock stepB)
                     {
-                        // Get a reference to your main page (ensure PageLocator returns the current DemoBuilderPage instance)
+                        // Get a reference to your main page
                         var mainPage = XeryonMotionGUI.Helpers.PageLocator.GetDemoBuilderPage();
                         // Use the step's Text as a key (or any other unique identifier for the step type)
                         string stepKey = stepB.Text;
@@ -137,7 +138,7 @@ namespace XeryonMotionGUI.Blocks
                             mainPage._stepDeviationDictionary[stepKey] = new DeviationStats();
                         }
                         var globalStats = mainPage._stepDeviationDictionary[stepKey];
-                        var localStats = stepB.DeviationStats;
+                        var localStats = stepB.DeviationStats; // Now accessible via the public property
 
                         globalStats.Count += localStats.Count;
                         globalStats.SumDeviation += localStats.SumDeviation;
@@ -158,13 +159,10 @@ namespace XeryonMotionGUI.Blocks
             Debug.WriteLine($"[RepeatBlock] Repeat completed.");
         }
 
-
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
-
-
 }

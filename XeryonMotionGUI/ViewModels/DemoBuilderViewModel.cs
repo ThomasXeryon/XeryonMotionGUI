@@ -14,35 +14,53 @@ namespace XeryonMotionGUI.ViewModels
     public partial class DemoBuilderViewModel : ObservableObject
     {
         [ObservableProperty]
-        private ObservableCollection<XeryonMotionGUI.ViewModels.ProgramInfo> allSavedPrograms = new ObservableCollection<XeryonMotionGUI.ViewModels.ProgramInfo>();
+        private ObservableCollection<ProgramInfo> allSavedPrograms = new ObservableCollection<ProgramInfo>();
 
         [ObservableProperty]
-        private XeryonMotionGUI.ViewModels.ProgramInfo selectedProgram;
+        private ProgramInfo selectedProgram;
 
         public DemoBuilderViewModel()
         {
+            Debug.WriteLine("DemoBuilderViewModel constructor started.");
             _ = LoadAllProgramsAsync();
+            Debug.WriteLine("DemoBuilderViewModel constructor completed.");
         }
 
         public void SaveCurrentProgramState(DemoBuilderPage page)
         {
-            if (SelectedProgram != null)
+            if (SelectedProgram == null)
             {
-                SelectedProgram.Blocks.Clear();
-                var children = page.WorkspaceCanvas.Children
-                    .OfType<DraggableElement>()
-                    .Where(de => de != page.SnapShadow && !(de.Block is Blocks.StartBlock))
-                    .ToList();
-                foreach (var draggable in children)
+                Debug.WriteLine("No program selected to save state.");
+                return;
+            }
+
+            SelectedProgram.Blocks.Clear();
+            var children = page.GetWorkspaceBlocks();
+            Debug.WriteLine($"Saving state for '{SelectedProgram.ProgramName}'. Found {children.Count} blocks in canvas.");
+            foreach (var draggable in children)
+            {
+                var savedBlockData = page.ConvertBlockBaseToSavedBlockData(draggable.Block);
+                savedBlockData.X = Canvas.GetLeft(draggable);
+                savedBlockData.Y = Canvas.GetTop(draggable);
+                savedBlockData.PreviousBlockIndex = children.IndexOf(draggable.PreviousBlock);
+                savedBlockData.NextBlockIndex = children.IndexOf(draggable.NextBlock);
+                SelectedProgram.Blocks.Add(savedBlockData);
+                Debug.WriteLine($"Saved block '{draggable.Text}' to '{SelectedProgram.ProgramName}' at ({savedBlockData.X}, {savedBlockData.Y}), PrevIdx={savedBlockData.PreviousBlockIndex}, NextIdx={savedBlockData.NextBlockIndex}");
+            }
+            _ = SaveAllProgramsAsync();
+            DebugAllProgramsState();
+        }
+
+        private void DebugAllProgramsState()
+        {
+            Debug.WriteLine("Current state of AllSavedPrograms:");
+            foreach (var program in AllSavedPrograms)
+            {
+                Debug.WriteLine($"Program '{program.ProgramName}': {program.Blocks.Count} blocks");
+                foreach (var block in program.Blocks)
                 {
-                    var savedBlockData = page.ConvertBlockBaseToSavedBlockData(draggable.Block);
-                    savedBlockData.X = Canvas.GetLeft(draggable);
-                    savedBlockData.Y = Canvas.GetTop(draggable);
-                    savedBlockData.PreviousBlockIndex = children.IndexOf(draggable.PreviousBlock);
-                    savedBlockData.NextBlockIndex = children.IndexOf(draggable.NextBlock);
-                    SelectedProgram.Blocks.Add(savedBlockData);
+                    Debug.WriteLine($"  Block Type={block.BlockType}, X={block.X}, Y={block.Y}, PrevIdx={block.PreviousBlockIndex}, NextIdx={block.NextBlockIndex}");
                 }
-                _ = SaveAllProgramsAsync();
             }
         }
 
@@ -50,31 +68,40 @@ namespace XeryonMotionGUI.ViewModels
         public async Task AddNewProgramAsync()
         {
             var newName = $"Program {AllSavedPrograms.Count + 1}";
-            var newProg = new XeryonMotionGUI.ViewModels.ProgramInfo(newName, new ObservableCollection<SavedBlockData>());
+            var newProg = new ProgramInfo(newName, new ObservableCollection<SavedBlockData>());
             AllSavedPrograms.Add(newProg);
             SelectedProgram = newProg;
             await SaveAllProgramsAsync();
+            Debug.WriteLine($"Added new program '{newName}' with 0 blocks.");
         }
 
         [RelayCommand]
         private async Task RenameProgramAsync()
         {
             if (SelectedProgram == null) return;
-            var newName = await ShowRenameDialogAsync(SelectedProgram.programName); // Changed to programName
-            if (!string.IsNullOrWhiteSpace(newName))
+            var newName = await ShowRenameDialogAsync(SelectedProgram.ProgramName);
+            if (!string.IsNullOrWhiteSpace(newName) && newName != SelectedProgram.ProgramName)
             {
-                SelectedProgram.programName = newName; // Changed to programName
+                SelectedProgram.ProgramName = newName;
                 await SaveAllProgramsAsync();
+                Debug.WriteLine($"Renamed program to '{newName}'.");
             }
         }
 
         [RelayCommand]
         private async Task DeleteProgramAsync()
         {
-            if (SelectedProgram == null) return;
-            AllSavedPrograms.Remove(SelectedProgram);
-            SelectedProgram = null;
-            await SaveAllProgramsAsync();
+            var vm = this; // Assuming this is within DemoBuilderViewModel
+            if (vm.SelectedProgram == null) return;
+            if (vm.AllSavedPrograms.Count <= 1)
+            {
+                Debug.WriteLine("Cannot delete the last program.");
+                return; // Prevent deletion if only one program remains
+            }
+            vm.AllSavedPrograms.Remove(vm.SelectedProgram);
+            vm.SelectedProgram = vm.AllSavedPrograms.Count > 0 ? vm.AllSavedPrograms[0] : null;
+            await vm.SaveAllProgramsAsync();
+            Debug.WriteLine($"Deleted program. Remaining programs: {vm.AllSavedPrograms.Count}");
         }
 
         private async Task<string> ShowRenameDialogAsync(string currentName)
@@ -93,6 +120,7 @@ namespace XeryonMotionGUI.ViewModels
 
         public async Task LoadAllProgramsAsync()
         {
+            Debug.WriteLine("LoadAllProgramsAsync started.");
             try
             {
                 StorageFolder folder = ApplicationData.Current.LocalFolder;
@@ -101,36 +129,54 @@ namespace XeryonMotionGUI.ViewModels
                 string json = await FileIO.ReadTextAsync(file);
                 if (!string.IsNullOrEmpty(json))
                 {
-                    var list = JsonSerializer.Deserialize<ObservableCollection<XeryonMotionGUI.ViewModels.ProgramInfo>>(json);
-                    if (list != null)
+                    var list = JsonSerializer.Deserialize<ObservableCollection<ProgramInfo>>(json);
+                    if (list != null && list.Count > 0)
                     {
                         AllSavedPrograms = list;
-                        if (AllSavedPrograms.Count > 0 && SelectedProgram == null)
-                            SelectedProgram = AllSavedPrograms[0];
+                        SelectedProgram = AllSavedPrograms[0];
+                        Debug.WriteLine($"Loaded {AllSavedPrograms.Count} programs from file.");
+                        DebugAllProgramsState();
                     }
+                }
+                else if (AllSavedPrograms.Count == 0)
+                {
+                    await AddNewProgramAsync();
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading programs: {ex.Message}");
+                if (AllSavedPrograms.Count == 0)
+                {
+                    await AddNewProgramAsync();
+                }
             }
+            Debug.WriteLine("LoadAllProgramsAsync completed.");
         }
 
         public async Task SaveAllProgramsAsync()
         {
-            try
+            int retries = 3;
+            for (int i = 0; i < retries; i++)
             {
-                StorageFolder folder = ApplicationData.Current.LocalFolder;
-                StorageFolder blocksFolder = await folder.CreateFolderAsync("Blocks", CreationCollisionOption.OpenIfExists);
-                StorageFile file = await blocksFolder.CreateFileAsync("AllPrograms.json", CreationCollisionOption.ReplaceExisting);
-                string json = JsonSerializer.Serialize(AllSavedPrograms, new JsonSerializerOptions { WriteIndented = true });
-                await FileIO.WriteTextAsync(file, json);
-                Debug.WriteLine("Programs saved successfully.");
+                try
+                {
+                    StorageFolder folder = ApplicationData.Current.LocalFolder;
+                    StorageFolder blocksFolder = await folder.CreateFolderAsync("Blocks", CreationCollisionOption.OpenIfExists);
+                    StorageFile file = await blocksFolder.CreateFileAsync("AllPrograms.json", CreationCollisionOption.ReplaceExisting);
+                    string json = JsonSerializer.Serialize(AllSavedPrograms, new JsonSerializerOptions { WriteIndented = true });
+                    await FileIO.WriteTextAsync(file, json);
+                    Debug.WriteLine($"Programs saved successfully. Total programs: {AllSavedPrograms.Count}");
+                    DebugAllProgramsState();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error saving programs (attempt {i + 1}/{retries}): {ex.Message}");
+                    if (i < retries - 1) await Task.Delay(100); // Wait before retrying
+                }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error saving programs: {ex.Message}");
-            }
+            Debug.WriteLine("Failed to save programs after all retries.");
         }
     }
 
@@ -151,7 +197,7 @@ namespace XeryonMotionGUI.ViewModels
 
         public ProgramInfo(string name, ObservableCollection<SavedBlockData> blocks)
         {
-            programName = name; // Changed to programName
+            ProgramName = name;
             Blocks = blocks;
         }
     }
