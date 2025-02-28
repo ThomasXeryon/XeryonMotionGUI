@@ -12,15 +12,19 @@ namespace XeryonMotionGUI.Blocks
     /// </summary>
     public class LoggingBlock : BlockBase
     {
-        private bool _IsStart = true;
+        private bool _isStart = false;
 
         public bool IsStart
         {
-            get => _IsStart;
+            get => _isStart;
             set
             {
-                _IsStart = value;
-                OnPropertyChanged();
+                if (_isStart != value)
+                {
+                    _isStart = value;
+                    Debug.WriteLine($"LoggingBlock.IsStart set to: {_isStart}");
+                    OnPropertyChanged();
+                }
             }
         }
 
@@ -31,7 +35,7 @@ namespace XeryonMotionGUI.Blocks
 
         public LoggingBlock()
         {
-            _IsStart = IsStart;
+            _isStart = IsStart;
             Text = "Logging";
             RequiresAxis = true;
             Width = 150;
@@ -47,7 +51,7 @@ namespace XeryonMotionGUI.Blocks
                 return;
             }
 
-            if (_IsStart)
+            if (_isStart)
             {
                 SelectedAxis.StartManualLogging();
                 Debug.WriteLine("Logger started");

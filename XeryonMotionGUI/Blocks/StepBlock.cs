@@ -18,7 +18,6 @@ namespace XeryonMotionGUI.Blocks
 
         private readonly DeviationStats _deviationStats = new DeviationStats();
         public DeviationStats DeviationStats => _deviationStats;
-        private bool _isPositive = true; // Default to positive direction
         private double _stepSize = 1.0;
         private Units _selectedUnit = Units.mm; // default for linear
 
@@ -48,7 +47,9 @@ namespace XeryonMotionGUI.Blocks
             }
         }
 
-        public bool IsPositive 
+        private bool _isPositive = true; // Default to positive direction
+
+        public bool IsPositive
         {
             get => _isPositive;
             set
@@ -56,6 +57,7 @@ namespace XeryonMotionGUI.Blocks
                 if (_isPositive != value)
                 {
                     _isPositive = value;
+                    Debug.WriteLine($"StepBlock.IsPositive set to: {_isPositive}");
                     OnPropertyChanged();
                 }
             }

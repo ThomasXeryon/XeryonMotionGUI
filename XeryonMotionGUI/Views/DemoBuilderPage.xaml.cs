@@ -133,8 +133,9 @@ namespace XeryonMotionGUI.Views
             var blocks = WorkspaceCanvas.Children
                 .OfType<DraggableElement>()
                 .Where(de => de != SnapShadow && !(de.Block is Blocks.StartBlock))
+                .Distinct() // Prevent duplicates
                 .ToList();
-            Debug.WriteLine($"GetWorkspaceBlocks returned {blocks.Count} blocks.");
+            Debug.WriteLine($"GetWorkspaceBlocks returned {blocks.Count} blocks: {string.Join(", ", blocks.Select(b => b.Text))}");
             return blocks;
         }
 
@@ -1078,55 +1079,62 @@ namespace XeryonMotionGUI.Views
         }
 
         private BlockBase ConvertSavedBlockDataToBlockBase(XeryonMotionGUI.ViewModels.SavedBlockData savedBlockData)
-        {
-            string blockType = savedBlockData.BlockType switch
-            {
-                "WaitBlock" => "Wait",
-                "StepBlock" => "Step",
-                "MoveBlock" => "Move",
-                "ScanBlock" => "Scan",
-                "IndexBlock" => "Index",
-                "StopBlock" => "Stop",
-                "HomeBlock" => "Home",
-                "LoggingBlock" => "Log",
-                "ParameterEditBlock" => "Edit Parameter",
-                "RepeatBlock" => "Repeat",
-                _ => throw new ArgumentException($"Unknown block type: {savedBlockData.BlockType}")
-            };
-            BlockBase block = BlockFactory.CreateBlock(blockType, RunningControllers, DispatcherQueue.GetForCurrentThread());
-            block.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
-            block.SelectedAxis = RunningControllers
-                .SelectMany(c => c.Axes)
-                .FirstOrDefault(a => a.DeviceSerial == savedBlockData.AxisSerial);
-            block.SelectedController = RunningControllers
-                .FirstOrDefault(c => c.FriendlyName == savedBlockData.ControllerFriendlyName);
-            switch (block)
-            {
-                case WaitBlock wb:
-                    wb.WaitTime = savedBlockData.WaitTime ?? 0;
-                    break;
-                case StepBlock sb:
-                    sb.IsPositive = savedBlockData.IsPositive ?? true; // Ensure this is applied correctly
-                    sb.StepSize = savedBlockData.StepSize ?? 0;
-                    break;
-                case MoveBlock mb:
-                    mb.IsPositive = savedBlockData.IsPositive ?? true;
-                    break;
-                case ScanBlock scanb:
-                    scanb.IsPositive = savedBlockData.IsPositive ?? true;
-                    break;
-                case ParameterEditBlock peb:
-                    peb.SelectedParameter = savedBlockData.SelectedParameter;
-                    peb.ParameterValue = savedBlockData.ParameterValue ?? 0;
-                    break;
-                case RepeatBlock rb:
-                    rb.RepeatCount = savedBlockData.RepeatCount ?? 0;
-                    rb.BlocksToRepeat = savedBlockData.BlocksToRepeat ?? 0;
-                    break;
-            }
-            Debug.WriteLine($"Converted SavedBlockData to '{block.Text}' with Type={blockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsPositive={savedBlockData.IsPositive}, StepSize={savedBlockData.StepSize}");
-            return block;
-        }
+{
+    string blockType = savedBlockData.BlockType switch
+    {
+        "WaitBlock" => "Wait",
+        "StepBlock" => "Step",
+        "MoveBlock" => "Move",
+        "ScanBlock" => "Scan",
+        "IndexBlock" => "Index",
+        "StopBlock" => "Stop",
+        "HomeBlock" => "Home",
+        "LoggingBlock" => "Log", // Ensure this matches
+        "ParameterEditBlock" => "Edit Parameter",
+        "RepeatBlock" => "Repeat",
+        _ => throw new ArgumentException($"Unknown block type: {savedBlockData.BlockType}")
+    };
+    BlockBase block = BlockFactory.CreateBlock(blockType, RunningControllers, DispatcherQueue.GetForCurrentThread());
+    block.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
+    block.SelectedAxis = RunningControllers
+        .SelectMany(c => c.Axes)
+        .FirstOrDefault(a => a.DeviceSerial == savedBlockData.AxisSerial);
+    block.SelectedController = RunningControllers
+        .FirstOrDefault(c => c.FriendlyName == savedBlockData.ControllerFriendlyName);
+    switch (block)
+    {
+        case WaitBlock wb:
+            wb.WaitTime = savedBlockData.WaitTime ?? 0;
+            break;
+        case StepBlock sb:
+            sb.IsPositive = savedBlockData.IsPositive ?? true;
+            sb.StepSize = savedBlockData.StepSize ?? 0;
+            Debug.WriteLine($"Loading StepBlock: IsPositive set to {sb.IsPositive}");
+            break;
+        case MoveBlock mb:
+            mb.IsPositive = savedBlockData.IsPositive ?? true;
+            Debug.WriteLine($"Loading MoveBlock: IsPositive set to {mb.IsPositive}");
+            break;
+        case ScanBlock scanb:
+            scanb.IsPositive = savedBlockData.IsPositive ?? true;
+            Debug.WriteLine($"Loading ScanBlock: IsPositive set to {scanb.IsPositive}");
+            break;
+        case LoggingBlock lb:
+            lb.IsStart = savedBlockData.IsStart?? false; // Load IsStart
+            Debug.WriteLine($"Loading LoggingBlock: IsStart set to {lb.IsStart}");
+            break;
+        case ParameterEditBlock peb:
+            peb.SelectedParameter = savedBlockData.SelectedParameter;
+            peb.ParameterValue = savedBlockData.ParameterValue ?? 0;
+            break;
+        case RepeatBlock rb:
+            rb.RepeatCount = savedBlockData.RepeatCount ?? 0;
+            rb.BlocksToRepeat = savedBlockData.BlocksToRepeat ?? 0;
+            break;
+    }
+    Debug.WriteLine($"Converted SavedBlockData to '{block.Text}' with Type={blockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsStart={savedBlockData.IsStart}");
+    return block;
+}
 
         private void AddBlockToSelectedProgram(DraggableElement draggable)
         {
@@ -1134,12 +1142,15 @@ namespace XeryonMotionGUI.Views
             if (vm.SelectedProgram == null)
             {
                 Debug.WriteLine("SelectedProgram is null; creating a new program.");
-                vm.AddNewProgramAsync().GetAwaiter().GetResult(); // Ensure a program exists
+                vm.AddNewProgramAsync().GetAwaiter().GetResult();
             }
             var savedBlockData = ConvertBlockBaseToSavedBlockData(draggable.Block);
             savedBlockData.X = Canvas.GetLeft(draggable);
             savedBlockData.Y = Canvas.GetTop(draggable);
+            savedBlockData.PreviousBlockIndex = -1; // Default until snapped
+            savedBlockData.NextBlockIndex = -1;
             vm.SelectedProgram.Blocks.Add(savedBlockData);
+            vm.SaveCurrentProgramState(this); // Ensure immediate save
             Debug.WriteLine($"Added block '{draggable.Text}' to '{vm.SelectedProgram.ProgramName}' at ({savedBlockData.X}, {savedBlockData.Y}). Total blocks: {vm.SelectedProgram.Blocks.Count}");
         }
 
@@ -1160,7 +1171,7 @@ namespace XeryonMotionGUI.Views
                     savedBlockData.WaitTime = wb.WaitTime;
                     break;
                 case StepBlock sb:
-                    savedBlockData.IsPositive = sb.IsPositive; // Ensure this reflects current state
+                    savedBlockData.IsPositive = sb.IsPositive;
                     savedBlockData.StepSize = (int)sb.StepSize;
                     break;
                 case MoveBlock mb:
@@ -1168,6 +1179,9 @@ namespace XeryonMotionGUI.Views
                     break;
                 case ScanBlock scanb:
                     savedBlockData.IsPositive = scanb.IsPositive;
+                    break;
+                case LoggingBlock lb:
+                    savedBlockData.IsStart = lb.IsStart; // Save IsStart
                     break;
                 case ParameterEditBlock peb:
                     savedBlockData.SelectedParameter = peb.SelectedParameter;
@@ -1178,7 +1192,7 @@ namespace XeryonMotionGUI.Views
                     savedBlockData.BlocksToRepeat = rb.BlocksToRepeat;
                     break;
             }
-            Debug.WriteLine($"Converted block '{block.Text}' to SavedBlockData: Type={savedBlockData.BlockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsPositive={savedBlockData.IsPositive}, StepSize={savedBlockData.StepSize}");
+            Debug.WriteLine($"Converted block '{block.Text}' to SavedBlockData: Type={savedBlockData.BlockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsStart={savedBlockData.IsStart}");
             return savedBlockData;
         }
 

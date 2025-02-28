@@ -37,8 +37,9 @@ namespace XeryonMotionGUI.ViewModels
             SelectedProgram.Blocks.Clear();
             var children = page.GetWorkspaceBlocks();
             Debug.WriteLine($"Saving state for '{SelectedProgram.ProgramName}'. Found {children.Count} blocks in canvas.");
-            foreach (var draggable in children)
+            for (int i = 0; i < children.Count; i++)
             {
+                var draggable = children[i];
                 var savedBlockData = page.ConvertBlockBaseToSavedBlockData(draggable.Block);
                 savedBlockData.X = Canvas.GetLeft(draggable);
                 savedBlockData.Y = Canvas.GetTop(draggable);
@@ -220,6 +221,10 @@ namespace XeryonMotionGUI.ViewModels
         {
             get; set;
         }
+        public bool? IsStart
+        {
+            get; set;
+        } // For LoggingBlock
         public string ControllerFriendlyName
         {
             get; set;
