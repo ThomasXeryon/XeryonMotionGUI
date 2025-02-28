@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -6,67 +7,76 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
-using System.Linq;
+using XeryonMotionGUI.Views;
 
 namespace XeryonMotionGUI.ViewModels
 {
     public partial class DemoBuilderViewModel : ObservableObject
     {
         [ObservableProperty]
-        private string programName;
-        // These attributes auto-generate public properties named AllSavedPrograms and SelectedProgram.
-        [ObservableProperty]
-        private ObservableCollection<ProgramInfo> allSavedPrograms = new ObservableCollection<ProgramInfo>();
+        private ObservableCollection<XeryonMotionGUI.ViewModels.ProgramInfo> allSavedPrograms = new ObservableCollection<XeryonMotionGUI.ViewModels.ProgramInfo>();
 
         [ObservableProperty]
-        private ProgramInfo selectedProgram;
+        private XeryonMotionGUI.ViewModels.ProgramInfo selectedProgram;
 
         public DemoBuilderViewModel()
         {
-            // Optionally, load programs on creation:
-            // _ = LoadAllProgramsAsync();
+            _ = LoadAllProgramsAsync();
         }
 
+        public void SaveCurrentProgramState(DemoBuilderPage page)
+        {
+            if (SelectedProgram != null)
+            {
+                SelectedProgram.Blocks.Clear();
+                var children = page.WorkspaceCanvas.Children
+                    .OfType<DraggableElement>()
+                    .Where(de => de != page.SnapShadow && !(de.Block is Blocks.StartBlock))
+                    .ToList();
+                foreach (var draggable in children)
+                {
+                    var savedBlockData = page.ConvertBlockBaseToSavedBlockData(draggable.Block);
+                    savedBlockData.X = Canvas.GetLeft(draggable);
+                    savedBlockData.Y = Canvas.GetTop(draggable);
+                    savedBlockData.PreviousBlockIndex = children.IndexOf(draggable.PreviousBlock);
+                    savedBlockData.NextBlockIndex = children.IndexOf(draggable.NextBlock);
+                    SelectedProgram.Blocks.Add(savedBlockData);
+                }
+                _ = SaveAllProgramsAsync();
+            }
+        }
 
-        // Command to add a new program.
         [RelayCommand]
-        private async Task AddNewProgramAsync()
+        public async Task AddNewProgramAsync()
         {
             var newName = $"Program {AllSavedPrograms.Count + 1}";
-            var newProg = new ProgramInfo(newName, new ObservableCollection<SavedBlockData>());
+            var newProg = new XeryonMotionGUI.ViewModels.ProgramInfo(newName, new ObservableCollection<SavedBlockData>());
             AllSavedPrograms.Add(newProg);
             SelectedProgram = newProg;
             await SaveAllProgramsAsync();
         }
 
-        // Command to rename the selected program.
         [RelayCommand]
         private async Task RenameProgramAsync()
         {
-            if (SelectedProgram == null)
-                return;
-
-            var newName = await ShowRenameDialogAsync(SelectedProgram.ProgramName);
+            if (SelectedProgram == null) return;
+            var newName = await ShowRenameDialogAsync(SelectedProgram.programName); // Changed to programName
             if (!string.IsNullOrWhiteSpace(newName))
             {
-                SelectedProgram.ProgramName = newName;
+                SelectedProgram.programName = newName; // Changed to programName
                 await SaveAllProgramsAsync();
             }
         }
 
-        // Command to delete the selected program.
         [RelayCommand]
         private async Task DeleteProgramAsync()
         {
-            if (SelectedProgram == null)
-                return;
-
+            if (SelectedProgram == null) return;
             AllSavedPrograms.Remove(SelectedProgram);
             SelectedProgram = null;
             await SaveAllProgramsAsync();
         }
 
-        // Helper to show a rename dialog.
         private async Task<string> ShowRenameDialogAsync(string currentName)
         {
             var dialog = new ContentDialog
@@ -75,41 +85,29 @@ namespace XeryonMotionGUI.ViewModels
                 PrimaryButtonText = "Save",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Primary,
-                Content = new TextBox
-                {
-                    Text = currentName,
-                    PlaceholderText = "Enter a new name"
-                }
+                Content = new TextBox { Text = currentName, PlaceholderText = "Enter a new name" }
             };
-
             var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-                return (dialog.Content as TextBox)?.Text ?? string.Empty;
-            return string.Empty;
+            return result == ContentDialogResult.Primary ? (dialog.Content as TextBox)?.Text ?? string.Empty : string.Empty;
         }
 
-        // Load all programs from JSON.
         public async Task LoadAllProgramsAsync()
         {
             try
             {
-                Debug.WriteLine("Starting LoadAllProgramsAsync...");
                 StorageFolder folder = ApplicationData.Current.LocalFolder;
-                StorageFolder blocksFolder = await folder.GetFolderAsync("Blocks");
-                StorageFile file = await blocksFolder.GetFileAsync("AllPrograms.json");
+                StorageFolder blocksFolder = await folder.CreateFolderAsync("Blocks", CreationCollisionOption.OpenIfExists);
+                StorageFile file = await blocksFolder.CreateFileAsync("AllPrograms.json", CreationCollisionOption.OpenIfExists);
                 string json = await FileIO.ReadTextAsync(file);
-                Debug.WriteLine($"JSON content: {json}");
-
-                var list = JsonSerializer.Deserialize<ObservableCollection<ProgramInfo>>(json);
-                if (list != null)
+                if (!string.IsNullOrEmpty(json))
                 {
-                    AllSavedPrograms = list;
-                    if (AllSavedPrograms.Count > 0)
-                        SelectedProgram = AllSavedPrograms[0];
-                }
-                else
-                {
-                    Debug.WriteLine("Deserialized list is null.");
+                    var list = JsonSerializer.Deserialize<ObservableCollection<XeryonMotionGUI.ViewModels.ProgramInfo>>(json);
+                    if (list != null)
+                    {
+                        AllSavedPrograms = list;
+                        if (AllSavedPrograms.Count > 0 && SelectedProgram == null)
+                            SelectedProgram = AllSavedPrograms[0];
+                    }
                 }
             }
             catch (Exception ex)
@@ -118,37 +116,24 @@ namespace XeryonMotionGUI.ViewModels
             }
         }
 
-        // Save all programs to JSON.
         public async Task SaveAllProgramsAsync()
         {
             try
             {
-                Debug.WriteLine("Starting SaveAllProgramsAsync...");
                 StorageFolder folder = ApplicationData.Current.LocalFolder;
-                StorageFolder blocksFolder;
-                try
-                {
-                    blocksFolder = await folder.GetFolderAsync("Blocks");
-                }
-                catch (FileNotFoundException)
-                {
-                    blocksFolder = await folder.CreateFolderAsync("Blocks");
-                }
+                StorageFolder blocksFolder = await folder.CreateFolderAsync("Blocks", CreationCollisionOption.OpenIfExists);
                 StorageFile file = await blocksFolder.CreateFileAsync("AllPrograms.json", CreationCollisionOption.ReplaceExisting);
                 string json = JsonSerializer.Serialize(AllSavedPrograms, new JsonSerializerOptions { WriteIndented = true });
-                Debug.WriteLine($"Serialized JSON: {json}");
                 await FileIO.WriteTextAsync(file, json);
                 Debug.WriteLine("Programs saved successfully.");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error saving programs: {ex.Message}");
-                Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
         }
     }
 
-    // ProgramInfo class defined in the ViewModels namespace.
     public partial class ProgramInfo : ObservableObject
     {
         [ObservableProperty]
@@ -166,12 +151,11 @@ namespace XeryonMotionGUI.ViewModels
 
         public ProgramInfo(string name, ObservableCollection<SavedBlockData> blocks)
         {
-            programName = name;
+            programName = name; // Changed to programName
             Blocks = blocks;
         }
     }
 
-    // SavedBlockData class defined in the ViewModels namespace.
     public class SavedBlockData
     {
         public string BlockType
