@@ -62,8 +62,6 @@ public class ParameterEditBlock : BlockBase
     {
         Text = "Edit Parameter";
         RequiresAxis = true; // Requires an axis to operat
-        Width = 140;
-        Height = 240;
     }
 
     private void UpdateParameterValue()

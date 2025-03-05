@@ -140,7 +140,4 @@ public abstract class BlockBase : INotifyPropertyChanged
         if (RequiresAxis && !HasValidAxisSelection)
             throw new InvalidOperationException("Controller and Axis must be selected.");
     }
-
-    public double Width { get; set; } = 150; // Default width
-    public double Height { get; set; } = 50; // Default height
 }

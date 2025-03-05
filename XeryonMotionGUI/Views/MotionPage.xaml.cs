@@ -184,30 +184,8 @@ namespace XeryonMotionGUI.Views
                     Path.GetTempPath(),
                     "MyAxisPlot.png");
 
-                // --- Save old colors from model ---
-                OxyColor oldBackground = model.Background;
-                OxyColor oldTextColor = model.TextColor;
-                OxyColor oldTitleColor = model.TitleColor;
-                OxyColor oldSubtitleColor = model.SubtitleColor;
 
 
-
-                // --- Decide new colors for export ---
-                // For example, white background + black text
-                model.Background = OxyColors.White;
-                model.TextColor = OxyColors.Black;
-                model.TitleColor = OxyColors.Black;
-                model.SubtitleColor = OxyColors.Black;
-
-                // Axes -> black text / lines
-                foreach (var axis in model.Axes)
-                {
-                    axis.TextColor = OxyColors.Black;
-                    axis.TitleColor = OxyColors.Black;
-                    axis.AxislineColor = OxyColors.Black;
-                    axis.TicklineColor = OxyColors.Black;
-                    axis.MinorTicklineColor = OxyColors.Black;
-                }
 
                 // 3) Perform export
                 PngExporter.Export(model, filename, width: 1920, height: 1080);
@@ -220,21 +198,18 @@ namespace XeryonMotionGUI.Views
                 };
                 Process.Start(processInfo);
 
-                // 5) Restore original colors
-                model.Background = oldBackground;
-                model.TextColor = oldTextColor;
-                model.TitleColor = oldTitleColor;
-                model.SubtitleColor = oldSubtitleColor;
+
 
 
                 // Optionally re-render the plot in your UI
-                model.InvalidatePlot(false);
+               // model.InvalidatePlot(false);
             }
         }
 
 
         private void InitializePlot()
         {
+            ApplyThemeToPlotModel();
             _plotModel = new PlotModel
             {
                 Title = "Axis Movement Over Time",
@@ -279,8 +254,14 @@ namespace XeryonMotionGUI.Views
             ApplyThemeToPlotModel();
         }
 
+
+
         private void ApplyThemeToPlotModel()
         {
+            Debug.WriteLine("Applying theme to plot");
+            var xAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Bottom);
+            var positionAxis = _plotModel.Axes.FirstOrDefault(a => a.Position == AxisPosition.Left);
+            var speedAxis = _plotModel.Axes.FirstOrDefault(a => a.Key == "SpeedAxis");
             // Example theme logic
             var frame = App.AppTitlebar as FrameworkElement;
             if (frame != null && frame.ActualTheme == ElementTheme.Dark)
@@ -297,6 +278,13 @@ namespace XeryonMotionGUI.Views
                 yAxis.TicklineColor = OxyColors.White;
 
                 _plotModel.TextColor = OxyColors.White;
+
+                if (xAxis != null) xAxis.TextColor = OxyColors.White;
+                if (positionAxis != null) positionAxis.TextColor = OxyColors.White;
+                if (speedAxis != null) speedAxis.TextColor = OxyColors.White;
+
+                _plotModel.TextColor = OxyColors.White;
+                _plotModel.TitleColor = OxyColors.White;
             }
             else
             {
@@ -312,6 +300,14 @@ namespace XeryonMotionGUI.Views
                 yAxis.TicklineColor = OxyColors.Black;
 
                 _plotModel.TextColor = OxyColors.Black;
+
+                if (xAxis != null) xAxis.TextColor = OxyColors.Black;
+                if (positionAxis != null) positionAxis.TextColor = OxyColors.Black;
+                if (speedAxis != null) speedAxis.TextColor = OxyColors.Black;
+
+                _plotModel.TextColor = OxyColors.Black;
+                // If you want the title "Axis Movement and Speed Over Time" to remain black:
+                _plotModel.TitleColor = OxyColors.Black;
             }
 
             _plotModel.InvalidatePlot(false);

@@ -22,8 +22,7 @@ namespace XeryonMotionGUI.Blocks
         {
             Text = "Scan";
             RequiresAxis = true; // Requires an axis to operate
-            Width = 140;
-            Height = 200;
+
         }
 
         public void SetDispatcherQueue(DispatcherQueue queue)

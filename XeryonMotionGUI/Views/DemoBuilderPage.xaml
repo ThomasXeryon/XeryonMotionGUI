@@ -10,30 +10,51 @@
     <Page.DataContext>
         <viewmodels:DemoBuilderViewModel />
     </Page.DataContext>
+
+    <Page.Resources>
+        <!-- Define a ResourceDictionary for styles -->
+        <ResourceDictionary>
+            <Style x:Key="DefaultButtonStyle" TargetType="Button">
+                <Setter Property="Foreground" Value="Black"/>
+                <Setter Property="Padding" Value="5"/>
+                <Setter Property="Margin" Value="0,0,5,0"/>
+                <Setter Property="BorderBrush" Value="Gray"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="3"/>
+                <Setter Property="Width" Value="60"/>
+                <!-- Reduced width to fit text -->
+                <Setter Property="Height" Value="30"/>
+                <!-- Reduced height to fit text -->
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="{TemplateBinding CornerRadius}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </Page.Resources>
+
     <Grid>
-        <!-- 
-           ROWS:
-             Row 0 -> Toolbar (auto-height)
-             Row 1 -> Main content (*)
-        -->
+        <!-- ROWS: Row 0 -> Toolbar (auto-height), Row 1 -> Main content (*) -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 
-           COLUMNS:
-             Column 0 -> Block Palette (fixed width or min width)
-             Column 1 -> Workspace (* = fills the rest)
-             Column 2 -> Saved Programs (fixed width or min width)
-        -->
+        <!-- COLUMNS: Column 0 -> Block Palette (fixed width), Column 1 -> Workspace (*), Column 2 -> Saved Programs (fixed width) -->
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200"/>
-            <!-- Block Palette -->
             <ColumnDefinition Width="*"/>
-            <!-- Workspace (stretch) -->
             <ColumnDefinition Width="300"/>
-            <!-- Saved Programs List -->
         </Grid.ColumnDefinitions>
 
         <!-- ========== TOP TOOLBAR (Row 0, spans all columns) ========== -->
@@ -41,16 +62,15 @@
             Grid.Row="0" 
             Grid.ColumnSpan="3"
             Orientation="Horizontal"
-            Background="LightGray"
             HorizontalAlignment="Stretch" 
             VerticalAlignment="Top"
             Padding="10"
             Spacing="10">
-
             <!-- Start Button -->
             <Button x:Name="StartButton"
                     Click="StartButton_Click"
-                    ToolTipService.ToolTip="Start Program">
+                    ToolTipService.ToolTip="Start Program"
+                    Style="{StaticResource DefaultButtonStyle}">
                 <SymbolIcon Symbol="Play"/>
             </Button>
 
@@ -58,21 +78,24 @@
             <Button x:Name="StopButton"
                     Click="StopButton_Click"
                     IsEnabled="False"
-                    ToolTipService.ToolTip="Stop Program">
+                    ToolTipService.ToolTip="Stop Program"
+                    Style="{StaticResource DefaultButtonStyle}">
                 <SymbolIcon Symbol="Stop"/>
             </Button>
 
             <!-- Save Button -->
             <Button x:Name="SaveButton"
                     Click="SaveProgramButton_Click"
-                    ToolTipService.ToolTip="Save Program to File">
+                    ToolTipService.ToolTip="Save Program to File"
+                    Style="{StaticResource DefaultButtonStyle}">
                 <SymbolIcon Symbol="Save"/>
             </Button>
 
             <!-- Load Button -->
             <Button x:Name="LoadButton"
                     Click="LoadProgramButton_Click"
-                    ToolTipService.ToolTip="Load Program from File">
+                    ToolTipService.ToolTip="Load Program from File"
+                    Style="{StaticResource DefaultButtonStyle}">
                 <SymbolIcon Symbol="OpenFile"/>
             </Button>
         </StackPanel>
@@ -89,7 +112,7 @@
                            FontSize="16" 
                            FontWeight="Bold" 
                            Margin="5"/>
-                <!-- DraggableElements added in code-behind -->
+                <!-- DraggableElements added in code-behind with styles applied -->
             </StackPanel>
         </ScrollViewer>
 
@@ -97,38 +120,26 @@
         <Border 
             Grid.Row="1"
             Grid.Column="1"
-            BorderBrush="Gray"
-            BorderThickness="2"
+            BorderBrush="LightGray"
+            BorderThickness="1"
             CornerRadius="5"
             Padding="5"
             Margin="5">
             <Grid>
-                <!-- 
-                  Make the ScrollViewer and Canvas more flexible in size 
-                  so it doesn't force everything else off-screen 
-                -->
                 <ScrollViewer 
+                    x:Name="WorkspaceScrollViewer"
                     HorizontalScrollBarVisibility="Auto"
                     VerticalScrollBarVisibility="Auto"
-                    ZoomMode="Enabled"
                     MinZoomFactor="0.1"
                     MaxZoomFactor="10.0">
 
-                    <!-- 
-                      Remove or reduce the hard-coded 5000x5000. 
-                      Let the Canvas auto-size or set it to something more modest. 
-                    -->
                     <Canvas x:Name="WorkspaceCanvas"
                             Background="Transparent"
                             AllowDrop="True"
-                            Width="2000"
-                            Height="1500">
-
+                            SizeChanged="WorkspaceCanvas_SizeChanged">
                         <!-- Snap shadow block for drag previews -->
                         <local:DraggableElement x:Name="SnapShadow"
                                                 Text=""
-                                                Width="150"
-                                                Height="100"
                                                 Opacity="0.5"
                                                 Visibility="Collapsed"
                                                 IsHitTestVisible="False"
@@ -138,17 +149,17 @@
                         <local:DraggableElement x:Name="GreenFlagBlock"
                                                 Text="Start"
                                                 Canvas.ZIndex="100"
-                                                Width="120"
                                                 Margin="0"
-                                                IsHitTestVisible="False">
+                                                IsHitTestVisible="False"
+                                                MinWidth="80"
+                                                MinHeight="40">
                             <local:DraggableElement.Content>
                                 <Border CornerRadius="5"
-                                        Padding="10"
-                                        Background="Transparent"
+                                        Padding="5"
                                         BorderThickness="1"
                                         BorderBrush="Black">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <FontIcon Glyph="&#xE768;" 
+                                        <FontIcon Glyph="" 
                                                   FontSize="16" 
                                                   Margin="0,0,5,0" 
                                                   Foreground="Green" />
@@ -157,19 +168,19 @@
                                 </Border>
                             </local:DraggableElement.Content>
                         </local:DraggableElement>
-
                     </Canvas>
                 </ScrollViewer>
 
                 <!-- Trash Icon overlay (bottom-right) -->
                 <FontIcon x:Name="TrashIcon"
-                          Glyph="&#xE74D;"
+                          Glyph=""
                           FontSize="24"
                           HorizontalAlignment="Right"
                           VerticalAlignment="Bottom"
-                          Margin="10">
+                          Margin="10"
+                          Foreground="Red">
                     <FontIcon.RenderTransform>
-                        <ScaleTransform ScaleX="1.0" ScaleY="1.0"/>
+                        <ScaleTransform x:Name="TrashScaleTransform" ScaleX="1.0" ScaleY="1.0"/>
                     </FontIcon.RenderTransform>
                 </FontIcon>
             </Grid>
@@ -184,46 +195,59 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <!-- Added for buttons at the bottom -->
             </Grid.RowDefinitions>
 
-
-
             <!-- Saved Programs List -->
-            <StackPanel Grid.Row="1">
+            <StackPanel Grid.Row="0">
                 <TextBlock Text="Saved Programs" 
                            FontSize="16" 
                            FontWeight="Bold" 
                            Margin="0,0,0,10"/>
+            </StackPanel>
 
-                <ListView 
-                    x:Name="SavedProgramsListView"
-                    ItemsSource="{Binding AllSavedPrograms}"
-                    SelectedItem="{Binding SelectedProgram, Mode=TwoWay}"
-                    HorizontalAlignment="Stretch"
-                    Height="300"
-                    Margin="0,0,0,10"
-                    SelectionChanged="SavedProgramsListView_SelectionChanged">
-                    <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding ProgramName}" Margin="5,0,0,0" FontSize="14"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+            <ListView 
+                Grid.Row="1"
+                x:Name="SavedProgramsListView"
+                ItemsSource="{Binding AllSavedPrograms}"
+                SelectedItem="{Binding SelectedProgram, Mode=TwoWay}"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Top" 
+                Margin="0,0,0,10"
+                SelectionChanged="SavedProgramsListView_SelectionChanged">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ProgramName}" Margin="5,0,0,0" FontSize="14"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
 
-                <!-- Buttons for managing programs -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="New" 
-            Command="{Binding AddNewProgramCommand}" 
-            Margin="5" Padding="10,5"/>
-                    <Button Content="Rename" 
-            Command="{Binding RenameProgramCommand}" 
-            Margin="5" Padding="10,5"/>
-                    <Button Content="Delete" 
-            Command="{Binding DeleteProgramCommand}" 
-            Margin="5" Padding="10,5"/>
-                </StackPanel>
+            <!-- Buttons moved to the bottom with reduced size -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="New" 
+                        Command="{Binding AddNewProgramCommand}" 
+                        Margin="5" 
+                        Padding="5,2"
+                        Width="50"
+                        Height="30"
+                        Style="{StaticResource DefaultButtonStyle}"/>
+                <Button Content="Rename" 
+                        Command="{Binding RenameProgramCommand}" 
+                        Margin="5" 
+                        Padding="5,2"
+                        Width="60"
+                        Height="30"
+                        Style="{StaticResource DefaultButtonStyle}"/>
+                <Button Content="Delete" 
+                        Command="{Binding DeleteProgramCommand}" 
+                        Margin="5" 
+                        Padding="5,2"
+                        Width="60"
+                        Height="30"
+                        Style="{StaticResource DefaultButtonStyle}"/>
             </StackPanel>
         </Grid>
     </Grid>

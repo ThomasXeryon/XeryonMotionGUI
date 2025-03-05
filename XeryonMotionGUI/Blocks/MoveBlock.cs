@@ -27,8 +27,6 @@ namespace XeryonMotionGUI.Blocks
         {
             Text = "Move";
             RequiresAxis = true; // Requires an axis to operat
-            Width = 140;
-            Height = 200;
         }
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)

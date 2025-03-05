@@ -106,8 +106,6 @@ namespace XeryonMotionGUI.Blocks
         public StepBlock()
         {
             Text = "Step";
-            Width = 140;
-            Height = 340;
             RequiresAxis = true;
 
             // Could set defaults here

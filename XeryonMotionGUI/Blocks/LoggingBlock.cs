@@ -38,8 +38,6 @@ namespace XeryonMotionGUI.Blocks
             _isStart = IsStart;
             Text = "Logging";
             RequiresAxis = true;
-            Width = 150;
-            Height = 200;
         }
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)

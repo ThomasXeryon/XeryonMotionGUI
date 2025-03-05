@@ -68,7 +68,8 @@ namespace XeryonMotionGUI.ViewModels
         [RelayCommand]
         public async Task AddNewProgramAsync()
         {
-            var newName = $"Program {AllSavedPrograms.Count + 1}";
+            var baseName = $"Program {AllSavedPrograms.Count + 1}";
+            var newName = GetUniqueProgramName(baseName);
             var newProg = new ProgramInfo(newName, new ObservableCollection<SavedBlockData>());
             AllSavedPrograms.Add(newProg);
             SelectedProgram = newProg;
@@ -79,30 +80,53 @@ namespace XeryonMotionGUI.ViewModels
         [RelayCommand]
         private async Task RenameProgramAsync()
         {
-            if (SelectedProgram == null) return;
-            var newName = await ShowRenameDialogAsync(SelectedProgram.ProgramName);
-            if (!string.IsNullOrWhiteSpace(newName) && newName != SelectedProgram.ProgramName)
+            if (SelectedProgram == null)
             {
+                Debug.WriteLine("No program selected to rename.");
+                return;
+            }
+
+            var originalName = SelectedProgram.ProgramName;
+            var newName = await ShowRenameDialogAsync(originalName);
+            if (!string.IsNullOrWhiteSpace(newName) && newName != originalName)
+            {
+                // Check for duplicate names
+                if (AllSavedPrograms.Any(p => p != SelectedProgram && p.ProgramName.Equals(newName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var uniqueName = GetUniqueProgramName(newName);
+                    Debug.WriteLine($"Duplicate name '{newName}' detected. Using unique name: '{uniqueName}'.");
+                    newName = uniqueName;
+                }
+
                 SelectedProgram.ProgramName = newName;
                 await SaveAllProgramsAsync();
-                Debug.WriteLine($"Renamed program to '{newName}'.");
+                Debug.WriteLine($"Renamed program from '{originalName}' to '{newName}'.");
+            }
+            else
+            {
+                Debug.WriteLine("Rename canceled or invalid name provided.");
             }
         }
 
         [RelayCommand]
         private async Task DeleteProgramAsync()
         {
-            var vm = this; // Assuming this is within DemoBuilderViewModel
-            if (vm.SelectedProgram == null) return;
-            if (vm.AllSavedPrograms.Count <= 1)
+            if (SelectedProgram == null)
+            {
+                Debug.WriteLine("No program selected to delete.");
+                return;
+            }
+
+            if (AllSavedPrograms.Count <= 1)
             {
                 Debug.WriteLine("Cannot delete the last program.");
                 return; // Prevent deletion if only one program remains
             }
-            vm.AllSavedPrograms.Remove(vm.SelectedProgram);
-            vm.SelectedProgram = vm.AllSavedPrograms.Count > 0 ? vm.AllSavedPrograms[0] : null;
-            await vm.SaveAllProgramsAsync();
-            Debug.WriteLine($"Deleted program. Remaining programs: {vm.AllSavedPrograms.Count}");
+
+            AllSavedPrograms.Remove(SelectedProgram);
+            SelectedProgram = AllSavedPrograms.Count > 0 ? AllSavedPrograms[0] : null;
+            await SaveAllProgramsAsync();
+            Debug.WriteLine($"Deleted program. Remaining programs: {AllSavedPrograms.Count}");
         }
 
         private async Task<string> ShowRenameDialogAsync(string currentName)
@@ -113,10 +137,22 @@ namespace XeryonMotionGUI.ViewModels
                 PrimaryButtonText = "Save",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Primary,
-                Content = new TextBox { Text = currentName, PlaceholderText = "Enter a new name" }
+                Content = new TextBox { Text = currentName, PlaceholderText = "Enter a new name" },
+                XamlRoot = App.MainWindow.Content.XamlRoot // Ensure XamlRoot is set correctly
             };
             var result = await dialog.ShowAsync();
             return result == ContentDialogResult.Primary ? (dialog.Content as TextBox)?.Text ?? string.Empty : string.Empty;
+        }
+
+        private string GetUniqueProgramName(string baseName)
+        {
+            string newName = baseName;
+            int suffix = 1;
+            while (AllSavedPrograms.Any(p => p.ProgramName.Equals(newName, StringComparison.OrdinalIgnoreCase)))
+            {
+                newName = $"{baseName} ({suffix++})";
+            }
+            return newName;
         }
 
         public async Task LoadAllProgramsAsync()
@@ -133,7 +169,19 @@ namespace XeryonMotionGUI.ViewModels
                     var list = JsonSerializer.Deserialize<ObservableCollection<ProgramInfo>>(json);
                     if (list != null && list.Count > 0)
                     {
-                        AllSavedPrograms = list;
+                        // Ensure unique names for loaded programs
+                        var uniquePrograms = new ObservableCollection<ProgramInfo>();
+                        foreach (var program in list)
+                        {
+                            var uniqueName = GetUniqueProgramName(program.ProgramName);
+                            if (uniqueName != program.ProgramName)
+                            {
+                                Debug.WriteLine($"Renamed loaded program '{program.ProgramName}' to '{uniqueName}' to avoid duplicate.");
+                                program.ProgramName = uniqueName;
+                            }
+                            uniquePrograms.Add(program);
+                        }
+                        AllSavedPrograms = uniquePrograms;
                         SelectedProgram = AllSavedPrograms[0];
                         Debug.WriteLine($"Loaded {AllSavedPrograms.Count} programs from file.");
                         DebugAllProgramsState();

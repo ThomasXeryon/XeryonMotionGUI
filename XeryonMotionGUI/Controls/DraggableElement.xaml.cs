@@ -29,14 +29,14 @@ namespace XeryonMotionGUI
         {
             this.InitializeComponent();
             this.PointerPressed += OnPointerPressed;
-            this.SizeChanged += OnSizeChanged;
-            this.MinWidth = 150;
-            this.MinHeight = 50;
+            this.SizeChanged += DraggableElement_SizeChanged;
+            this.MinHeight = 40; // Ensure minimum height is set in code-behind as well
             this.DataContextChanged += DraggableElement_DataContextChanged;
             this.Loaded += (s, e) =>
             {
-                // Handle Direction ToggleSwitch (Step, Move, Scan)
-                var directionToggle = (DefaultBlockLayout.Child as StackPanel)?.Children.OfType<ToggleSwitch>().FirstOrDefault(ts => ts.Header.ToString() == "Direction");
+                var directionToggle = (DefaultBlockLayout as Grid)?.Children
+                    .OfType<ToggleSwitch>()
+                    .FirstOrDefault(ts => ts.Header?.ToString() == "Direction");
                 if (directionToggle != null)
                 {
                     directionToggle.Toggled += (s, args) =>
@@ -49,8 +49,9 @@ namespace XeryonMotionGUI
                     };
                 }
 
-                // Handle Logging ToggleSwitch (Log)
-                var loggingToggle = (DefaultBlockLayout.Child as StackPanel)?.Children.OfType<ToggleSwitch>().FirstOrDefault(ts => ts.Header.ToString() == "Logging");
+                var loggingToggle = (DefaultBlockLayout as Grid)?.Children
+                    .OfType<ToggleSwitch>()
+                    .FirstOrDefault(ts => ts.Header?.ToString() == "Logging");
                 if (loggingToggle != null)
                 {
                     loggingToggle.Toggled += (s, args) =>
@@ -63,6 +64,21 @@ namespace XeryonMotionGUI
                     };
                 }
             };
+        }
+
+        private void DraggableElement_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (Block != null)
+            {
+                Block.X = Canvas.GetLeft(this);
+                Block.Y = Canvas.GetTop(this);
+                // Respect MinHeight and adjust based on content
+                double contentHeight = e.NewSize.Height;
+                this.Height = Math.Max(this.MinHeight, contentHeight); // Ensure minimum height
+                NotifyPositionChanged();
+                MoveConnectedBlocks(this, Block.X, Block.Y);
+                Debug.WriteLine($"Block '{Text}' size changed: Width={ActualWidth}, Height={Height}");
+            }
         }
 
         private void DraggableElement_DataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
@@ -81,16 +97,16 @@ namespace XeryonMotionGUI
 
         private IEnumerable<BindingExpression> GetBindingExpressions()
         {
-            var stackPanel = DefaultBlockLayout.Child as StackPanel;
-            if (stackPanel == null) return Array.Empty<BindingExpression>();
+            var grid = DefaultBlockLayout as Grid;
+            if (grid == null) return Array.Empty<BindingExpression>();
 
             return new[]
             {
                 this.GetBindingExpression(TextProperty),
-                stackPanel.FindName("WaitTimeInput") is NumberBox waitBox ? waitBox.GetBindingExpression(NumberBox.ValueProperty) : null,
-                stackPanel.FindName("RepeatCountInput") is NumberBox repeatBox ? repeatBox.GetBindingExpression(NumberBox.ValueProperty) : null,
-                stackPanel.FindName("BlocksToRepeatInput") is NumberBox blocksBox ? blocksBox.GetBindingExpression(NumberBox.ValueProperty) : null,
-                stackPanel.Children.OfType<ToggleSwitch>().FirstOrDefault(ts => ts.Header.ToString() == "Direction")?.GetBindingExpression(ToggleSwitch.IsOnProperty)
+                grid.FindName("WaitTimeInput") is NumberBox waitBox ? waitBox.GetBindingExpression(NumberBox.ValueProperty) : null,
+                (RepeatBlockLayout.FindName("RepeatCountInput") as NumberBox)?.GetBindingExpression(NumberBox.ValueProperty),
+                (RepeatBlockLayout.FindName("BlocksToRepeatInput") as NumberBox)?.GetBindingExpression(NumberBox.ValueProperty),
+                grid.Children.OfType<ToggleSwitch>().FirstOrDefault(ts => ts.Header?.ToString() == "Direction")?.GetBindingExpression(ToggleSwitch.IsOnProperty)
             }.Where(b => b != null);
         }
 
@@ -246,11 +262,6 @@ namespace XeryonMotionGUI
             }
         }
 
-        private void OnSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            // Ignore size changes for now
-        }
-
         private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
         {
             if (WorkspaceCanvas == null)
@@ -302,29 +313,16 @@ namespace XeryonMotionGUI
             var page = FindParent<DemoBuilderPage>(this);
             if (page != null && page.DataContext is DemoBuilderViewModel vm)
             {
-                var isPositive = _block?.GetType().GetProperty("IsPositive")?.GetValue(_block) as bool?;
-                Debug.WriteLine($"Before Save in PointerReleased: {Text}.IsPositive = {isPositive}");
                 vm.SaveCurrentProgramState(page);
             }
-            else
-            {
-                Debug.WriteLine("Failed to find DemoBuilderPage or its ViewModel.");
-            }
-
-            Debug.WriteLine($"PointerReleased: Block '{Text}' dropped at ({Canvas.GetLeft(this)}, {Canvas.GetTop(this)}), IsPositive={(_block.GetType().GetProperty("IsPositive")?.GetValue(_block) as bool? ?? false)}");
+            Debug.WriteLine($"PointerReleased: Block '{Text}' dropped at ({Canvas.GetLeft(this)}, {Canvas.GetTop(this)})");
         }
 
         private void SnapToNearestBlock()
         {
-            if (WorkspaceCanvas == null || SnapShadow == null)
+            if (WorkspaceCanvas == null || SnapShadow == null || SnapShadow.Visibility != Visibility.Visible)
             {
-                Debug.WriteLine("WorkspaceCanvas or SnapShadow is null in SnapToNearestBlock.");
-                return;
-            }
-
-            if (SnapShadow.Visibility != Visibility.Visible)
-            {
-                Debug.WriteLine("No shadow visible. Block will not snap.");
+                Debug.WriteLine("WorkspaceCanvas, SnapShadow, or visibility issue in SnapToNearestBlock.");
                 return;
             }
 
@@ -375,14 +373,6 @@ namespace XeryonMotionGUI
         public void HighlightBlock(bool isExecuting)
         {
             this.Background = isExecuting ? new SolidColorBrush(Colors.LightGreen) : new SolidColorBrush(Colors.Transparent);
-        }
-
-        private void ComboBox_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (sender is ComboBox comboBox)
-            {
-                Debug.WriteLine($"ComboBox size changed: Width = {e.NewSize.Width}, Height = {e.NewSize.Height}");
-            }
         }
 
         private static T FindParent<T>(DependencyObject child) where T : DependencyObject

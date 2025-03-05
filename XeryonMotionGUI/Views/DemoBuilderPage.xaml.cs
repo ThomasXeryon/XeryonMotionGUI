@@ -22,11 +22,19 @@ using XeryonMotionGUI.Helpers;
 using XeryonMotionGUI.ViewModels;
 using XeryonMotionGUI.Classes;
 using XeryonMotionGUI.Models;
+using Microsoft.UI.Input;
+using Windows.System;
+using Windows.UI.Core;
 
 namespace XeryonMotionGUI.Views
 {
     public sealed partial class DemoBuilderPage : Page
     {
+        private double _canvasWidth = 2000; // Initial width
+        private double _canvasHeight = 1500; // Initial height
+        private ScaleTransform _canvasScaleTransform = new ScaleTransform();
+        private Point _lastPoint;
+        private bool _isPanning = false;
         private StatsAggregator _statsAggregator;
         private CancellationTokenSource _executionCts;
         private bool _isRunning = false;
@@ -50,9 +58,11 @@ namespace XeryonMotionGUI.Views
             this.InitializeComponent();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
             InitializeGreenFlag();
-            InitializeBlockPalette();
+            // Defer InitializeBlockPalette to Loaded event to avoid UI thread blocking
             _statsAggregator = new StatsAggregator();
+            SetupGestureRecognition();
             Loaded += DemoBuilderPage_Loaded;
+            WorkspaceCanvas.RenderTransform = _canvasScaleTransform;
             Debug.WriteLine("DemoBuilderPage constructor completed.");
         }
 
@@ -60,6 +70,7 @@ namespace XeryonMotionGUI.Views
         {
             Debug.WriteLine("DemoBuilderPage_Loaded started.");
             await EnsureDefaultProgramAsync();
+            InitializeBlockPalette(); // Moved here to run after page is loaded
             Debug.WriteLine("DemoBuilderPage_Loaded completed.");
         }
 
@@ -84,7 +95,7 @@ namespace XeryonMotionGUI.Views
             Canvas.SetLeft(GreenFlagBlock, 50);
             Canvas.SetTop(GreenFlagBlock, 10);
             GreenFlagBlock.Block = new StartBlock();
-            GreenFlagBlock.Block.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
+            GreenFlagBlock.Block.SetDispatcherQueue(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
             GreenFlagBlock.WorkspaceCanvas = WorkspaceCanvas;
             GreenFlagBlock.RunningControllers = RunningControllers;
             Debug.WriteLine("GreenFlagBlock initialized.");
@@ -93,21 +104,40 @@ namespace XeryonMotionGUI.Views
         private void InitializeBlockPalette()
         {
             Debug.WriteLine("Initializing block palette...");
-            foreach (var blockType in BlockTypes)
+            // Sort BlockTypes alphabetically
+            var sortedBlockTypes = BlockTypes.OrderBy(b => b).ToList();
+            foreach (var blockType in sortedBlockTypes)
             {
                 var block = new DraggableElement
                 {
-                    Block = BlockFactory.CreateBlock(blockType, RunningControllers, DispatcherQueue.GetForCurrentThread()),
+                    Block = BlockFactory.CreateBlock(blockType, RunningControllers, Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()),
                     Text = blockType,
                     Margin = new Thickness(10),
-                    Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
                     WorkspaceCanvas = WorkspaceCanvas,
                     RunningControllers = RunningControllers
                 };
+
+                // Apply background color directly based on block type
+                if (blockType == "Move" || blockType == "Step" || blockType == "Scan" || blockType == "Home")
+                {
+                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue); // Slight blue
+                    Debug.WriteLine($"Applying LightBlue background to {blockType}");
+                }
+                else if (blockType == "Edit Parameter" || blockType == "Index" || blockType == "Stop")
+                {
+                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen); // Slight green
+                    Debug.WriteLine($"Applying LightGreen background to {blockType}");
+                }
+                else if (blockType == "Wait" || blockType == "Repeat" || blockType == "Log")
+                {
+                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightYellow); // Slight dark yellow
+                    Debug.WriteLine($"Applying LightYellow background to {blockType}");
+                }
+
                 block.PointerPressed += PaletteBlock_PointerPressed;
                 block.PositionChanged += Block_PositionChanged;
                 BlockPalette.Children.Add(block);
-                Debug.WriteLine($"Palette block '{blockType}' added.");
+                Debug.WriteLine($"Palette block '{blockType}' added with background.");
             }
             Debug.WriteLine("Block palette initialized.");
         }
@@ -122,6 +152,10 @@ namespace XeryonMotionGUI.Views
             {
                 RemoveArrowsForBlock(block);
                 WorkspaceCanvas.Children.Remove(block);
+                block.Block.PreviousBlock = null;
+                block.Block.NextBlock = null;
+                block.PreviousBlock = null;
+                block.NextBlock = null;
             }
             GreenFlagBlock.NextBlock = null;
             _repeatArrows.Clear();
@@ -159,7 +193,7 @@ namespace XeryonMotionGUI.Views
                 var newBlockInstance = BlockFactory.CreateBlock(
                     paletteBlock.Text,
                     RunningControllers,
-                    DispatcherQueue.GetForCurrentThread()
+                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()
                 );
                 _draggedBlock = new DraggableElement
                 {
@@ -445,8 +479,8 @@ namespace XeryonMotionGUI.Views
                 double targetTop = Canvas.GetTop(snapTarget) + snapTarget.ActualHeight + snapTarget.Margin.Top;
                 SnapShadow.Visibility = Visibility.Visible;
                 SnapShadow.Text = block.Text;
-                SnapShadow.Width = block.ActualWidth;
-                SnapShadow.Height = block.ActualHeight;
+                SnapShadow.Width = block.ActualWidth; // Use actual width
+                SnapShadow.Height = block.ActualHeight; // Use actual height
                 SnapShadow.Background = new SolidColorBrush(Microsoft.UI.Colors.DarkGray);
                 Canvas.SetLeft(SnapShadow, targetLeft);
                 Canvas.SetTop(SnapShadow, targetTop);
@@ -556,10 +590,8 @@ namespace XeryonMotionGUI.Views
             if (block.NextBlock != null)
             {
                 var nextBlock = block.NextBlock;
-                Debug.WriteLine($"Moving connected block: '{nextBlock.Text}'");
-                Debug.WriteLine($"Block '{nextBlock.Text}': Prev={nextBlock.PreviousBlock?.Text}, Next={nextBlock.NextBlock?.Text}");
-                double nextLeft = parentLeft;
-                double nextTop = parentTop + block.ActualHeight;
+                double nextLeft = parentLeft; // Align horizontally (adjust if needed)
+                double nextTop = parentTop + block.ActualHeight; // Use actual height
                 Canvas.SetLeft(nextBlock, nextLeft);
                 Canvas.SetTop(nextBlock, nextTop);
                 MoveConnectedBlocks(nextBlock, nextLeft, nextTop);
@@ -617,7 +649,7 @@ namespace XeryonMotionGUI.Views
                 _isRunning = false;
                 _executionCts.Dispose();
                 _executionCts = null;
-                DispatcherQueue.TryEnqueue(() =>
+                Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
                 {
                     StartButton.IsEnabled = true;
                     StopButton.IsEnabled = false;
@@ -776,14 +808,14 @@ namespace XeryonMotionGUI.Views
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.XamlRoot
             };
-            //await dialog.ShowAsync();
+            await dialog.ShowAsync();
         }
 
         private void StopButton_Click(object sender, RoutedEventArgs e)
         {
             Debug.WriteLine("Stop button clicked. Stopping execution...");
             _executionCts?.Cancel();
-            DispatcherQueue.TryEnqueue(() =>
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
             {
                 StartButton.IsEnabled = true;
                 StopButton.IsEnabled = false;
@@ -846,13 +878,13 @@ namespace XeryonMotionGUI.Views
             };
             Random rnd = new Random();
             BlockBase head = new StartBlock { Text = "Start" };
-            head.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
+            head.SetDispatcherQueue(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
             BlockBase current = head;
             for (int i = 0; i < numberOfBlocks; i++)
             {
                 string selectedType = possibleBlockTypes[rnd.Next(possibleBlockTypes.Count)];
-                BlockBase newBlock = BlockFactory.CreateBlock(selectedType, RunningControllers, DispatcherQueue.GetForCurrentThread());
-                newBlock.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
+                BlockBase newBlock = BlockFactory.CreateBlock(selectedType, RunningControllers, Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+                newBlock.SetDispatcherQueue(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
                 switch (selectedType)
                 {
                     case "Wait":
@@ -918,8 +950,8 @@ namespace XeryonMotionGUI.Views
                 current = newBlock;
                 if (selectedType == "Move" || selectedType == "Scan")
                 {
-                    BlockBase waitBlock = BlockFactory.CreateBlock("Wait", RunningControllers, DispatcherQueue.GetForCurrentThread());
-                    waitBlock.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
+                    BlockBase waitBlock = BlockFactory.CreateBlock("Wait", RunningControllers, Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+                    waitBlock.SetDispatcherQueue(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
                     if (waitBlock is WaitBlock wb)
                     {
                         wb.WaitTime = rnd.Next(100, 2001);
@@ -1045,7 +1077,22 @@ namespace XeryonMotionGUI.Views
                 WorkspaceCanvas.Children.Add(de);
                 AttachDragEvents(de);
                 newDraggableList.Add(de);
-                Debug.WriteLine($"Loaded block '{de.Text}' at exact position ({savedBlockData.X}, {savedBlockData.Y}) into canvas.");
+
+                // Apply background color based on block type when loading
+                if (de.Text == "Move" || de.Text == "Step" || de.Text == "Scan" || de.Text == "Home")
+                {
+                    de.Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue);
+                }
+                else if (de.Text == "Edit Parameter" || de.Text == "Index" || de.Text == "Stop")
+                {
+                    de.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen);
+                }
+                else if (de.Text == "Wait" || de.Text == "Repeat" || de.Text == "Log")
+                {
+                    de.Background = new SolidColorBrush(Microsoft.UI.Colors.LightYellow);
+                }
+
+                Debug.WriteLine($"Loaded block '{de.Text}' at exact position ({savedBlockData.X}, {savedBlockData.Y}) into canvas with background.");
             }
 
             for (int i = 0; i < newDraggableList.Count; i++)
@@ -1079,62 +1126,62 @@ namespace XeryonMotionGUI.Views
         }
 
         private BlockBase ConvertSavedBlockDataToBlockBase(XeryonMotionGUI.ViewModels.SavedBlockData savedBlockData)
-{
-    string blockType = savedBlockData.BlockType switch
-    {
-        "WaitBlock" => "Wait",
-        "StepBlock" => "Step",
-        "MoveBlock" => "Move",
-        "ScanBlock" => "Scan",
-        "IndexBlock" => "Index",
-        "StopBlock" => "Stop",
-        "HomeBlock" => "Home",
-        "LoggingBlock" => "Log", // Ensure this matches
-        "ParameterEditBlock" => "Edit Parameter",
-        "RepeatBlock" => "Repeat",
-        _ => throw new ArgumentException($"Unknown block type: {savedBlockData.BlockType}")
-    };
-    BlockBase block = BlockFactory.CreateBlock(blockType, RunningControllers, DispatcherQueue.GetForCurrentThread());
-    block.SetDispatcherQueue(DispatcherQueue.GetForCurrentThread());
-    block.SelectedAxis = RunningControllers
-        .SelectMany(c => c.Axes)
-        .FirstOrDefault(a => a.DeviceSerial == savedBlockData.AxisSerial);
-    block.SelectedController = RunningControllers
-        .FirstOrDefault(c => c.FriendlyName == savedBlockData.ControllerFriendlyName);
-    switch (block)
-    {
-        case WaitBlock wb:
-            wb.WaitTime = savedBlockData.WaitTime ?? 0;
-            break;
-        case StepBlock sb:
-            sb.IsPositive = savedBlockData.IsPositive ?? true;
-            sb.StepSize = savedBlockData.StepSize ?? 0;
-            Debug.WriteLine($"Loading StepBlock: IsPositive set to {sb.IsPositive}");
-            break;
-        case MoveBlock mb:
-            mb.IsPositive = savedBlockData.IsPositive ?? true;
-            Debug.WriteLine($"Loading MoveBlock: IsPositive set to {mb.IsPositive}");
-            break;
-        case ScanBlock scanb:
-            scanb.IsPositive = savedBlockData.IsPositive ?? true;
-            Debug.WriteLine($"Loading ScanBlock: IsPositive set to {scanb.IsPositive}");
-            break;
-        case LoggingBlock lb:
-            lb.IsStart = savedBlockData.IsStart?? false; // Load IsStart
-            Debug.WriteLine($"Loading LoggingBlock: IsStart set to {lb.IsStart}");
-            break;
-        case ParameterEditBlock peb:
-            peb.SelectedParameter = savedBlockData.SelectedParameter;
-            peb.ParameterValue = savedBlockData.ParameterValue ?? 0;
-            break;
-        case RepeatBlock rb:
-            rb.RepeatCount = savedBlockData.RepeatCount ?? 0;
-            rb.BlocksToRepeat = savedBlockData.BlocksToRepeat ?? 0;
-            break;
-    }
-    Debug.WriteLine($"Converted SavedBlockData to '{block.Text}' with Type={blockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsStart={savedBlockData.IsStart}");
-    return block;
-}
+        {
+            string blockType = savedBlockData.BlockType switch
+            {
+                "WaitBlock" => "Wait",
+                "StepBlock" => "Step",
+                "MoveBlock" => "Move",
+                "ScanBlock" => "Scan",
+                "IndexBlock" => "Index",
+                "StopBlock" => "Stop",
+                "HomeBlock" => "Home",
+                "LoggingBlock" => "Log", // Ensure this matches
+                "ParameterEditBlock" => "Edit Parameter",
+                "RepeatBlock" => "Repeat",
+                _ => throw new ArgumentException($"Unknown block type: {savedBlockData.BlockType}")
+            };
+            BlockBase block = BlockFactory.CreateBlock(blockType, RunningControllers, Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+            block.SetDispatcherQueue(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+            block.SelectedAxis = RunningControllers
+                .SelectMany(c => c.Axes)
+                .FirstOrDefault(a => a.DeviceSerial == savedBlockData.AxisSerial);
+            block.SelectedController = RunningControllers
+                .FirstOrDefault(c => c.FriendlyName == savedBlockData.ControllerFriendlyName);
+            switch (block)
+            {
+                case WaitBlock wb:
+                    wb.WaitTime = savedBlockData.WaitTime ?? 0;
+                    break;
+                case StepBlock sb:
+                    sb.IsPositive = savedBlockData.IsPositive ?? true;
+                    sb.StepSize = savedBlockData.StepSize ?? 0;
+                    Debug.WriteLine($"Loading StepBlock: IsPositive set to {sb.IsPositive}");
+                    break;
+                case MoveBlock mb:
+                    mb.IsPositive = savedBlockData.IsPositive ?? true;
+                    Debug.WriteLine($"Loading MoveBlock: IsPositive set to {mb.IsPositive}");
+                    break;
+                case ScanBlock scanb:
+                    scanb.IsPositive = savedBlockData.IsPositive ?? true;
+                    Debug.WriteLine($"Loading ScanBlock: IsPositive set to {scanb.IsPositive}");
+                    break;
+                case LoggingBlock lb:
+                    lb.IsStart = savedBlockData.IsStart ?? false; // Load IsStart
+                    Debug.WriteLine($"Loading LoggingBlock: IsStart set to {lb.IsStart}");
+                    break;
+                case ParameterEditBlock peb:
+                    peb.SelectedParameter = savedBlockData.SelectedParameter;
+                    peb.ParameterValue = savedBlockData.ParameterValue ?? 0;
+                    break;
+                case RepeatBlock rb:
+                    rb.RepeatCount = savedBlockData.RepeatCount ?? 0;
+                    rb.BlocksToRepeat = savedBlockData.BlocksToRepeat ?? 0;
+                    break;
+            }
+            Debug.WriteLine($"Converted SavedBlockData to '{block.Text}' with Type={blockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsStart={savedBlockData.IsStart}");
+            return block;
+        }
 
         private void AddBlockToSelectedProgram(DraggableElement draggable)
         {
@@ -1248,6 +1295,94 @@ namespace XeryonMotionGUI.Views
                 if (elapsedMs > stat.MaxMs) stat.MaxMs = elapsedMs;
             }
             public Dictionary<string, BlockExecutionStat> GetStats() => _blockStats;
+        }
+
+        private void SetupGestureRecognition()
+        {
+            WorkspaceScrollViewer.PointerPressed += WorkspaceScrollViewer_PointerPressed;
+            WorkspaceScrollViewer.PointerMoved += WorkspaceScrollViewer_PointerMoved;
+            WorkspaceScrollViewer.PointerReleased += WorkspaceScrollViewer_PointerReleased;
+            WorkspaceScrollViewer.PointerWheelChanged += WorkspaceScrollViewer_PointerWheelChanged;
+        }
+
+        private void WorkspaceScrollViewer_PointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Mouse)
+            {
+                var properties = e.GetCurrentPoint(WorkspaceScrollViewer).Properties;
+                if (properties.IsMiddleButtonPressed)
+                {
+                    _isPanning = true;
+                    _lastPoint = e.GetCurrentPoint(WorkspaceCanvas).Position;
+                    WorkspaceCanvas.CapturePointer(e.Pointer);
+                }
+            }
+        }
+
+        private void WorkspaceScrollViewer_PointerMoved(object sender, PointerRoutedEventArgs e)
+        {
+            if (_isPanning)
+            {
+                var currentPoint = e.GetCurrentPoint(WorkspaceCanvas).Position;
+                double deltaX = currentPoint.X - _lastPoint.X;
+                double deltaY = currentPoint.Y - _lastPoint.Y;
+                WorkspaceScrollViewer.ChangeView(WorkspaceScrollViewer.HorizontalOffset - deltaX, WorkspaceScrollViewer.VerticalOffset - deltaY, null);
+                _lastPoint = currentPoint;
+            }
+        }
+
+        private void WorkspaceScrollViewer_PointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+            if (_isPanning)
+            {
+                _isPanning = false;
+                WorkspaceCanvas.ReleasePointerCapture(e.Pointer);
+            }
+        }
+
+        private void WorkspaceScrollViewer_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+        {
+            var point = e.GetCurrentPoint(WorkspaceCanvas);
+            var ctrlPressed = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) == CoreVirtualKeyStates.Down;
+            if (ctrlPressed)
+            {
+                double delta = point.Properties.MouseWheelDelta > 0 ? 0.1 : -0.1;
+                double newZoom = Math.Clamp(_canvasScaleTransform.ScaleX + delta, 0.1f, 10.0f);
+                _canvasScaleTransform.ScaleX = newZoom;
+                _canvasScaleTransform.ScaleY = newZoom;
+                WorkspaceScrollViewer.ChangeView(null, null, (float)newZoom, true);
+                if (TrashIcon.RenderTransform is ScaleTransform trashScale)
+                {
+                    trashScale.ScaleX = 1.0f / newZoom;
+                    trashScale.ScaleY = 1.0f / newZoom;
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void WorkspaceCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // Dynamically adjust Canvas size based on content
+            double maxX = 0;
+            double maxY = 0;
+
+            foreach (var child in WorkspaceCanvas.Children)
+            {
+                if (child is DraggableElement block)
+                {
+                    double x = Canvas.GetLeft(block) + block.ActualWidth;
+                    double y = Canvas.GetTop(block) + block.ActualHeight;
+                    maxX = Math.Max(maxX, x);
+                    maxY = Math.Max(maxY, y);
+                }
+            }
+
+            // Add buffer for infinite scrolling
+            _canvasWidth = Math.Max(_canvasWidth, maxX + 200);
+            _canvasHeight = Math.Max(_canvasHeight, maxY + 200);
+            WorkspaceCanvas.Width = _canvasWidth;
+            WorkspaceCanvas.Height = _canvasHeight;
+            Debug.WriteLine($"WorkspaceCanvas resized to {_canvasWidth}x{_canvasHeight}");
         }
     }
 }

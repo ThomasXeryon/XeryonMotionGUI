@@ -29,8 +29,6 @@ namespace XeryonMotionGUI.Blocks
         {
             Text = "Wait";
             RequiresAxis = false; // Wait block doesn't need an axi
-            Width = 150;
-            Height = 120;
         }
 
         public override async Task ExecuteAsync(CancellationToken cancellationToken = default)

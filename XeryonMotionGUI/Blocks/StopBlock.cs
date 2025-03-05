@@ -9,8 +9,6 @@ namespace XeryonMotionGUI.Blocks
         {
             Text = "Stop";
             RequiresAxis = true; // Requires an axis to operate
-            Width = 140;
-            Height = 140;
         }
 
         public void SetDispatcherQueue(DispatcherQueue queue)

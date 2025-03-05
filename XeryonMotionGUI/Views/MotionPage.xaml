@@ -5,7 +5,7 @@
     xmlns:local="using:XeryonMotionGUI.Views"
     xmlns:viewmodels="using:XeryonMotionGUI.ViewModels"
     xmlns:classes="using:XeryonMotionGUI.Classes"
-    xmlns:controls="using:Microsoft.UI.Xaml.Controls" 
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     xmlns:controls1="using:CommunityToolkit.WinUI.Controls"
     xmlns:helpers="using:XeryonMotionGUI.Helpers"
     xmlns:oxyplot="using:OxyPlot"
@@ -19,8 +19,6 @@
         <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
         <helpers:TooltipValueFormatter x:Key="TooltipValueFormatter"/>
         <helpers:LinearToIconConverter x:Key="LinearToIconConverter" />
-
-
     </Page.Resources>
 
     <!-- ======= ViewModel ======= -->
@@ -35,12 +33,6 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-
-        <!-- 3 rows on the left to match your original structure:
-             Row 0 -> Controllers
-             Row 1 -> Axes
-             Row 2 -> empty (or just fills leftover space)
-        -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -50,16 +42,14 @@
         <!-- ========== CONTROLLERS (Left Col=0, Row=0) ========== -->
         <StackPanel Grid.Column="0" Grid.Row="0" Margin="10,0,0,0">
             <TextBlock Text="Controllers"
-                       FontSize="16" 
+                       FontSize="16"
                        FontWeight="Bold"
                        Margin="5,0,0,5" />
-
             <ListView
                 HorizontalAlignment="Left"
-                ItemsSource="{Binding RunningControllers}" 
+                ItemsSource="{Binding RunningControllers}"
                 SelectedItem="{Binding SelectedController, Mode=TwoWay}"
                 Width="320">
-
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="classes:Controller">
                         <Grid Margin="10">
@@ -72,16 +62,13 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-
-                            <!-- FriendlyName -->
-                            <TextBlock Text="{x:Bind FriendlyName}" 
-                                       FontSize="16" 
-                                       FontWeight="Bold" 
+                            <TextBlock Text="{x:Bind FriendlyName}"
+                                       FontSize="16"
+                                       FontWeight="Bold"
                                        Grid.Row="0" Grid.Column="0" />
-                            <!-- FriendlyPort -->
-                            <TextBlock Text="{x:Bind FriendlyPort}" 
-                                       FontSize="14" 
-                                       Foreground="Gray" 
+                            <TextBlock Text="{x:Bind FriendlyPort}"
+                                       FontSize="14"
+                                       Foreground="Gray"
                                        Grid.Row="1" Grid.Column="0" />
                         </Grid>
                     </DataTemplate>
@@ -92,17 +79,15 @@
         <!-- ========== AXES (Left Col=0, Row=1) ========== -->
         <StackPanel Grid.Column="0" Grid.Row="1" Margin="10,10,0,0">
             <TextBlock Text="Axes"
-                       FontSize="16" 
+                       FontSize="16"
                        FontWeight="Bold"
                        Margin="5,0,0,5" />
-
             <ListView
                 x:Name="AxesListView"
                 HorizontalAlignment="Left"
-                ItemsSource="{Binding SelectedController.Axes}" 
+                ItemsSource="{Binding SelectedController.Axes}"
                 SelectedItem="{Binding SelectedAxis, Mode=TwoWay}"
                 Width="320">
-
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="classes:Axis">
                         <Grid Margin="5" Padding="0,10">
@@ -110,36 +95,31 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-
                             <Grid Grid.Column="0">
-                                <!-- Linear/Rotary icon -->
-                                <SymbolIcon 
+                                <SymbolIcon
                                     Symbol="{Binding Linear, Converter={StaticResource LinearToIconConverter}}"
                                     Width="25" Height="25"
-                                    VerticalAlignment="Center" 
+                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
                                     Margin="5,0,10,0" />
                             </Grid>
-
                             <Grid Grid.Column="1">
-                                <TextBlock Text="{Binding FriendlyName}" 
-                                           FontWeight="Bold" 
+                                <TextBlock Text="{Binding FriendlyName}"
+                                           FontWeight="Bold"
                                            FontSize="16"
-                                           VerticalAlignment="Center" 
+                                           VerticalAlignment="Center"
                                            Margin="5"/>
                             </Grid>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
-
-                <!-- Right-click context menu for axes -->
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
                         <Setter Property="ContextFlyout">
                             <Setter.Value>
                                 <MenuFlyout>
                                     <MenuFlyoutItem Text="Open Joystick"
-                                                    CommandParameter="{Binding}" 
+                                                    CommandParameter="{Binding}"
                                                     Click="OpenJoystickPageButton_Click" />
                                 </MenuFlyout>
                             </Setter.Value>
@@ -157,13 +137,10 @@
             Grid.RowSpan="3"
             CloseButtonOverlayMode="OnPointerOver"
             Margin="20,20,0,0"
-            
             TabWidthMode="Compact"
             IsAddTabButtonVisible="False"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Stretch">
-
-            <!-- Optional: Drag regions for your custom title bar -->
             <TabView.TabStripHeader>
                 <Grid x:Name="ShellTitleBarInset" Background="Transparent"/>
             </TabView.TabStripHeader>
@@ -171,33 +148,24 @@
                 <Grid x:Name="CustomDragRegion" Background="Transparent"/>
             </TabView.TabStripFooter>
 
-
+            <!-- ================== TAB 1: HOME ================== -->
             <TabViewItem Header=" " IsClosable="False">
                 <TabViewItem.IconSource>
                     <SymbolIconSource Symbol="Home"/>
                 </TabViewItem.IconSource>
-                <ScrollViewer 
+                <ScrollViewer
                     Padding="10"
                     HorizontalScrollBarVisibility="Auto"
                     VerticalScrollBarVisibility="Auto">
-
                     <Grid>
-                        <!-- These 7 rows match your original "Motion" content -->
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 0 -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 1 -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 2 -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 3 -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 4 -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 5 -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 6 -->
                         </Grid.RowDefinitions>
 
                         <!-- Row 0: Axis Title, EPOS, Speed, Status Bits, etc. -->
@@ -215,7 +183,6 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- EPOS -->
                             <StackPanel Grid.Column="1"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center"
@@ -232,7 +199,6 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <!-- Speed -->
                             <StackPanel Grid.Column="2"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center"
@@ -249,7 +215,6 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <!-- Max Speed -->
                             <StackPanel Grid.Column="3"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center"
@@ -266,7 +231,6 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <!-- Time -->
                             <StackPanel Grid.Column="4"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center"
@@ -282,12 +246,10 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <!-- Status Bits: Position Reached, Index Found, Motor On -->
                             <StackPanel Grid.Column="6"
                                         Orientation="Vertical"
                                         HorizontalAlignment="Right"
                                         Margin="20,0,0,0">
-                                <!-- Position Reached -->
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                                     <Ellipse Width="15" Height="15"
                                              Fill="{Binding SelectedAxis.PositionReached, Converter={StaticResource BoolToColorConverter}}"
@@ -297,7 +259,6 @@
                                     <TextBlock Text="Position Reached"
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <!-- Index Found -->
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                                     <Ellipse Width="15" Height="15"
                                              Fill="{Binding SelectedAxis.EncoderValid, Converter={StaticResource BoolToColorConverter}}"
@@ -307,7 +268,6 @@
                                     <TextBlock Text="Index Found"
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <!-- Motor on -->
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse Width="15" Height="15"
                                              Fill="{Binding SelectedAxis.MotorOn, Converter={StaticResource BoolToColorConverter}}"
@@ -339,7 +299,7 @@
                                        FontWeight="SemiBold"
                                        Margin="10,0,5,0"
                                        VerticalAlignment="Center"/>
-                            <ComboBox x:Name="UNitsbox"
+                            <ComboBox x:Name="UnitsBox"
                                       ItemsSource="{Binding SelectedAxis.AvailableUnits}"
                                       SelectedItem="{Binding SelectedAxis.SelectedUnit, Mode=TwoWay}"
                                       Width="80"
@@ -392,7 +352,6 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Index -->
                             <controls:SplitButton Content="Index"
                                                   Width="120"
                                                   Margin="0"
@@ -408,7 +367,6 @@
                                     </MenuFlyout>
                                 </controls:SplitButton.Flyout>
                             </controls:SplitButton>
-
                             <ProgressBar Value="100"
                                          IsIndeterminate="True"
                                          Visibility="{Binding SelectedAxis.SearchingIndex, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -418,8 +376,6 @@
                                          Grid.Row="0"
                                          Grid.Column="0"
                                          HorizontalAlignment="Left"/>
-
-                            <!-- Reset -->
                             <controls:SplitButton Content="Reset"
                                                   Width="120"
                                                   Margin="10,0,0,0"
@@ -436,7 +392,6 @@
                                     </MenuFlyout>
                                 </controls:SplitButton.Flyout>
                             </controls:SplitButton>
-
                             <ProgressBar Value="100"
                                          IsIndeterminate="True"
                                          Visibility="Collapsed"
@@ -452,10 +407,10 @@
                         <StackPanel x:Name="LinearSliderPanel"
                                     Grid.Row="5"
                                     Margin="0,10,0,0"
-                                    Visibility="{Binding SelectedAxis.Linear, 
+                                    Visibility="{Binding SelectedAxis.Linear,
                                                  Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="Position slider" 
-                                       FontWeight="Bold" 
+                            <TextBlock Text="Position slider"
+                                       FontWeight="Bold"
                                        Margin="0,0,0,5"/>
                             <Slider x:Name="PositionSlider"
                                     Minimum="{Binding SelectedAxis.NegativeRange}"
@@ -469,12 +424,11 @@
                         <StackPanel x:Name="RotationalSliderPanel"
                                     Grid.Row="5"
                                     Margin="0,10,0,0"
-                                    Visibility="{Binding SelectedAxis.Linear, 
+                                    Visibility="{Binding SelectedAxis.Linear,
                                                  Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                            <TextBlock Text="Position slider" 
-                                       FontWeight="Bold" 
+                            <TextBlock Text="Position slider"
+                                       FontWeight="Bold"
                                        Margin="0,0,0,5"/>
-
                             <controls1:RadialGauge
                                 Minimum="0"
                                 Maximum="360"
@@ -499,8 +453,8 @@
 
                         <!-- Row 6: InfoBars -->
                         <ItemsControl Grid.Row="6"
-                                     ItemsSource="{Binding SelectedAxis.InfoBarMessages}"
-                                     Margin="0,10,0,0">
+                                      ItemsSource="{Binding SelectedAxis.InfoBarMessages}"
+                                      Margin="0,10,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="classes:InfoBarMessage">
                                     <controls:InfoBar
@@ -517,24 +471,23 @@
                 </ScrollViewer>
             </TabViewItem>
 
-            <!-- ========== TAB 2: GRAPH (NO ScrollViewer) ========== -->
+            <!-- ================== TAB 2: GRAPH ================== -->
             <TabViewItem Header=" " IsClosable="False">
                 <TabViewItem.IconSource>
                     <SymbolIconSource Symbol="Library"/>
                 </TabViewItem.IconSource>
                 <Grid Padding="10">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                    <Button Grid.Row="0"
-                            Content="Export Graph"
-                            HorizontalAlignment="Right"
-                            Margin="0,0,0,5"
-                            Click="ExportGraph_Click"/>
-
-                    <oxyplot:PlotView Grid.Row="1"
+                    <!-- Plot -->
+                    <oxyplot:PlotView Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
                                       Model="{Binding SelectedAxis.PlotModel}"
                                       MinHeight="500"
                                       MinWidth="400"
@@ -542,10 +495,28 @@
                                       VerticalAlignment="Stretch"
                                       Foreground="Transparent"
                                       Background="Transparent"/>
+
+                    <!-- Controls aligned to the right, overlapping the top of the plot -->
+                    <ComboBox
+                        x:Name="DisplayModeComboBox"
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        SelectedItem="{Binding SelectedDisplayMode, Mode=TwoWay}"
+                        ItemsSource="{Binding DisplayModes}"
+                        Width="150"
+                        VerticalAlignment="Top"
+                        Margin="0,5,10,0"/>
+                    <Button
+                        Grid.Row="0"
+                        Grid.Column="2"
+                        Content="Export Graph"
+                        Click="ExportGraph_Click"
+                        VerticalAlignment="Top"
+                        Margin="0,5,50,0"/>
                 </Grid>
             </TabViewItem>
 
-            <!-- ========== TAB 3: SETTINGS (ScrollViewer) ========== -->
+            <!-- ================== TAB 3: SETTINGS ================== -->
             <TabViewItem Header=" " IsClosable="False">
                 <TabViewItem.IconSource>
                     <SymbolIconSource Symbol="Setting"/>
@@ -553,18 +524,17 @@
                 <ScrollViewer Padding="10"
                               HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Auto">
-
                     <StackPanel Spacing="20">
                         <!-- LOGGING group -->
                         <StackPanel>
-                            <TextBlock Text="Logging Settings" 
-                                       FontWeight="SemiBold" 
+                            <TextBlock Text="Logging Settings"
+                                       FontWeight="SemiBold"
                                        FontSize="16"
                                        Margin="0,0,0,5"/>
                             <StackPanel Orientation="Horizontal"
                                         VerticalAlignment="Center">
-                                <TextBlock Text="Logging Mode:" 
-                                           Margin="0,0,5,0" 
+                                <TextBlock Text="Logging Mode:"
+                                           Margin="0,0,5,0"
                                            VerticalAlignment="Center"/>
                                 <ToggleSwitch IsOn="{Binding SelectedAxis.AutoLogging, Mode=TwoWay}"
                                               OnContent="Auto"
@@ -572,7 +542,7 @@
                                 <StackPanel Orientation="Horizontal"
                                             Margin="10,0,0,0"
                                             Visibility="{Binding SelectedAxis.AutoLogging,
-                                                Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                        Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                                     <Button Content="Start Logging"
                                             Command="{Binding SelectedAxis.StartManualLoggingCommand}"
                                             Margin="0,0,5,0"/>
@@ -584,12 +554,12 @@
 
                         <!-- TIME SOURCE group -->
                         <StackPanel>
-                            <TextBlock Text="Time Source" 
-                                       FontWeight="SemiBold" 
+                            <TextBlock Text="Time Source"
+                                       FontWeight="SemiBold"
                                        FontSize="16"
                                        Margin="0,0,0,5"/>
                             <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                <TextBlock Text="Use Controller Time:" 
+                                <TextBlock Text="Use Controller Time:"
                                            Margin="0,0,5,0"
                                            VerticalAlignment="Center"/>
                                 <ToggleSwitch IsOn="{Binding SelectedAxis.UseControllerTime, Mode=TwoWay}"
@@ -597,12 +567,9 @@
                                               OffContent="System"/>
                             </StackPanel>
                         </StackPanel>
-
-                        <!-- More settings can go here -->
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-
         </TabView>
     </Grid>
 </Page>
