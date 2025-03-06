@@ -42,18 +42,18 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Headers -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Text="{Binding Text}" FontWeight="Bold" VerticalAlignment="Center" />
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="Controller" FontSize="12" VerticalAlignment="Center" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" />
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Axis" FontSize="12" VerticalAlignment="Center" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Text="{Binding Text}" FontWeight="Bold" VerticalAlignment="Center" Margin="25, 0, 25, 0" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="Controller" Margin="6, -5, 0, 10" FontSize="14" VerticalAlignment="Center" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Axis" Margin="6, -5, 0, 10" FontSize="14" VerticalAlignment="Center" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" />
                 <!-- Removed TextBlock headers for Step Size, Unit, Direction, Logging, Wait time (ms) -->
 
                 <!-- Controls -->
                 <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding RunningControllers}" SelectedItem="{Binding Block.SelectedController, Mode=TwoWay}" DisplayMemberPath="FriendlyName" Margin="5,0" PlaceholderText="Select Controller" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" MinWidth="120" />
                 <ComboBox Grid.Row="1" Grid.Column="2" ItemsSource="{Binding Block.SelectedController.Axes}" SelectedItem="{Binding Block.SelectedAxis, Mode=TwoWay}" DisplayMemberPath="FriendlyName" Margin="5,0" PlaceholderText="Select Axis" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan|Home|Stop|Index|Index +|Index -|Log'}" MinWidth="120" />
-                <NumberBox Grid.Row="1" Grid.Column="3" Header="Step Size" Value="{Binding Block.StepSize, Mode=TwoWay}" Margin="5,0" SpinButtonPlacementMode="Compact" SmallChange="1" LargeChange="10" PlaceholderText="Enter step size" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step'}" MinWidth="120" />
-                <ComboBox Grid.Row="1" Grid.Column="4" Header="Unit" ItemsSource="{Binding Block.AvailableUnits}" SelectedItem="{Binding Block.SelectedUnit, Mode=TwoWay}" Margin="5,0" PlaceholderText="Select Unit" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step'}" MinWidth="120" />
-                <ToggleSwitch Grid.Row="1" Grid.Column="5" Header="Direction" OnContent="Positive" OffContent="Negative" IsOn="{Binding Block.IsPositive, Mode=TwoWay}" Margin="5,0" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan'}" MinWidth="120" />
-                <ToggleSwitch Grid.Row="1" Grid.Column="6" Header="Logging" OnContent="Start" OffContent="Stop" IsOn="{Binding Block.IsStart, Mode=TwoWay}" Margin="5,0" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Log'}" MinWidth="120" />
+                <NumberBox Grid.Row="1" Grid.Column="3" Header="Step Size" Value="{Binding Block.StepSize, Mode=TwoWay}" Margin="10, -28, 5,0" SpinButtonPlacementMode="Compact" SmallChange="1" LargeChange="10" PlaceholderText="Enter step size" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step'}" MinWidth="120" />
+                <ComboBox Grid.Row="1" Grid.Column="4" Header="Unit" ItemsSource="{Binding Block.AvailableUnits}" SelectedItem="{Binding Block.SelectedUnit, Mode=TwoWay}" Margin="10, -28, 5,0" PlaceholderText="Select Unit" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step'}" MinWidth="120" />
+                <ToggleSwitch Grid.Row="1" Grid.Column="5" Header="Direction" OnContent="Positive" OffContent="Negative" IsOn="{Binding Block.IsPositive, Mode=TwoWay}" Margin="10, -28, 5,0" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Step|Move|Scan'}" MinWidth="120" />
+                <ToggleSwitch Grid.Row="1" Grid.Column="6" Header="Logging" OnContent="Start" OffContent="Stop" IsOn="{Binding Block.IsStart, Mode=TwoWay}" Margin="10, -28, 5,0" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Log'}" MinWidth="120" />
                 <NumberBox Grid.Row="1" Grid.Column="7" x:Name="WaitTimeInput" Header="Wait time (ms)" Value="{Binding Block.WaitTime, Mode=TwoWay}" Margin="5,0" SpinButtonPlacementMode="Compact" SmallChange="100" LargeChange="1000" PlaceholderText="Enter wait time" Visibility="{Binding Text, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='Wait'}" MinWidth="120" />
             </Grid>
 
@@ -74,17 +74,17 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Text="{Binding Text}" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Text="{Binding Text}" FontWeight="Bold" VerticalAlignment="Center"  Margin="25, 0, 25, 0"/>
 
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="Controller" FontSize="12" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="Controller" FontSize="14" VerticalAlignment="Center" Margin="6, -5, 0, 10"/>
                 <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding RunningControllers}" SelectedItem="{Binding Block.SelectedController, Mode=TwoWay}" DisplayMemberPath="FriendlyName" Margin="5,0" PlaceholderText="Select Controller" MinWidth="120" />
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Axis" FontSize="12" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Axis" FontSize="14" VerticalAlignment="Center" Margin="6, -5, 0, 10"/>
                 <ComboBox Grid.Row="1" Grid.Column="2" ItemsSource="{Binding Block.SelectedController.Axes}" SelectedItem="{Binding Block.SelectedAxis, Mode=TwoWay}" DisplayMemberPath="FriendlyName" Margin="5,0" PlaceholderText="Select Axis" MinWidth="120" />
 
-                <ComboBox Grid.Row="1" Grid.Column="3" Header="Parameter" ItemsSource="{Binding Block.SelectedAxis.Parameters}" DisplayMemberPath="Name" SelectedValue="{Binding Block.SelectedParameter, Mode=TwoWay}" SelectedValuePath="Command" Margin="5,0" PlaceholderText="Select Parameter" MinWidth="120" />
+                <ComboBox Grid.Row="1" Grid.Column="3" Header="Parameter" ItemsSource="{Binding Block.SelectedAxis.Parameters}" DisplayMemberPath="Name" SelectedValue="{Binding Block.SelectedParameter, Mode=TwoWay}" SelectedValuePath="Command" Margin="0, -28, 5,0" PlaceholderText="Select Parameter" MinWidth="120" />
 
-                <NumberBox Grid.Row="1" Grid.Column="4" Header="Value" Value="{Binding Block.ParameterValue, Mode=TwoWay}" Margin="5,0" SpinButtonPlacementMode="Compact" PlaceholderText="Enter value" MinWidth="120" />
+                <NumberBox Grid.Row="1" Grid.Column="4" Header="Value" Value="{Binding Block.ParameterValue, Mode=TwoWay}" Margin="0, -28, 5,0" SpinButtonPlacementMode="Compact" PlaceholderText="Enter value" MinWidth="120" />
             </Grid>
 
             <!-- Repeat Block Layout -->
@@ -104,10 +104,8 @@
 
                 <TextBlock Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Text="Repeat" FontWeight="Bold" VerticalAlignment="Center" />
 
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="Repeat count" FontSize="12" VerticalAlignment="Center" />
                 <NumberBox Grid.Row="1" Grid.Column="1" x:Name="RepeatCountInput" Header="Repeat count" Value="{Binding Block.RepeatCount, Mode=TwoWay}" Margin="5,0" SpinButtonPlacementMode="Compact" SmallChange="1" LargeChange="1" PlaceholderText="Enter repeat times" MinWidth="120" />
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Blocks to repeat" FontSize="12" VerticalAlignment="Center" />
                 <NumberBox Grid.Row="1" Grid.Column="2" x:Name="BlocksToRepeatInput" Header="Blocks to repeat" Value="{Binding Block.BlocksToRepeat, Mode=TwoWay}" Margin="5,0" SpinButtonPlacementMode="Compact" SmallChange="1" LargeChange="1" PlaceholderText="Enter number of blocks" MinWidth="120" />
             </Grid>
         </Grid>

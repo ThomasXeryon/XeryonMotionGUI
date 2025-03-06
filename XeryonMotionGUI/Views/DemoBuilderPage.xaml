@@ -152,7 +152,9 @@
                                                 Margin="0"
                                                 IsHitTestVisible="False"
                                                 MinWidth="80"
-                                                MinHeight="40">
+                                                MinHeight="40"
+                                                Background="Green"
+                                                >
                             <local:DraggableElement.Content>
                                 <Border CornerRadius="5"
                                         Padding="5"

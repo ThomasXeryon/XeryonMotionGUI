@@ -1,0 +1,41 @@
+[
+  {
+    "Blocks": [
+      {
+        "BlockType": "ParameterEditBlock",
+        "X": 50,
+        "Y": 50,
+        "AxisSerial": null,
+        "IsStart": null,
+        "ControllerFriendlyName": "XD-M Multi Axis Controller",
+        "NextBlockIndex": 1,
+        "PreviousBlockIndex": -1,
+        "WaitTime": null,
+        "IsPositive": null,
+        "StepSize": null,
+        "SelectedParameter": null,
+        "ParameterValue": 0,
+        "RepeatCount": null,
+        "BlocksToRepeat": null
+      },
+      {
+        "BlockType": "ParameterEditBlock",
+        "X": 50,
+        "Y": 122,
+        "AxisSerial": null,
+        "IsStart": null,
+        "ControllerFriendlyName": "XD-M Multi Axis Controller",
+        "NextBlockIndex": -1,
+        "PreviousBlockIndex": 0,
+        "WaitTime": null,
+        "IsPositive": null,
+        "StepSize": null,
+        "SelectedParameter": null,
+        "ParameterValue": 0,
+        "RepeatCount": null,
+        "BlocksToRepeat": null
+      }
+    ],
+    "ProgramName": "Program 1"
+  }
+]

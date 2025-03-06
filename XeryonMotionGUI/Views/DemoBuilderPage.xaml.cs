@@ -58,7 +58,6 @@ namespace XeryonMotionGUI.Views
             this.InitializeComponent();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
             InitializeGreenFlag();
-            // Defer InitializeBlockPalette to Loaded event to avoid UI thread blocking
             _statsAggregator = new StatsAggregator();
             SetupGestureRecognition();
             Loaded += DemoBuilderPage_Loaded;
@@ -70,7 +69,7 @@ namespace XeryonMotionGUI.Views
         {
             Debug.WriteLine("DemoBuilderPage_Loaded started.");
             await EnsureDefaultProgramAsync();
-            InitializeBlockPalette(); // Moved here to run after page is loaded
+            InitializeBlockPalette();
             Debug.WriteLine("DemoBuilderPage_Loaded completed.");
         }
 
@@ -104,7 +103,6 @@ namespace XeryonMotionGUI.Views
         private void InitializeBlockPalette()
         {
             Debug.WriteLine("Initializing block palette...");
-            // Sort BlockTypes alphabetically
             var sortedBlockTypes = BlockTypes.OrderBy(b => b).ToList();
             foreach (var blockType in sortedBlockTypes)
             {
@@ -117,20 +115,26 @@ namespace XeryonMotionGUI.Views
                     RunningControllers = RunningControllers
                 };
 
-                // Apply background color directly based on block type
+                if (block.Block == null)
+                {
+                    Debug.WriteLine($"Error: BlockFactory.CreateBlock returned null for type '{blockType}'");
+                    continue;
+                }
+                Debug.WriteLine($"Created block '{blockType}' with Block type: {block.Block.GetType().Name}");
+
                 if (blockType == "Move" || blockType == "Step" || blockType == "Scan" || blockType == "Home")
                 {
-                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue); // Slight blue
+                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue);
                     Debug.WriteLine($"Applying LightBlue background to {blockType}");
                 }
                 else if (blockType == "Edit Parameter" || blockType == "Index" || blockType == "Stop")
                 {
-                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen); // Slight green
+                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen);
                     Debug.WriteLine($"Applying LightGreen background to {blockType}");
                 }
                 else if (blockType == "Wait" || blockType == "Repeat" || blockType == "Log")
                 {
-                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightYellow); // Slight dark yellow
+                    block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightYellow);
                     Debug.WriteLine($"Applying LightYellow background to {blockType}");
                 }
 
@@ -166,8 +170,8 @@ namespace XeryonMotionGUI.Views
         {
             var blocks = WorkspaceCanvas.Children
                 .OfType<DraggableElement>()
-                .Where(de => de != SnapShadow && !(de.Block is Blocks.StartBlock))
-                .Distinct() // Prevent duplicates
+                .Where(de => de != SnapShadow && !(de.Block is StartBlock))
+                .Distinct()
                 .ToList();
             Debug.WriteLine($"GetWorkspaceBlocks returned {blocks.Count} blocks: {string.Join(", ", blocks.Select(b => b.Text))}");
             return blocks;
@@ -186,7 +190,6 @@ namespace XeryonMotionGUI.Views
                 var vm = (DemoBuilderViewModel)DataContext;
                 if (vm.SelectedProgram == null)
                 {
-                    Debug.WriteLine("No program selected; creating a new one asynchronously.");
                     vm.AddNewProgramAsync().GetAwaiter().GetResult();
                 }
 
@@ -195,6 +198,13 @@ namespace XeryonMotionGUI.Views
                     RunningControllers,
                     Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()
                 );
+                if (newBlockInstance == null)
+                {
+                    Debug.WriteLine($"Error: BlockFactory.CreateBlock returned null for type '{paletteBlock.Text}' during drag.");
+                    return;
+                }
+                Debug.WriteLine($"Created new block instance of type {newBlockInstance.GetType().Name} for '{paletteBlock.Text}'");
+
                 _draggedBlock = new DraggableElement
                 {
                     Block = newBlockInstance,
@@ -203,16 +213,19 @@ namespace XeryonMotionGUI.Views
                     SnapShadow = SnapShadow,
                     RunningControllers = RunningControllers
                 };
+
+                _draggedBlock.Background = paletteBlock.Background;
+
                 WorkspaceCanvas.Children.Add(_draggedBlock);
                 var initialPosition = e.GetCurrentPoint(WorkspaceCanvas).Position;
-                _dragStartOffset = new Point(_draggedBlock.ActualWidth / 2, _draggedBlock.ActualHeight / 2); // Center on cursor
+                _dragStartOffset = new Point(_draggedBlock.ActualWidth / 2, _draggedBlock.ActualHeight / 2);
                 Canvas.SetLeft(_draggedBlock, initialPosition.X - _dragStartOffset.X);
                 Canvas.SetTop(_draggedBlock, initialPosition.Y - _dragStartOffset.Y);
                 AttachDragEvents(_draggedBlock);
                 WorkspaceCanvas.PointerMoved += WorkspaceCanvas_PointerMoved;
                 WorkspaceCanvas.PointerReleased += WorkspaceCanvas_PointerReleased;
                 AddBlockToSelectedProgram(_draggedBlock);
-                Debug.WriteLine($"Dragged block '{_draggedBlock.Text}' added to canvas at ({Canvas.GetLeft(_draggedBlock)}, {Canvas.GetTop(_draggedBlock)}). Program: '{vm.SelectedProgram?.ProgramName}', Blocks: {vm.SelectedProgram?.Blocks.Count}");
+                Debug.WriteLine($"Dragged block '{_draggedBlock.Text}' added to canvas at ({Canvas.GetLeft(_draggedBlock)}, {Canvas.GetTop(_draggedBlock)}) with background {paletteBlock.Background}. Program: '{vm.SelectedProgram?.ProgramName}', Blocks: {vm.SelectedProgram?.Blocks.Count}");
             }
         }
 
@@ -255,8 +268,7 @@ namespace XeryonMotionGUI.Views
                     .FirstOrDefault(de => de.Block == repeatBlock.EndBlock);
                 if (sourceElement != null && endBlockElement != null)
                 {
-                    var arrowToUpdate = _repeatArrows[repeatBlock];
-                    arrowToUpdate.UpdatePosition(sourceElement, endBlockElement);
+                    _repeatArrows[repeatBlock].UpdatePosition(sourceElement, endBlockElement);
                 }
             }
             else
@@ -479,8 +491,8 @@ namespace XeryonMotionGUI.Views
                 double targetTop = Canvas.GetTop(snapTarget) + snapTarget.ActualHeight + snapTarget.Margin.Top;
                 SnapShadow.Visibility = Visibility.Visible;
                 SnapShadow.Text = block.Text;
-                SnapShadow.Width = block.ActualWidth; // Use actual width
-                SnapShadow.Height = block.ActualHeight; // Use actual height
+                SnapShadow.Width = block.ActualWidth;
+                SnapShadow.Height = block.ActualHeight;
                 SnapShadow.Background = new SolidColorBrush(Microsoft.UI.Colors.DarkGray);
                 Canvas.SetLeft(SnapShadow, targetLeft);
                 Canvas.SetTop(SnapShadow, targetTop);
@@ -590,8 +602,8 @@ namespace XeryonMotionGUI.Views
             if (block.NextBlock != null)
             {
                 var nextBlock = block.NextBlock;
-                double nextLeft = parentLeft; // Align horizontally (adjust if needed)
-                double nextTop = parentTop + block.ActualHeight; // Use actual height
+                double nextLeft = parentLeft;
+                double nextTop = parentTop + block.ActualHeight;
                 Canvas.SetLeft(nextBlock, nextLeft);
                 Canvas.SetTop(nextBlock, nextTop);
                 MoveConnectedBlocks(nextBlock, nextLeft, nextTop);
@@ -619,9 +631,11 @@ namespace XeryonMotionGUI.Views
                 while (currentBlock != null && !_executionCts.Token.IsCancellationRequested)
                 {
                     var sw = Stopwatch.StartNew();
+                    Debug.WriteLine($"Executing block: {currentBlock.Text} of type {currentBlock.GetType().Name}");
                     await currentBlock.ExecuteAsync(_executionCts.Token);
                     sw.Stop();
                     double thisBlockMs = sw.Elapsed.TotalMilliseconds;
+                    Debug.WriteLine($"Block {currentBlock.Text} executed in {thisBlockMs} ms");
                     string blockType = currentBlock.Text ?? "Unknown";
                     if (!_blockStats.ContainsKey(blockType))
                     {
@@ -1057,76 +1071,122 @@ namespace XeryonMotionGUI.Views
                 return;
             }
 
+            // Clear the workspace before loading new blocks
             ClearWorkspace();
             Debug.WriteLine($"Loading program '{vm.SelectedProgram.ProgramName}' with {vm.SelectedProgram.Blocks.Count} blocks.");
+
             var newDraggableList = new List<DraggableElement>();
+            XeryonMotionGUI.ViewModels.SavedBlockData lastSavedBlockData = null;
+
+            // Iterate through saved blocks and convert them to DraggableElements
             foreach (var savedBlockData in vm.SelectedProgram.Blocks)
             {
-                BlockBase block = ConvertSavedBlockDataToBlockBase(savedBlockData);
-                var de = new DraggableElement
+                var de = ConvertSavedBlockDataToDraggableElement(savedBlockData);
+                if (de == null)
                 {
-                    Block = block,
-                    Text = block.Text,
-                    WorkspaceCanvas = WorkspaceCanvas,
-                    SnapShadow = SnapShadow,
-                    RunningControllers = RunningControllers
-                };
-                Canvas.SetLeft(de, savedBlockData.X);
-                Canvas.SetTop(de, savedBlockData.Y);
-                Canvas.SetZIndex(de, 1);
+                    Debug.WriteLine($"Error: ConvertSavedBlockDataToDraggableElement returned null for type '{savedBlockData.BlockType}'");
+                    continue;
+                }
+
+                // Add to canvas and list
                 WorkspaceCanvas.Children.Add(de);
                 AttachDragEvents(de);
                 newDraggableList.Add(de);
 
-                // Apply background color based on block type when loading
-                if (de.Text == "Move" || de.Text == "Step" || de.Text == "Scan" || de.Text == "Home")
-                {
-                    de.Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue);
-                }
-                else if (de.Text == "Edit Parameter" || de.Text == "Index" || de.Text == "Stop")
-                {
-                    de.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen);
-                }
-                else if (de.Text == "Wait" || de.Text == "Repeat" || de.Text == "Log")
-                {
-                    de.Background = new SolidColorBrush(Microsoft.UI.Colors.LightYellow);
-                }
-
-                Debug.WriteLine($"Loaded block '{de.Text}' at exact position ({savedBlockData.X}, {savedBlockData.Y}) into canvas with background.");
+                Debug.WriteLine($"Loaded block '{de.Text}' at ({savedBlockData.X}, {savedBlockData.Y}) with properties: " +
+                                $"IsPositive={savedBlockData.IsPositive}, StepSize={savedBlockData.StepSize}, WaitTime={savedBlockData.WaitTime}, " +
+                                $"SelectedParameter={savedBlockData.SelectedParameter}, ParameterValue={savedBlockData.ParameterValue}, " +
+                                $"RepeatCount={savedBlockData.RepeatCount}, BlocksToRepeat={savedBlockData.BlocksToRepeat}, IsStart={savedBlockData.IsStart}");
+                lastSavedBlockData = savedBlockData;
             }
 
+            // Connect blocks based on saved indices
             for (int i = 0; i < newDraggableList.Count; i++)
             {
-                var savedBlockData = vm.SelectedProgram.Blocks[i];
                 var de = newDraggableList[i];
+                var savedBlockData = vm.SelectedProgram.Blocks[i];
+
+                // Connect to previous block
                 if (savedBlockData.PreviousBlockIndex.HasValue && savedBlockData.PreviousBlockIndex.Value >= 0 && savedBlockData.PreviousBlockIndex.Value < newDraggableList.Count)
                 {
                     de.PreviousBlock = newDraggableList[savedBlockData.PreviousBlockIndex.Value];
                     de.Block.PreviousBlock = de.PreviousBlock.Block;
-                    Debug.WriteLine($"Connected '{de.Text}' to previous block '{de.PreviousBlock.Text}' without snapping.");
+                    Debug.WriteLine($"Connected '{de.Text}' to previous block '{de.PreviousBlock.Text}' at index {savedBlockData.PreviousBlockIndex.Value}");
                 }
+
+                // Connect to next block
                 if (savedBlockData.NextBlockIndex.HasValue && savedBlockData.NextBlockIndex.Value >= 0 && savedBlockData.NextBlockIndex.Value < newDraggableList.Count)
                 {
                     de.NextBlock = newDraggableList[savedBlockData.NextBlockIndex.Value];
                     de.Block.NextBlock = de.NextBlock.Block;
-                    Debug.WriteLine($"Connected '{de.Text}' to next block '{de.NextBlock.Text}' without snapping.");
+                    Debug.WriteLine($"Connected '{de.Text}' to next block '{de.NextBlock.Text}' at index {savedBlockData.NextBlockIndex.Value}");
                 }
             }
 
+            // Connect the first block to GreenFlagBlock if it has no previous block
             var rootBlock = newDraggableList.FirstOrDefault(d => d.PreviousBlock == null);
-            if (rootBlock != null)
+            if (rootBlock != null && lastSavedBlockData != null)
             {
-                rootBlock.PreviousBlock = GreenFlagBlock;
-                GreenFlagBlock.NextBlock = rootBlock;
-                Debug.WriteLine($"Root block '{rootBlock.Text}' connected to GreenFlagBlock, kept at ({Canvas.GetLeft(rootBlock)}, {Canvas.GetTop(rootBlock)}).");
+                rootBlock.PreviousBlock = GreenFlagBlock;     // DraggableElement ← DraggableElement
+                GreenFlagBlock.NextBlock = rootBlock;         // DraggableElement → DraggableElement
+
+                // 2) BlockBase chain
+                rootBlock.Block.PreviousBlock = GreenFlagBlock.Block;  // BlockBase ← BlockBase
+                GreenFlagBlock.Block.NextBlock = rootBlock.Block;
+                Debug.WriteLine($"Root block '{rootBlock.Text}' connected to GreenFlagBlock at ({lastSavedBlockData.X}, {lastSavedBlockData.Y})");
             }
 
+            // Update all arrows and log completion
             UpdateAllArrows();
             Debug.WriteLine($"Finished loading program '{vm.SelectedProgram.ProgramName}'. Canvas has {WorkspaceCanvas.Children.Count} children.");
         }
 
+        private DraggableElement ConvertSavedBlockDataToDraggableElement(XeryonMotionGUI.ViewModels.SavedBlockData savedBlockData)
+        {
+            // Convert SavedBlockData to BlockBase
+            BlockBase block = ConvertSavedBlockDataToBlockBase(savedBlockData);
+            if (block == null)
+            {
+                Debug.WriteLine($"Error: ConvertSavedBlockDataToBlockBase returned null for type '{savedBlockData.BlockType}'");
+                return null;
+            }
+
+            // Create a new DraggableElement and set its properties
+            var draggableElement = new DraggableElement
+            {
+                Block = block,
+                Text = block.Text,
+                WorkspaceCanvas = WorkspaceCanvas,
+                SnapShadow = SnapShadow,
+                RunningControllers = RunningControllers
+            };
+
+            // Set position using nullable double (double?) with a default value of 0.0
+            Canvas.SetLeft(draggableElement, (int?)savedBlockData.X ?? 0.0);
+            Canvas.SetTop(draggableElement, (int?)savedBlockData.Y ?? 0.0);
+            Canvas.SetZIndex(draggableElement, 1);
+
+            // Apply background color based on block type
+            if (draggableElement.Text == "Move" || draggableElement.Text == "Step" || draggableElement.Text == "Scan" || draggableElement.Text == "Home")
+            {
+                draggableElement.Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue);
+            }
+            else if (draggableElement.Text == "Edit Parameter" || draggableElement.Text == "Index" || draggableElement.Text == "Stop")
+            {
+                draggableElement.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen);
+            }
+            else if (draggableElement.Text == "Wait" || draggableElement.Text == "Repeat" || draggableElement.Text == "Log")
+            {
+                draggableElement.Background = new SolidColorBrush(Microsoft.UI.Colors.LightYellow);
+            }
+
+            Debug.WriteLine($"Created DraggableElement for block '{draggableElement.Text}' at ({savedBlockData.X}, {savedBlockData.Y})");
+            return draggableElement;
+        }
+
         private BlockBase ConvertSavedBlockDataToBlockBase(XeryonMotionGUI.ViewModels.SavedBlockData savedBlockData)
         {
+            // Map block type names to their corresponding types
             string blockType = savedBlockData.BlockType switch
             {
                 "WaitBlock" => "Wait",
@@ -1136,18 +1196,29 @@ namespace XeryonMotionGUI.Views
                 "IndexBlock" => "Index",
                 "StopBlock" => "Stop",
                 "HomeBlock" => "Home",
-                "LoggingBlock" => "Log", // Ensure this matches
+                "LoggingBlock" => "Log",
                 "ParameterEditBlock" => "Edit Parameter",
                 "RepeatBlock" => "Repeat",
                 _ => throw new ArgumentException($"Unknown block type: {savedBlockData.BlockType}")
             };
+
+            // Create the block using BlockFactory
             BlockBase block = BlockFactory.CreateBlock(blockType, RunningControllers, Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+            if (block == null)
+            {
+                Debug.WriteLine($"Error: BlockFactory.CreateBlock returned null for type '{blockType}'");
+                return null;
+            }
+
+            // Set the dispatcher queue and other properties
             block.SetDispatcherQueue(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
             block.SelectedAxis = RunningControllers
                 .SelectMany(c => c.Axes)
                 .FirstOrDefault(a => a.DeviceSerial == savedBlockData.AxisSerial);
             block.SelectedController = RunningControllers
                 .FirstOrDefault(c => c.FriendlyName == savedBlockData.ControllerFriendlyName);
+
+            // Set block-specific properties
             switch (block)
             {
                 case WaitBlock wb:
@@ -1156,19 +1227,15 @@ namespace XeryonMotionGUI.Views
                 case StepBlock sb:
                     sb.IsPositive = savedBlockData.IsPositive ?? true;
                     sb.StepSize = savedBlockData.StepSize ?? 0;
-                    Debug.WriteLine($"Loading StepBlock: IsPositive set to {sb.IsPositive}");
                     break;
                 case MoveBlock mb:
                     mb.IsPositive = savedBlockData.IsPositive ?? true;
-                    Debug.WriteLine($"Loading MoveBlock: IsPositive set to {mb.IsPositive}");
                     break;
                 case ScanBlock scanb:
                     scanb.IsPositive = savedBlockData.IsPositive ?? true;
-                    Debug.WriteLine($"Loading ScanBlock: IsPositive set to {scanb.IsPositive}");
                     break;
                 case LoggingBlock lb:
-                    lb.IsStart = savedBlockData.IsStart ?? false; // Load IsStart
-                    Debug.WriteLine($"Loading LoggingBlock: IsStart set to {lb.IsStart}");
+                    lb.IsStart = savedBlockData.IsStart ?? false;
                     break;
                 case ParameterEditBlock peb:
                     peb.SelectedParameter = savedBlockData.SelectedParameter;
@@ -1179,7 +1246,11 @@ namespace XeryonMotionGUI.Views
                     rb.BlocksToRepeat = savedBlockData.BlocksToRepeat ?? 0;
                     break;
             }
-            Debug.WriteLine($"Converted SavedBlockData to '{block.Text}' with Type={blockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsStart={savedBlockData.IsStart}");
+
+            Debug.WriteLine($"Converted SavedBlockData to '{block.Text}' with Type={blockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, " +
+                            $"IsPositive={savedBlockData.IsPositive}, StepSize={savedBlockData.StepSize}, WaitTime={savedBlockData.WaitTime}, " +
+                            $"SelectedParameter={savedBlockData.SelectedParameter}, ParameterValue={savedBlockData.ParameterValue}, " +
+                            $"RepeatCount={savedBlockData.RepeatCount}, BlocksToRepeat={savedBlockData.BlocksToRepeat}, IsStart={savedBlockData.IsStart}");
             return block;
         }
 
@@ -1188,60 +1259,99 @@ namespace XeryonMotionGUI.Views
             var vm = (DemoBuilderViewModel)DataContext;
             if (vm.SelectedProgram == null)
             {
-                Debug.WriteLine("SelectedProgram is null; creating a new program.");
                 vm.AddNewProgramAsync().GetAwaiter().GetResult();
             }
             var savedBlockData = ConvertBlockBaseToSavedBlockData(draggable.Block);
             savedBlockData.X = Canvas.GetLeft(draggable);
             savedBlockData.Y = Canvas.GetTop(draggable);
-            savedBlockData.PreviousBlockIndex = -1; // Default until snapped
+            savedBlockData.PreviousBlockIndex = -1;
             savedBlockData.NextBlockIndex = -1;
             vm.SelectedProgram.Blocks.Add(savedBlockData);
-            vm.SaveCurrentProgramState(this); // Ensure immediate save
+            vm.SaveCurrentProgramState(this);
             Debug.WriteLine($"Added block '{draggable.Text}' to '{vm.SelectedProgram.ProgramName}' at ({savedBlockData.X}, {savedBlockData.Y}). Total blocks: {vm.SelectedProgram.Blocks.Count}");
         }
 
         public XeryonMotionGUI.ViewModels.SavedBlockData ConvertBlockBaseToSavedBlockData(BlockBase block)
         {
+            // Create the SavedBlockData object without trying to create any new UI elements:
             var savedBlockData = new XeryonMotionGUI.ViewModels.SavedBlockData
             {
                 BlockType = block.GetType().Name,
-                X = Canvas.GetLeft(block.UiElement ?? (block.UiElement = block.UiElement ?? new DraggableElement())),
-                Y = Canvas.GetTop(block.UiElement ?? (block.UiElement = block.UiElement ?? new DraggableElement())),
                 AxisSerial = block.SelectedAxis?.DeviceSerial,
                 ControllerFriendlyName = block.SelectedController?.FriendlyName
+                // We'll fill X,Y below if UiElement is a DraggableElement.
             };
 
+            // 1) If the Block's UiElement is actually a DraggableElement on the Canvas, grab its position.
+            if (block.UiElement is DraggableElement draggable)
+            {
+                savedBlockData.X = Canvas.GetLeft(draggable);
+                savedBlockData.Y = Canvas.GetTop(draggable);
+            }
+            else
+            {
+                // Default to (0,0) if there's no DraggableElement or it hasn't been placed on the Canvas
+                savedBlockData.X = 0;
+                savedBlockData.Y = 0;
+            }
+
+            // 2) Fill block-specific properties. Adapt as needed for your own blocks.
             switch (block)
             {
                 case WaitBlock wb:
                     savedBlockData.WaitTime = wb.WaitTime;
                     break;
+
                 case StepBlock sb:
                     savedBlockData.IsPositive = sb.IsPositive;
-                    savedBlockData.StepSize = (int)sb.StepSize;
+                    savedBlockData.StepSize = (int?)sb.StepSize;
                     break;
+
                 case MoveBlock mb:
                     savedBlockData.IsPositive = mb.IsPositive;
                     break;
+
                 case ScanBlock scanb:
                     savedBlockData.IsPositive = scanb.IsPositive;
                     break;
+
                 case LoggingBlock lb:
-                    savedBlockData.IsStart = lb.IsStart; // Save IsStart
+                    savedBlockData.IsStart = lb.IsStart;
                     break;
+
                 case ParameterEditBlock peb:
                     savedBlockData.SelectedParameter = peb.SelectedParameter;
-                    savedBlockData.ParameterValue = (int)peb.ParameterValue;
+                    savedBlockData.ParameterValue = (int?)peb.ParameterValue;
                     break;
+
                 case RepeatBlock rb:
                     savedBlockData.RepeatCount = rb.RepeatCount;
                     savedBlockData.BlocksToRepeat = rb.BlocksToRepeat;
                     break;
             }
-            Debug.WriteLine($"Converted block '{block.Text}' to SavedBlockData: Type={savedBlockData.BlockType}, X={savedBlockData.X}, Y={savedBlockData.Y}, IsStart={savedBlockData.IsStart}");
+
+            // 3) Store indices of previous/next blocks (only if we can retrieve them from the canvas).
+            //    Often you'll have a method GetWorkspaceBlocks() on your page that returns a List<DraggableElement>.
+            //    Below, we assume we can call that (e.g., from DemoBuilderPage).
+            if (block.UiElement is DraggableElement currentElement)
+            {
+                // Suppose you have a method or property returning all DraggableElements:
+                var allElements = GetWorkspaceBlocks(); // e.g., page.GetWorkspaceBlocks()
+
+                savedBlockData.PreviousBlockIndex =
+                    currentElement.PreviousBlock != null
+                    ? allElements.IndexOf(currentElement.PreviousBlock)
+                    : -1;
+
+                savedBlockData.NextBlockIndex =
+                    currentElement.NextBlock != null
+                    ? allElements.IndexOf(currentElement.NextBlock)
+                    : -1;
+            }
+
             return savedBlockData;
         }
+
 
         private void SavedProgramsListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -1302,7 +1412,6 @@ namespace XeryonMotionGUI.Views
             WorkspaceScrollViewer.PointerPressed += WorkspaceScrollViewer_PointerPressed;
             WorkspaceScrollViewer.PointerMoved += WorkspaceScrollViewer_PointerMoved;
             WorkspaceScrollViewer.PointerReleased += WorkspaceScrollViewer_PointerReleased;
-            WorkspaceScrollViewer.PointerWheelChanged += WorkspaceScrollViewer_PointerWheelChanged;
         }
 
         private void WorkspaceScrollViewer_PointerPressed(object sender, PointerRoutedEventArgs e)
@@ -1340,29 +1449,8 @@ namespace XeryonMotionGUI.Views
             }
         }
 
-        private void WorkspaceScrollViewer_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
-        {
-            var point = e.GetCurrentPoint(WorkspaceCanvas);
-            var ctrlPressed = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) == CoreVirtualKeyStates.Down;
-            if (ctrlPressed)
-            {
-                double delta = point.Properties.MouseWheelDelta > 0 ? 0.1 : -0.1;
-                double newZoom = Math.Clamp(_canvasScaleTransform.ScaleX + delta, 0.1f, 10.0f);
-                _canvasScaleTransform.ScaleX = newZoom;
-                _canvasScaleTransform.ScaleY = newZoom;
-                WorkspaceScrollViewer.ChangeView(null, null, (float)newZoom, true);
-                if (TrashIcon.RenderTransform is ScaleTransform trashScale)
-                {
-                    trashScale.ScaleX = 1.0f / newZoom;
-                    trashScale.ScaleY = 1.0f / newZoom;
-                }
-                e.Handled = true;
-            }
-        }
-
         private void WorkspaceCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // Dynamically adjust Canvas size based on content
             double maxX = 0;
             double maxY = 0;
 
@@ -1377,7 +1465,6 @@ namespace XeryonMotionGUI.Views
                 }
             }
 
-            // Add buffer for infinite scrolling
             _canvasWidth = Math.Max(_canvasWidth, maxX + 200);
             _canvasHeight = Math.Max(_canvasHeight, maxY + 200);
             WorkspaceCanvas.Width = _canvasWidth;
