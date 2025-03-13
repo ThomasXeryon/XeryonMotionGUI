@@ -115,11 +115,13 @@ namespace XeryonMotionGUI.Views
                     ctrl.Running = false;
                     ctrl.Status = "Idle"; // or "Disconnected"
                 }
+                await Task.Delay(1);
             }
 
             // 3) Enumerate each port, try identifying
             foreach (var portName in ports)
             {
+                await Task.Delay(1);
                 using (var tempPort = new SerialPort(portName)
                 {
                     BaudRate = 115200,
@@ -223,6 +225,7 @@ namespace XeryonMotionGUI.Views
                             axis.Linear = axisResult.Linear;
                             axis.FriendlyName = axisResult.FriendlyName;
                             axis.StepSize = axisResult.StepSize;
+                            await Task.Delay(1);
                         }
 
                         tempPort.Write("INFO=4");

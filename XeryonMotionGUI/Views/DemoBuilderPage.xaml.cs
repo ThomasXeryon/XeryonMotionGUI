@@ -108,6 +108,8 @@ namespace XeryonMotionGUI.Views
             {
                 var block = new DraggableElement
                 {
+                    // BLOCKS ON THE PALETTE
+                    IsPaletteBlock = true,  // <--- KEY LINE. We're in the left palette, so show minimal UI
                     Block = BlockFactory.CreateBlock(blockType, RunningControllers, Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()),
                     Text = blockType,
                     Margin = new Thickness(10),
@@ -122,29 +124,27 @@ namespace XeryonMotionGUI.Views
                 }
                 Debug.WriteLine($"Created block '{blockType}' with Block type: {block.Block.GetType().Name}");
 
+                // Background color logic stays the same...
                 if (blockType == "Move" || blockType == "Step" || blockType == "Scan" || blockType == "Home")
                 {
                     block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue);
-                    Debug.WriteLine($"Applying LightBlue background to {blockType}");
                 }
                 else if (blockType == "Edit Parameter" || blockType == "Index" || blockType == "Stop")
                 {
                     block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightGreen);
-                    Debug.WriteLine($"Applying LightGreen background to {blockType}");
                 }
                 else if (blockType == "Wait" || blockType == "Repeat" || blockType == "Log")
                 {
                     block.Background = new SolidColorBrush(Microsoft.UI.Colors.LightYellow);
-                    Debug.WriteLine($"Applying LightYellow background to {blockType}");
                 }
 
                 block.PointerPressed += PaletteBlock_PointerPressed;
                 block.PositionChanged += Block_PositionChanged;
                 BlockPalette.Children.Add(block);
-                Debug.WriteLine($"Palette block '{blockType}' added with background.");
             }
             Debug.WriteLine("Block palette initialized.");
         }
+
 
         public void ClearWorkspace()
         {
@@ -205,8 +205,10 @@ namespace XeryonMotionGUI.Views
                 }
                 Debug.WriteLine($"Created new block instance of type {newBlockInstance.GetType().Name} for '{paletteBlock.Text}'");
 
+                // DRAGGED BLOCK IS FOR THE WORKSPACE
                 _draggedBlock = new DraggableElement
                 {
+                    IsPaletteBlock = false,  // <--- KEY LINE. On the workspace => show full UI
                     Block = newBlockInstance,
                     Text = paletteBlock.Text,
                     WorkspaceCanvas = WorkspaceCanvas,
@@ -219,15 +221,19 @@ namespace XeryonMotionGUI.Views
                 WorkspaceCanvas.Children.Add(_draggedBlock);
                 var initialPosition = e.GetCurrentPoint(WorkspaceCanvas).Position;
                 _dragStartOffset = new Point(_draggedBlock.ActualWidth / 2, _draggedBlock.ActualHeight / 2);
+
                 Canvas.SetLeft(_draggedBlock, initialPosition.X - _dragStartOffset.X);
                 Canvas.SetTop(_draggedBlock, initialPosition.Y - _dragStartOffset.Y);
+
                 AttachDragEvents(_draggedBlock);
                 WorkspaceCanvas.PointerMoved += WorkspaceCanvas_PointerMoved;
                 WorkspaceCanvas.PointerReleased += WorkspaceCanvas_PointerReleased;
+
                 AddBlockToSelectedProgram(_draggedBlock);
-                Debug.WriteLine($"Dragged block '{_draggedBlock.Text}' added to canvas at ({Canvas.GetLeft(_draggedBlock)}, {Canvas.GetTop(_draggedBlock)}) with background {paletteBlock.Background}. Program: '{vm.SelectedProgram?.ProgramName}', Blocks: {vm.SelectedProgram?.Blocks.Count}");
+                Debug.WriteLine($"Dragged block '{_draggedBlock.Text}' added to canvas...");
             }
         }
+
 
         private void AttachDragEvents(DraggableElement block)
         {

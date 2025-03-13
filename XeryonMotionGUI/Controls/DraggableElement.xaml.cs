@@ -25,6 +25,15 @@ namespace XeryonMotionGUI
         private bool _isUpdatingPosition = false;
         private const double SnapThreshold = 60.0;
 
+        public static readonly DependencyProperty IsPaletteBlockProperty =
+        DependencyProperty.Register(nameof(IsPaletteBlock), typeof(bool), typeof(DraggableElement), new PropertyMetadata(false));
+
+        public bool IsPaletteBlock
+        {
+            get => (bool)GetValue(IsPaletteBlockProperty);
+            set => SetValue(IsPaletteBlockProperty, value);
+        }
+
         public DraggableElement()
         {
             this.InitializeComponent();

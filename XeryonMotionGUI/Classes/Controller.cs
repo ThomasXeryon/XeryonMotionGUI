@@ -727,7 +727,12 @@ namespace XeryonMotionGUI.Classes
 
         public async Task LoadParametersFromController()
         {
+            // Start the overall timer.
+            Stopwatch totalStopwatch = Stopwatch.StartNew();
+
+            // Mark that settings are loading.
             LoadingSettings = true;
+            // Remove the data received event so it does not interfere.
             Port.DataReceived -= DataReceivedHandler;
             Port.WriteLine("INFO=0");
             Port.DiscardInBuffer();
@@ -735,21 +740,30 @@ namespace XeryonMotionGUI.Classes
             Port.DiscardInBuffer();
             Port.ReadTimeout = 100;
 
-            try
+            // Capture a local copy of the axes list so we can safely enumerate from a background thread.
+            var axesCopy = new List<Axis>(Axes);
+            // Capture the UI dispatcher to update bound properties.
+            var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
+            // Offload the heavy work to a background thread.
+            await Task.Run(async () =>
             {
-                foreach (var axis in Axes)
+                // Loop through each axis and its parameters.
+                foreach (var axis in axesCopy)
                 {
-                    foreach (var parameter in axis.Parameters)
+                    // Make a local copy of parameters to avoid cross-thread issues.
+                    var parametersCopy = new List<Parameter>(axis.Parameters);
+                    foreach (var parameter in parametersCopy)
                     {
                         try
                         {
-                            // Construct the command using the axis letter prefix if available.
+                            // Build command with an optional prefix.
                             string prefix = string.IsNullOrEmpty(axis.AxisLetter) ? "" : axis.AxisLetter + ":";
                             string command = $"{prefix}{parameter.Command}=?";
                             Debug.WriteLine($"Sending command: {command}");
                             Port.WriteLine(command);
 
-                            // Wait for the response.
+                            // Read the response (synchronously) on this background thread.
                             string response = string.Empty;
                             try
                             {
@@ -759,10 +773,10 @@ namespace XeryonMotionGUI.Classes
                             catch (TimeoutException)
                             {
                                 Debug.WriteLine($"Timeout waiting for response to: {command}");
-                                continue; // Skip to the next parameter
+                                continue; // Skip to next parameter if timeout occurs.
                             }
 
-                            // Build expected command prefix for response comparison.
+                            // Build the expected command prefix for comparison.
                             string expectedCommand = string.IsNullOrEmpty(axis.AxisLetter)
                                 ? parameter.Command
                                 : $"{axis.AxisLetter}:{parameter.Command}";
@@ -773,8 +787,7 @@ namespace XeryonMotionGUI.Classes
                                 if (parts.Length == 2 && double.TryParse(parts[1], out var rawValue))
                                 {
                                     double convertedValue = rawValue;
-
-                                    // Apply command-specific conversions.
+                                    // Apply command-specific conversion.
                                     switch (parameter.Command)
                                     {
                                         case "SSPD":
@@ -783,14 +796,14 @@ namespace XeryonMotionGUI.Classes
                                             convertedValue = rawValue / 1000;
                                             if (!axis.Linear)
                                             {
-                                                convertedValue = convertedValue * 10;
+                                                convertedValue *= 10;
                                             }
                                             break;
                                         case "LLIM":
                                         case "HLIM":
                                         case "ZON1":
                                         case "ZON2":
-                                            // Conversion: encoder units to mm.
+                                            // Convert encoder units to mm.
                                             convertedValue = Math.Round(rawValue / 1000000 * axis.Resolution, 3);
                                             break;
                                         case "CFRQ":
@@ -801,8 +814,12 @@ namespace XeryonMotionGUI.Classes
                                             break;
                                     }
 
-                                    parameter.Value = convertedValue;
-                                    Debug.WriteLine($"Updated {parameter.Name} to {convertedValue} (raw: {rawValue})");
+                                    // Update the parameter's Value on the UI thread.
+                                    dispatcher.TryEnqueue(() =>
+                                    {
+                                        parameter.Value = convertedValue;
+                                        Debug.WriteLine($"Updated {parameter.Name} to {convertedValue} (raw: {rawValue})");
+                                    });
                                 }
                                 else
                                 {
@@ -819,21 +836,25 @@ namespace XeryonMotionGUI.Classes
                             Debug.WriteLine($"Error loading parameter {parameter.Name}: {ex.Message}");
                         }
 
-                        // Small delay before the next command.
+                        // A brief delay before processing the next parameter.
                         await Task.Delay(1);
                     }
                 }
-            }
-            finally
+            });
+
+            // Reattach the data received event if needed.
+            if (Running)
             {
-                if (Running)
-                {
-                    Port.DataReceived += DataReceivedHandler;
-                }
-                LoadingSettings = false;  
-                Port.WriteLine("INFO=4");
+                Port.DataReceived += DataReceivedHandler;
             }
+            LoadingSettings = false;
+            Port.WriteLine("INFO=4");
+
+            totalStopwatch.Stop();
+            Debug.WriteLine($"Total time for loading parameters: {totalStopwatch.Elapsed.TotalMilliseconds:F2} ms");
         }
+
+
 
         #endregion
 
