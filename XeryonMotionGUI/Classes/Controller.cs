@@ -354,35 +354,6 @@ namespace XeryonMotionGUI.Classes
             }
             OnPropertyChanged(nameof(Axes));
         }
-
-        public void AddAxis(Axis axis)
-        {
-            Axes.Add(axis);
-            AxisCount = Axes.Count;
-            OnPropertyChanged(nameof(Axes));
-        }
-
-        public void RemoveAxis(Axis axis)
-        {
-            Axes.Remove(axis);
-            AxisCount = Axes.Count;
-            OnPropertyChanged(nameof(Axes));
-        }
-
-        public Axis GetAxis(string name)
-        {
-            return Axes.FirstOrDefault(a => a.Name == name);
-        }
-
-        public void UpdateAxis(string name, Action<Axis> updateAction)
-        {
-            var axis = GetAxis(name);
-            if (axis != null)
-            {
-                updateAction(axis);
-                OnPropertyChanged(nameof(Axes));
-            }
-        }
         #endregion
 
         #region Connection Methods
@@ -390,14 +361,20 @@ namespace XeryonMotionGUI.Classes
         public void Disconnect()
         {
             Debug.WriteLine("Trying to close controller");
+            if (Type == "CAN")
+            {
+                Running = false;
+                Status = "Connect";
+                return;
+            }
             try
             {
                 if (Port.IsOpen)
                 {
                     Port.DataReceived -= DataReceivedHandler; // Remove event handler
-                Port.DiscardInBuffer();
-                Port.DiscardOutBuffer();
-                Port.Close();
+                    Port.DiscardInBuffer();
+                    Port.DiscardOutBuffer();
+                    Port.Close();
                 }
             }
             catch (Exception)
@@ -415,18 +392,24 @@ namespace XeryonMotionGUI.Classes
 
         public void ReconnectController()
         {
-
-                Disconnect();
-           
-
-            // Now reuse the same logic in OpenPort()
+            if (Type == "CAN")
+            {
+                return;
+            }
+            Disconnect();
             OpenPort();
-
-            // That’s it!
         }
 
         public void OpenPort()
         {
+            if (Type == "CAN")
+            {
+                Running = true;
+                Status = "Disconnect";
+                UpdateRunningControllers();
+                Debug.WriteLine("Controller Disconnected");
+                return;
+            }
             try
             {
                 if (!Running)
@@ -481,26 +464,34 @@ namespace XeryonMotionGUI.Classes
         #region Data Handling
         private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
         {
-                var sp = (SerialPort)sender;
-                string receivedData = sp.ReadExisting(); // Read all available bytes at once
+            if (Type == "CAN")
+            {
+                return;
+            }
+            var sp = (SerialPort)sender;
+            string receivedData = sp.ReadExisting(); // Read all available bytes at once
 
-                if (!string.IsNullOrEmpty(receivedData))
+            if (!string.IsNullOrEmpty(receivedData))
+            {
+                // Get time as a double from stopwatch
+                double timeSeconds = _globalStopwatch.Elapsed.TotalSeconds;
+
+                // Process each line separately
+                string[] lines = receivedData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
                 {
-                    // Get time as a double from stopwatch
-                    double timeSeconds = _globalStopwatch.Elapsed.TotalSeconds;
-
-                    // Process each line separately
-                    string[] lines = receivedData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var line in lines)
-                    {
-                        ParseLine(line, timeSeconds);
-                    }
+                    ParseLine(line, timeSeconds);
                 }
+            }
         }
 
 
         private void ParseLine(string line, double timeStamp)
         {
+            if (Type == "CAN")
+            {
+                return;
+            }
             // Split the incoming line on spaces and tabs.
             string[] parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
 
@@ -568,6 +559,10 @@ namespace XeryonMotionGUI.Classes
 
         public void SendSetting(string commandName, double value, int resolution, string axisLetter = "", bool isLinear = true)
         {
+            if(Type == "CAN")
+            {
+                return;
+            }
             if (Port.IsOpen)
             {
                 // Apply any command-specific conversion.
@@ -610,6 +605,10 @@ namespace XeryonMotionGUI.Classes
 
         public void SaveSettings()
         {
+            if (Type == "CAN")
+            {
+                return;
+            }
             if (AxisCount == 1)
             {
                 SendCommand("SAVE");
@@ -625,6 +624,10 @@ namespace XeryonMotionGUI.Classes
 
         public async void UploadSettings(string settings)
         {
+            if (Type == "CAN")
+            {
+                return;
+            }
             Debug.WriteLine("Uploading settings...");
 
             // Split settings text into lines, ignoring empty lines.
@@ -727,6 +730,10 @@ namespace XeryonMotionGUI.Classes
 
         public async Task LoadParametersFromController()
         {
+            if (Type == "CAN")
+            {
+                return;
+            }
             // Start the overall timer.
             Stopwatch totalStopwatch = Stopwatch.StartNew();
 
@@ -861,6 +868,10 @@ namespace XeryonMotionGUI.Classes
         #region Command Sending
         public async Task SendCommand(string command, string axisLetter = "")
         {
+            if (Type == "CAN")
+            {
+                return;
+            }
             // Determine the command prefix if an axis letter is provided.
             string prefix = string.IsNullOrEmpty(axisLetter) ? "" : axisLetter + ":";
             string commandToSend = prefix + command;
@@ -896,6 +907,10 @@ namespace XeryonMotionGUI.Classes
 
         public void Flush()
         {
+            if (Type == "CAN")
+            {
+                return;
+            }
             Port.DiscardInBuffer();
         }
         #endregion

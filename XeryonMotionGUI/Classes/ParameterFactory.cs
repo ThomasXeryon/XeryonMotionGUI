@@ -18,7 +18,7 @@ namespace XeryonMotionGUI.Classes
                     return CreateXD19Parameters(axisType);
                 case "XWS Multi Axis Controller":
                     return CreateXWSParameters(axisType);
-                case "INTG Single Axis Integrated Controller":
+                case "CAN":
                     return CreateINTGParameters(axisType);
                 default:
                     return CreateDefaultParameters();
@@ -557,8 +557,15 @@ new Parameter(-2000, 0, 1, 0, "Left Soft Limit:", "LLIM",
         {
             var parameters = new ObservableCollection<Parameter>
             {
-                new Parameter(0, 1, 1, 1, "Phase Correction:", category:"Advanced tuning"),
-                new Parameter(-200, 0, 1, -100, "Left Soft Limit:", category:"Motion")
+                new Parameter(0, 1000, 5, 1000, "Speed:", "SSPD",
+                              category: "Motion",
+                              explanation: "Maximum speed in closed loop.") ,
+                new Parameter(0, 65500, 1000, 1000, "Acceleration:", "ACCE",
+                              category: "Motion") ,
+                new Parameter(0, 65500, 1000, 1000, "Deceleration:", "DECE",
+                              category: "Motion") ,
+                new Parameter(1, 256, 1, 1, "Node ID:", "nodID",
+                              category: "Motion") ,
             };
             AddCommonAxisParameters(parameters, axisType);
             return parameters;

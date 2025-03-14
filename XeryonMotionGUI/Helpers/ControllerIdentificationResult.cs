@@ -15,7 +15,8 @@ namespace XeryonMotionGUI.Helpers
         XD_OEM,  // single-axis, responds to VOLT=?, no AXES response
         XD_C,    // single-axis, no VOLT?, no AXES response
         XD_M,    // up to 6 axis, responds to AXES=?
-        XD_19    // more than 6 axis, responds to AXES=?
+        XD_19,    // more than 6 axis, responds to AXES=?
+        CAN
     }
 
     // Maps the enum values to display strings with hyphens.
