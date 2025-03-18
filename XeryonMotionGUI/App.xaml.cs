@@ -135,7 +135,7 @@ public partial class App : Application
 
         // 2) Attempt to set real-time priority
         TrySetRealTimePriority();
-        StartDeviceWatcher();
+        //StartDeviceWatcher();
 
     }
 
@@ -164,7 +164,7 @@ public partial class App : Application
     private async Task CheckForControllers()
     {
         //NotifyIsBusy(true);
-        await Task.Delay(10);
+        await Task.Delay(010);
 
         // 1) Gather current enumerated COM ports
         string[] ports = SerialPort.GetPortNames();

@@ -43,17 +43,21 @@
         </Grid.RowDefinitions>
 
         <!-- Title and Refresh Section -->
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10" Grid.Row="0">
-            <TextBlock Text="Available Controllers" 
-                       FontWeight="Bold" 
-                       FontSize="24" 
-                       VerticalAlignment="Center" 
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Margin="10"
+                    Grid.Row="0">
+            <TextBlock Text="Available Controllers"
+                       FontWeight="Bold"
+                       FontSize="24"
+                       VerticalAlignment="Center"
                        Margin="0,0,20,0" />
-            <Button Content="Refresh" 
-                    Click="CheckForControllersButton_Click" 
-                    Width="100" 
-                    Height="30" 
-                    VerticalAlignment="Center"/>
+            <Button Content="Refresh"
+                    Click="CheckForControllersButton_Click"
+                    Width="100"
+                    Height="30"
+                    VerticalAlignment="Center"
+                    Background="Transparent" />
         </StackPanel>
 
         <!-- Progress Bar -->
@@ -66,25 +70,15 @@
             Margin="10,40,40,0"
             Grid.Row="0" />
 
-        <!-- ScrollViewer around the ListView -->
+        <!-- Available Controllers List -->
         <ScrollViewer VerticalScrollBarVisibility="Visible"
                       HorizontalScrollBarVisibility="Disabled"
                       Grid.Row="1"
                       Margin="20">
-            <!-- The main ListView -->
             <ListView x:Name="AvailableControllersList"
                       ItemsSource="{Binding FoundControllers}"
-                      SelectionMode="Single"
-                      RightTapped="AvailableControllersList_RightTapped">
-                <!-- Attach a context flyout to the ListView -->
-                <ListView.ContextFlyout>
-                    <MenuFlyout>
-                        <MenuFlyoutItem Text="Add CAN Controller"
-                                        Click="AddCANController_Click" />
-                    </MenuFlyout>
-                </ListView.ContextFlyout>
-
-                <!-- The rest of your item template/style -->
+                      Background="Transparent"
+                      SelectionMode="Single">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
                         <Setter Property="Background" Value="Transparent" />
@@ -95,7 +89,9 @@
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListViewItem">
-                                    <Border BorderThickness="0">
+                                    <Border Background="Transparent"
+                                            BorderBrush="Transparent"
+                                            BorderThickness="0">
                                         <ContentPresenter />
                                     </Border>
                                 </ControlTemplate>
@@ -104,19 +100,23 @@
                     </Style>
                 </ListView.ItemContainerStyle>
 
+                <!-- Wrap horizontally if more items -->
                 <ListView.ItemsPanel>
                     <ItemsPanelTemplate>
                         <ItemsWrapGrid Orientation="Horizontal"
                                        MaximumRowsOrColumns="0"
-                                       HorizontalAlignment="Center" 
+                                       HorizontalAlignment="Center"
                                        Margin="0,2,0,0" />
                     </ItemsPanelTemplate>
                 </ListView.ItemsPanel>
 
+                <!-- Controller item template -->
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderThickness="1"
+                        <Border BorderBrush="DimGray"
+                                BorderThickness="1"
                                 CornerRadius="5"
+                                Background="Transparent"
                                 Margin="10"
                                 Width="500"
                                 RenderTransformOrigin="0.5,0.5"
@@ -125,112 +125,129 @@
                             <Border.RenderTransform>
                                 <CompositeTransform ScaleX="1" ScaleY="1" />
                             </Border.RenderTransform>
-                            <!-- Outer Grid -->
-                            <Grid Margin="10">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="50" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
+                            <Grid>
+                                <!-- Main content Grid -->
+                                <Grid x:Name="MainContentGrid" Margin="10">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="50" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                                <!-- Header -->
-                                <Grid Grid.Row="0" Height="50">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,10,0">
-                                        <Ellipse Width="15" 
-                                                 Height="15"
-                                                 Fill="{Binding Running, Converter={StaticResource BoolToColorConverter}}"
-                                                 Margin="0,0,10,0"/>
-                                        <TextBlock Text="{Binding ControllerTitle}"
-                                                   FontSize="20" 
-                                                   FontWeight="Bold"
-                                                   VerticalAlignment="Center" />
+                                    <!-- Header -->
+                                    <Grid Grid.Row="0" Height="50">
+                                        <StackPanel Orientation="Horizontal"
+                                                    VerticalAlignment="Center"
+                                                    Margin="10,0,10,0">
+                                            <Ellipse Width="15"
+                                                     Height="15"
+                                                     Fill="{Binding Running, Converter={StaticResource BoolToColorConverter}}"
+                                                     Margin="0,0,10,0"
+                                                     Stroke="Gray"
+                                                     StrokeThickness="0.5" />
+                                            <TextBlock Text="{Binding ControllerTitle}"
+                                                       FontSize="20"
+                                                       FontWeight="Bold"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Controller Details -->
+                                    <StackPanel Grid.Row="1" Margin="10,5,10,10">
+                                        <StackPanel.ChildrenTransitions>
+                                            <TransitionCollection>
+                                                <EntranceThemeTransition IsStaggeringEnabled="True" />
+                                            </TransitionCollection>
+                                        </StackPanel.ChildrenTransitions>
+                                        <TextBlock Text="Commercial Name:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding Type}" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Type:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding Name}" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Serial Number:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding Serial}" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Software Version:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding Soft}" Margin="0,0,0,5"/>
                                     </StackPanel>
+
+                                    <!-- Axes Section -->
+                                    <ScrollViewer Grid.Row="2"
+                                                  HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Disabled"
+                                                  Margin="0,10,0,10">
+                                        <ItemsControl ItemsSource="{Binding Axes}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="Gray"
+                                                            BorderThickness="1"
+                                                            CornerRadius="5"
+                                                            Padding="10"
+                                                            Margin="5">
+                                                        <StackPanel>
+                                                            <StackPanel.ChildrenTransitions>
+                                                                <TransitionCollection>
+                                                                    <EntranceThemeTransition IsStaggeringEnabled="True" />
+                                                                </TransitionCollection>
+                                                            </StackPanel.ChildrenTransitions>
+                                                            <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,5">
+                                                                <Run Text="{Binding AxisTitle}" />
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="12">
+                                                                <Run Text="Type: " />
+                                                                <Run Text="{Binding Type}" />
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="12">
+                                                                <Run Text="Resolution: " />
+                                                                <Run Text="{Binding Resolution}" />
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="12">
+                                                                <Run Text="Travel Range: " />
+                                                                <Run Text="{Binding Range, Converter={StaticResource DoubleFormatConverter}, ConverterParameter='F0'}" />
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="12">
+                                                                <Run Text="Friendly Name: " />
+                                                                <Run Text="{Binding FriendlyName}" />
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="12">
+                                                                <Run Text="Axis Letter: " />
+                                                                <Run Text="{Binding AxisLetter}"/>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+
+                                    <!-- Connect/Disconnect Button -->
+                                    <Button Grid.Row="3"
+                                            Content="{Binding Status}"
+                                            Background="{Binding Status, Converter={StaticResource StatusToBrushConverter}}"
+                                            Command="{Binding OpenPortCommand}"
+                                            Width="150"
+                                            Height="40"
+                                            FontSize="16"
+                                            VerticalAlignment="Bottom"
+                                            HorizontalAlignment="Right"
+                                            Margin="0,10,5,5"/>
                                 </Grid>
 
-                                <!-- Controller Details -->
-                                <StackPanel Grid.Row="1" Margin="10,5,10,10">
-                                    <StackPanel.ChildrenTransitions>
-                                        <TransitionCollection>
-                                            <EntranceThemeTransition IsStaggeringEnabled="True" />
-                                        </TransitionCollection>
-                                    </StackPanel.ChildrenTransitions>
-                                    <TextBlock Text="Commercial Name:" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="{Binding Type}" Margin="0,0,0,5"/>
-                                    <TextBlock Text="Type:" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="{Binding Name}" Margin="0,0,0,5"/>
-                                    <TextBlock Text="Serial Number:" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="{Binding Serial}" Margin="0,0,0,5"/>
-                                    <TextBlock Text="Software Version:" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="{Binding Soft}" Margin="0,0,0,5"/>
-                                </StackPanel>
-
-                                <!-- Axes Section -->
-                                <ScrollViewer Grid.Row="2"
-                                              HorizontalScrollBarVisibility="Auto"
-                                              VerticalScrollBarVisibility="Disabled"
-                                              Margin="0,10,0,10">
-                                    <ItemsControl ItemsSource="{Binding Axes}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border BorderThickness="1"
-                                                        CornerRadius="5"
-                                                        Padding="10"
-                                                        Margin="5">
-                                                    <StackPanel>
-                                                        <StackPanel.ChildrenTransitions>
-                                                            <TransitionCollection>
-                                                                <EntranceThemeTransition IsStaggeringEnabled="True" />
-                                                            </TransitionCollection>
-                                                        </StackPanel.ChildrenTransitions>
-                                                        <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,5">
-                                                            <Run Text="{Binding AxisTitle}" />
-                                                        </TextBlock>
-                                                        <TextBlock FontSize="12">
-                                                            <Run Text="Type: " />
-                                                            <Run Text="{Binding Type}" />
-                                                        </TextBlock>
-                                                        <TextBlock FontSize="12">
-                                                            <Run Text="Resolution: " />
-                                                            <Run Text="{Binding Resolution}" />
-                                                        </TextBlock>
-                                                        <TextBlock FontSize="12">
-                                                            <Run Text="Travel Range: " />
-                                                            <Run Text="{Binding Range,
-                                                                            Converter={StaticResource DoubleFormatConverter},
-                                                                            ConverterParameter='F0'}" />
-                                                        </TextBlock>
-                                                        <TextBlock FontSize="12">
-                                                            <Run Text="Friendly Name: " />
-                                                            <Run Text="{Binding FriendlyName}" />
-                                                        </TextBlock>
-                                                        <TextBlock FontSize="12">
-                                                            <Run Text="Axis Letter: " />
-                                                            <Run Text="{Binding AxisLetter}"/>
-                                                        </TextBlock>
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-
-                                <!-- Connect/Disconnect Button -->
-                                <Button Grid.Row="3"
-                                        Content="{Binding Status}"
-                                        Background="{Binding Status, Converter={StaticResource StatusToBrushConverter}}"
-                                        Command="{Binding OpenPortCommand}"
+                                <!-- Example: an image overlay on the right -->
+                                <Canvas IsHitTestVisible="False"
                                         Width="150"
-                                        Height="40"
-                                        FontSize="16"
-                                        VerticalAlignment="Bottom"
+                                        VerticalAlignment="Top"
                                         HorizontalAlignment="Right"
-                                        Margin="0,10,5,5"/>
+                                        Margin="20">
+                                    <Image Source="{Binding Name, Converter={StaticResource ControllerTypeToImageConverter}}"
+                                           Width="150"
+                                           Height="150"
+                                           Canvas.Top="0" />
+                                </Canvas>
                             </Grid>
                         </Border>
                     </DataTemplate>
@@ -238,7 +255,7 @@
             </ListView>
         </ScrollViewer>
 
-        <!-- A "real" Popup with no explicit colors set. It will appear at center. -->
+        <!-- Popup for CAN Controller -->
         <Popup x:Name="CANControllerPopup"
                IsLightDismissEnabled="True">
             <Grid HorizontalAlignment="Center"
@@ -264,10 +281,8 @@
                         </ComboBox>
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                            <Button Content="Add"
-                                    Click="AddCANControllerConfirm_Click"/>
-                            <Button Content="Cancel"
-                                    Click="CancelCANController_Click"/>
+                            <Button Content="Add" Click="AddCANControllerConfirm_Click"/>
+                            <Button Content="Cancel" Click="CancelCANController_Click"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

@@ -34,7 +34,7 @@ namespace XeryonMotionGUI.Views
             this.InitializeComponent();
             DataContext = this;
             this.NavigationCacheMode = NavigationCacheMode.Required;
-            //StartDeviceWatcher();
+            StartDeviceWatcher();
         }
 
         #region DeviceWatcher Setup
@@ -103,16 +103,15 @@ namespace XeryonMotionGUI.Views
             // 1) Gather current enumerated COM ports
             string[] ports = SerialPort.GetPortNames();
 
-            // 2) Mark running controllers as not running if their port is missing
-            foreach (var ctrl in Controller.FoundControllers)
+            // 2) Remove controllers whose port is no longer present
+            var toRemove = Controller.FoundControllers
+                .Where(ctrl => !ports.Contains(ctrl.FriendlyPort))
+                .ToList();
+
+            foreach (var deadCtrl in toRemove)
             {
-                if (ctrl.Running && !ports.Contains(ctrl.FriendlyPort))
-                {
-                    Debug.WriteLine($"Port {ctrl.FriendlyPort} no longer present => marking {ctrl.Name} as not running.");
-                    ctrl.Running = false;
-                    ctrl.Status = "Idle";
-                }
-                await Task.Delay(1);
+                Debug.WriteLine($"Removing controller {deadCtrl.Name} on {deadCtrl.FriendlyPort}, since port not present.");
+                Controller.FoundControllers.Remove(deadCtrl);
             }
 
             // 3) Enumerate each port, try identifying
@@ -151,19 +150,10 @@ namespace XeryonMotionGUI.Views
                         var existing = Controller.FoundControllers.FirstOrDefault(c => c.FriendlyPort == portName);
                         if (existing != null)
                         {
-                            if (!existing.Running)
-                            {
-                                Debug.WriteLine($"Auto reconnecting to {portName}...");
-                                tempPort.Close();
-                                existing.ReconnectController();
-                                continue;
-                            }
-                            else
-                            {
-                                Debug.WriteLine($"Skipping duplicate controller on {portName} (already running).");
-                                tempPort.Close();
-                                continue;
-                            }
+                            // Already known: skip adding a duplicate
+                            Debug.WriteLine($"Skipping duplicate controller on {portName}. Controller is already known.");
+                            tempPort.Close();
+                            continue;
                         }
 
                         // Otherwise, create a new Controller
@@ -243,31 +233,13 @@ namespace XeryonMotionGUI.Views
                     catch (FileNotFoundException ex)
                     {
                         Debug.WriteLine($"Error processing port {portName}: {ex.Message}");
-                        var existing = Controller.FoundControllers
-                            .FirstOrDefault(c => c.FriendlyPort == portName);
-                        if (existing != null && existing.Running)
-                        {
-                            existing.Running = false;
-                            existing.Status = "Idle";
-                            Debug.WriteLine($"Marked controller on {portName} as Idle due to FileNotFoundException.");
-                        }
+                        // If anything fails here, we just skip. We don’t set to Idle or keep them around.
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error processing port {portName}: {ex.Message}");
                     }
                 }
-            }
-
-            // 4) Remove controllers whose port is still not found (and not running)
-            var toRemove = Controller.FoundControllers
-                .Where(ctrl => !ctrl.Running && !ports.Contains(ctrl.FriendlyPort))
-                .ToList();
-
-            foreach (var deadCtrl in toRemove)
-            {
-                Debug.WriteLine($"Removing controller {deadCtrl.Name} on {deadCtrl.FriendlyPort}, since port not present & not running.");
-                Controller.FoundControllers.Remove(deadCtrl);
             }
 
             RefreshProgressBar.Visibility = Visibility.Collapsed;
@@ -430,7 +402,7 @@ namespace XeryonMotionGUI.Views
                 controller.Axes = new ObservableCollection<Axis>();
                 var axis = new Axis(controller, "CAN_Axis", "A")
                 {
-                    Resolution = (int)resolution, // You can store as int if that suits your data
+                    Resolution = (int)resolution,
                     Range = rodLength,
                     Type = "Linear",
                     FriendlyName = "CAN Axis",
