@@ -1,0 +1,38 @@
+<ContentDialog
+    x:Class="XeryonMotionGUI.Views.IntroDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Welcome to XeryonMotionGUI"
+    CloseButtonText="Skip"
+    DefaultButton="Close"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <StackPanel Spacing="20">
+        <FlipView x:Name="IntroSteps" Width="600" Height="400">
+            <FlipViewItem>
+                <StackPanel>
+                    <TextBlock Text="Step 1: Welcome" FontSize="24" />
+                    <TextBlock Text="This is the XeryonMotionGUI. Let’s explore its features!" />
+                </StackPanel>
+            </FlipViewItem>
+            <FlipViewItem>
+                <StackPanel>
+                    <TextBlock Text="Step 2: Motion Control" FontSize="24" />
+                    <TextBlock Text="Control your devices with precision." />
+                </StackPanel>
+            </FlipViewItem>
+            <FlipViewItem>
+                <StackPanel>
+                    <TextBlock Text="Step 3: Customization" FontSize="24" />
+                    <TextBlock Text="Adjust settings to fit your needs." />
+                </StackPanel>
+            </FlipViewItem>
+        </FlipView>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+            <Button x:Name="NextButton" Content="Next" Click="NextButton_Click" />
+        </StackPanel>
+        <CheckBox x:Name="DontShowAgainCheckBox" Content="Don’t show this again" />
+    </StackPanel>
+</ContentDialog>

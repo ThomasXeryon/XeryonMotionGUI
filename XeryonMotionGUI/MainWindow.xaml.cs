@@ -1,5 +1,7 @@
-﻿using Windows.UI.ViewManagement;
-
+﻿using Microsoft.UI;
+using Microsoft.UI.Windowing;
+using Windows.UI.ViewManagement;
+using WinRT.Interop;
 using XeryonMotionGUI.Helpers;
 
 namespace XeryonMotionGUI;
@@ -22,9 +24,14 @@ public sealed partial class MainWindow : WindowEx
         dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         settings = new UISettings();
         settings.ColorValuesChanged += Settings_ColorValuesChanged; // cannot use FrameworkElement.ActualThemeChanged event
-
     }
 
+    private AppWindow GetAppWindowForCurrentWindow()
+    {
+        IntPtr hWnd = WindowNative.GetWindowHandle(this);
+        WindowId myWndId = Win32Interop.GetWindowIdFromWindow(hWnd);
+        return AppWindow.GetFromWindowId(myWndId);
+    }
     // this handles updating the caption button colors correctly when windows system theme is changed
     // while the app is open
     private void Settings_ColorValuesChanged(UISettings sender, object args)
