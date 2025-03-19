@@ -11,7 +11,7 @@ public sealed partial class MainPage : Page
 {
     private double SpeedMultiplier = 0.5; // Default speed multiplier
     private const double MaxSpeedMultiplier = 10.0; // Maximum multiplier
-    private const double SpeedIncrement = 0.5; // Increment per click
+    private const double SpeedIncrement = 0.5; // Increment per clicknn
 
     public MainViewModel ViewModel
     {
