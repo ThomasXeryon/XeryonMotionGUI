@@ -7,20 +7,57 @@ using Windows.System;
 using XeryonMotionGUI.Contracts.Services;
 using XeryonMotionGUI.Helpers;
 using XeryonMotionGUI.ViewModels;
+using XeryonMotionGUI.Views;
+using Windows.Storage;
+using System.Runtime.InteropServices;
+using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using System.Collections.ObjectModel;
+using System.Linq;
 
-namespace XeryonMotionGUI.Views;
-
-public sealed partial class ShellPage : Page
+namespace XeryonMotionGUI.Views
 {
-    public ShellViewModel ViewModel
+    public sealed partial class ShellPage : Page
     {
-        get;
-    }
+        public ShellViewModel ViewModel
+        {
+            get;
+        }
 
-    public ShellPage(ShellViewModel viewModel)
-    {
-        ViewModel = viewModel;
-        InitializeComponent();
+        private bool _hasShownIntroDialog = false;
+
+        // ParametersViewModel to access controllers, axes, and parameters
+        private readonly ParametersViewModel _parametersViewModel;
+
+        // Win32 API declarations
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        private const int SW_SHOWNORMAL = 1;
+        private const int SW_MAXIMIZE = 3;
+
+        // CustomGPT credentials & session info
+        private const string ApiToken = "6370|bSJ1zWwFEU7OMBFD86bug7hh13d7A3VMCQHRCK0B8cc9059b";
+        private const string ProjectId = "67831";
+        private const string SessionId = "02bcaf7a-3d79-47ea-b351-bf39d01d029c";
+        private const bool Stream = false;
+
+        // Chat message history
+        private ObservableCollection<ChatMessage> ChatMessages { get; } = new ObservableCollection<ChatMessage>();
+
+        public ShellPage(ShellViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            // Initialize ParametersViewModel to access controllers, axes, and parameters
+            _parametersViewModel = new ParametersViewModel();
+            InitializeComponent();
 
             ViewModel.NavigationService.Frame = NavigationFrame;
             ViewModel.NavigationViewService.Initialize(NavigationViewControl);
@@ -31,48 +68,75 @@ public sealed partial class ShellPage : Page
             App.MainWindow.Activated += MainWindow_Activated;
             AppTitleBarText.Text = "AppDisplayName".GetLocalized();
 
-        this.InitializeComponent();
-        ViewModel = App.GetService<ShellViewModel>(); // Ensure the ViewModel is resolved
-        DataContext = ViewModel;
-    }
+            DataContext = ViewModel;
+
+            Loaded += OnLoaded;
+
+            // Bind chat messages to UI
+            ChatMessagesPanel.DataContext = ChatMessages;
+            ChatMessages.CollectionChanged += (s, e) => UpdateChatUI();
+        }
 
         private async void OnLoaded(object sender, RoutedEventArgs e)
         {
             TitleBarHelper.UpdateTitleBar(RequestedTheme);
 
-        KeyboardAccelerators.Add(BuildKeyboardAccelerator(VirtualKey.Left, VirtualKeyModifiers.Menu));
-        KeyboardAccelerators.Add(BuildKeyboardAccelerator(VirtualKey.GoBack));
-    }
+            KeyboardAccelerators.Add(BuildKeyboardAccelerator(VirtualKey.Left, VirtualKeyModifiers.Menu));
+            KeyboardAccelerators.Add(BuildKeyboardAccelerator(VirtualKey.GoBack));
+
+            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+            ShowWindow(hWnd, SW_SHOWNORMAL);
+            ShowWindow(hWnd, SW_MAXIMIZE);
+            SetForegroundWindow(hWnd);
+
+            if (!_hasShownIntroDialog)
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+                bool showIntro = !localSettings.Values.ContainsKey("ShowIntro")
+                                 || (bool)localSettings.Values["ShowIntro"];
+
+                if (showIntro)
+                {
+                    _hasShownIntroDialog = true;
+                    var introDialog = new IntroDialog { XamlRoot = this.XamlRoot };
+                    try
+                    {
+                        await introDialog.ShowAsync();
+                    }
+                    catch (COMException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to show IntroDialog: {ex.Message}");
+                    }
+                }
+            }
+        }
 
         private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
         {
             App.AppTitlebar = AppTitleBarText as UIElement;
         }
 
-    private void NavigationViewControl_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
-    {
-        AppTitleBar.Margin = new Thickness()
+        private void NavigationViewControl_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
         {
-            Left = sender.CompactPaneLength * (sender.DisplayMode == NavigationViewDisplayMode.Minimal ? 2 : 1),
-            Top = AppTitleBar.Margin.Top,
-            Right = AppTitleBar.Margin.Right,
-            Bottom = AppTitleBar.Margin.Bottom
-        };
-    }
-
-    private static KeyboardAccelerator BuildKeyboardAccelerator(VirtualKey key, VirtualKeyModifiers? modifiers = null)
-    {
-        var keyboardAccelerator = new KeyboardAccelerator() { Key = key };
-
-        if (modifiers.HasValue)
-        {
-            keyboardAccelerator.Modifiers = modifiers.Value;
+            AppTitleBar.Margin = new Thickness
+            {
+                Left = sender.CompactPaneLength * (sender.DisplayMode == NavigationViewDisplayMode.Minimal ? 2 : 1),
+                Top = AppTitleBar.Margin.Top,
+                Right = AppTitleBar.Margin.Right,
+                Bottom = AppTitleBar.Margin.Bottom
+            };
         }
 
-        keyboardAccelerator.Invoked += OnKeyboardAcceleratorInvoked;
-
-        return keyboardAccelerator;
-    }
+        private static KeyboardAccelerator BuildKeyboardAccelerator(VirtualKey key, VirtualKeyModifiers? modifiers = null)
+        {
+            var keyboardAccelerator = new KeyboardAccelerator { Key = key };
+            if (modifiers.HasValue)
+            {
+                keyboardAccelerator.Modifiers = modifiers.Value;
+            }
+            keyboardAccelerator.Invoked += OnKeyboardAcceleratorInvoked;
+            return keyboardAccelerator;
+        }
 
         private static void OnKeyboardAcceleratorInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
@@ -118,6 +182,257 @@ public sealed partial class ShellPage : Page
                 XamlRoot = this.XamlRoot
             };
 
-        await errorDialog.ShowAsync();
+            try
+            {
+                await errorDialog.ShowAsync();
+            }
+            catch (COMException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to show ErrorDialog: {ex.Message}");
+            }
+        }
+
+        // Chat Toggle Functionality
+        private void ChatToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            ChatWindow.Visibility = ChatWindow.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void MinimizeChatButton_Click(object sender, RoutedEventArgs e)
+        {
+            ChatWindow.Visibility = Visibility.Collapsed;
+        }
+
+        // Method to gather controller, axis, and parameter information
+        private string GetSystemContext()
+        {
+            var context = new StringBuilder();
+            context.AppendLine("This message comes from the Xeryon software. The following information about the current system state (controllers, axes, and parameters) is provided for informational purposes to give context to the user's message:\n");
+
+            // Controllers
+            if (_parametersViewModel.HasRunningControllers)
+            {
+                context.AppendLine("### Connected Controllers:");
+                foreach (var controller in _parametersViewModel.RunningControllers)
+                {
+                    context.AppendLine($"- Controller: {controller.Name}");
+                    if (controller.Axes != null && controller.Axes.Any())
+                    {
+                        context.AppendLine("  Axes:");
+                        foreach (var axis in controller.Axes)
+                        {
+                            context.AppendLine($"    - Axis: {axis.Name}");
+                        }
+                    }
+                    else
+                    {
+                        context.AppendLine("  No axes available.");
+                    }
+                }
+            }
+            else
+            {
+                context.AppendLine("### Connected Controllers: None");
+            }
+
+            // Selected Controller and Axis
+            if (_parametersViewModel.SelectedController != null)
+            {
+                context.AppendLine($"\n### Selected Controller: {_parametersViewModel.SelectedController.Name}");
+                if (_parametersViewModel.SelectedAxis != null)
+                {
+                    context.AppendLine($"### Selected Axis: {_parametersViewModel.SelectedAxis.Name}");
+                }
+                else
+                {
+                    context.AppendLine("### Selected Axis: None");
+                }
+            }
+            else
+            {
+                context.AppendLine("\n### Selected Controller: None");
+                context.AppendLine("### Selected Axis: None");
+            }
+
+            // Parameters
+            if (_parametersViewModel.GroupedParameters != null && _parametersViewModel.GroupedParameters.Any())
+            {
+                context.AppendLine("\n### Parameters (Grouped by Category):");
+                foreach (var group in _parametersViewModel.GroupedParameters)
+                {
+                    context.AppendLine($"#### Category: {group.Category}");
+                    if (group.Parameters != null && group.Parameters.Any())
+                    {
+                        foreach (var parameter in group.Parameters)
+                        {
+                            context.AppendLine($"  - {parameter.Name}: {parameter.Value}");
+                        }
+                    }
+                    else
+                    {
+                        context.AppendLine("  No parameters in this category.");
+                    }
+                }
+            }
+            else
+            {
+                context.AppendLine("\n### Parameters: None");
+            }
+
+            context.AppendLine("\n--- End of system context ---\n");
+            return context.ToString();
+        }
+
+        // CustomGPT Integration
+        private async Task<string> SendMessageToCustomGpt(string prompt)
+        {
+            var baseUrl = "https://app.customgpt.ai/api/v1";
+            var url = $"{baseUrl}/projects/{ProjectId}/conversations/{SessionId}/messages?stream={Stream.ToString().ToLower()}";
+
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ApiToken);
+
+                // Prepend the system context to the user's prompt
+                string fullPrompt = GetSystemContext() + "User's message: " + prompt;
+
+                var requestBody = new
+                {
+                    prompt = fullPrompt,
+                    custom_persona = (string)null,
+                    chatbot_model = "gpt-4-o",
+                    response_source = "openai_content"
+                };
+
+                string jsonBody = JsonConvert.SerializeObject(requestBody);
+                var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+                try
+                {
+                    HttpResponseMessage response = await httpClient.PostAsync(url, content);
+                    string responseBody = await response.Content.ReadAsStringAsync();
+
+                    // Log the status code and response for debugging
+                    System.Diagnostics.Debug.WriteLine($"CustomGPT Response Status: {response.StatusCode}");
+                    System.Diagnostics.Debug.WriteLine($"CustomGPT Response Body: {responseBody}");
+
+                    // Parse the response body
+                    dynamic json = JsonConvert.DeserializeObject(responseBody);
+
+                    if (json?.status == "success" && json?.data?.openai_response != null)
+                    {
+                        return json.data.openai_response.ToString();
+                    }
+                    else if (json?.message != null)
+                    {
+                        return $"[Error: {json.message}]";
+                    }
+                    else
+                    {
+                        return $"[Error: Invalid response format from CustomGPT - Status: {response.StatusCode}, Body: {responseBody}]";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error calling CustomGPT: {ex.Message}");
+                    return $"[Error: {ex.Message}]";
+                }
+            }
+        }
+
+        // Chat Functionality
+        private void UpdateChatUI()
+        {
+            ChatMessagesPanel.Children.Clear();
+            foreach (var message in ChatMessages)
+            {
+                var messageContainer = new Border
+                {
+                    Background = message.IsUser ? new SolidColorBrush(Colors.LightBlue) : new SolidColorBrush(Colors.LightGray),
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(10),
+                    Margin = new Thickness(5),
+                    MaxWidth = 300,
+                    HorizontalAlignment = message.IsUser ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+                    BorderThickness = new Thickness(0)
+                };
+
+                var textBlock = new TextBlock
+                {
+                    Text = message.Content,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = new SolidColorBrush(Colors.Black)
+                };
+
+                messageContainer.Child = textBlock;
+                ChatMessagesPanel.Children.Add(messageContainer);
+            }
+
+            // Scroll to the bottom
+            var scrollViewer = ChatMessagesPanel.Parent as ScrollViewer;
+            scrollViewer?.ChangeView(null, scrollViewer?.ExtentHeight, null);
+        }
+
+        private async void SendChatMessage_Click(object sender, RoutedEventArgs e)
+        {
+            await SendMessage();
+        }
+
+        private async void ChatInputBox_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == VirtualKey.Enter)
+            {
+                await SendMessage();
+                e.Handled = true;
+            }
+        }
+
+        private async Task SendMessage()
+        {
+            string userInput = ChatInputBox.Text.Trim();
+            if (string.IsNullOrEmpty(userInput))
+                return;
+
+            // Add user's message to history
+            ChatMessages.Add(new ChatMessage { IsUser = true, Content = userInput });
+            ChatInputBox.Text = ""; // Clear input
+
+            // Show loading animation
+            LoadingRing.IsActive = true;
+            LoadingRing.Visibility = Visibility.Visible;
+
+            try
+            {
+                // Send to CustomGPT and get response
+                string gptResponse = await SendMessageToCustomGpt(userInput);
+                if (gptResponse.StartsWith("[Error:"))
+                {
+                    ChatMessages.Add(new ChatMessage { IsUser = false, Content = gptResponse });
+                }
+                else
+                {
+                    ChatMessages.Add(new ChatMessage { IsUser = false, Content = gptResponse });
+                }
+            }
+            finally
+            {
+                // Hide loading animation
+                LoadingRing.IsActive = false;
+                LoadingRing.Visibility = Visibility.Collapsed;
+            }
+        }
+    }
+
+    // Simple class to represent a chat message
+    public class ChatMessage
+    {
+        public bool IsUser
+        {
+            get; set;
+        }
+        public string Content
+        {
+            get; set;
+        }
     }
 }
