@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.Linq;
+using Windows.UI;
 
 namespace XeryonMotionGUI.Views
 {
@@ -44,9 +45,9 @@ namespace XeryonMotionGUI.Views
         private const int SW_MAXIMIZE = 3;
 
         // CustomGPT credentials & session info
-        private const string ApiToken = "6370|bSJ1zWwFEU7OMBFD86bug7hh13d7A3VMCQHRCK0B8cc9059b";
-        private const string ProjectId = "67831";
-        private const string SessionId = "02bcaf7a-3d79-47ea-b351-bf39d01d029c";
+        private const string ApiToken = "6374|6su0H5yxO4KduzZ7ZhjtcmIrULBAP5S7fPYoi3avcd2c718d";
+        private const string ProjectId = "67914";
+        private const string SessionId = "7740b4d1-d521-4a4f-a68a-edd8064c5ae4";
         private const bool Stream = false;
 
         // Chat message history
@@ -75,6 +76,9 @@ namespace XeryonMotionGUI.Views
             // Bind chat messages to UI
             ChatMessagesPanel.DataContext = ChatMessages;
             ChatMessages.CollectionChanged += (s, e) => UpdateChatUI();
+
+            // Set initial chat visibility based on display mode
+            UpdateChatVisibility();
         }
 
         private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -125,6 +129,21 @@ namespace XeryonMotionGUI.Views
                 Right = AppTitleBar.Margin.Right,
                 Bottom = AppTitleBar.Margin.Bottom
             };
+
+            // Update chat visibility when display mode changes
+            UpdateChatVisibility();
+        }
+
+        private void UpdateChatVisibility()
+        {
+            if (NavigationViewControl.DisplayMode == NavigationViewDisplayMode.Expanded)
+            {
+                ChatContainer.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ChatContainer.Visibility = Visibility.Collapsed;
+            }
         }
 
         private static KeyboardAccelerator BuildKeyboardAccelerator(VirtualKey key, VirtualKeyModifiers? modifiers = null)
@@ -172,6 +191,24 @@ namespace XeryonMotionGUI.Views
             }
         }
 
+        private void ChatPopOutButton_Click(object sender, RoutedEventArgs e)
+        {
+            var newWindow = new Window();
+            var chatPopOutPage = new ChatPopOutPage(ChatMessages, SendMessageToCustomGpt);
+
+            if (this.ActualTheme == ElementTheme.Dark)
+            {
+                chatPopOutPage.RequestedTheme = ElementTheme.Dark;
+            }
+            else
+            {
+                chatPopOutPage.RequestedTheme = ElementTheme.Light;
+            }
+
+            newWindow.Content = chatPopOutPage;
+            newWindow.Activate();
+        }
+
         private async void ShowErrorDialog(string message)
         {
             ContentDialog errorDialog = new ContentDialog
@@ -190,17 +227,6 @@ namespace XeryonMotionGUI.Views
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to show ErrorDialog: {ex.Message}");
             }
-        }
-
-        // Chat Toggle Functionality
-        private void ChatToggleButton_Click(object sender, RoutedEventArgs e)
-        {
-            ChatWindow.Visibility = ChatWindow.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-        }
-
-        private void MinimizeChatButton_Click(object sender, RoutedEventArgs e)
-        {
-            ChatWindow.Visibility = Visibility.Collapsed;
         }
 
         // Method to gather controller, axis, and parameter information
@@ -296,6 +322,9 @@ namespace XeryonMotionGUI.Views
                 // Prepend the system context to the user's prompt
                 string fullPrompt = GetSystemContext() + "User's message: " + prompt;
 
+                // Log the full prompt being sent to CustomGPT
+                System.Diagnostics.Debug.WriteLine($"CustomGPT Prompt Sent:\n{fullPrompt}");
+
                 var requestBody = new
                 {
                     prompt = fullPrompt,
@@ -305,6 +334,9 @@ namespace XeryonMotionGUI.Views
                 };
 
                 string jsonBody = JsonConvert.SerializeObject(requestBody);
+                // Log the full request body for additional debugging
+                System.Diagnostics.Debug.WriteLine($"CustomGPT Request Body:\n{jsonBody}");
+
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
                 try
@@ -348,11 +380,13 @@ namespace XeryonMotionGUI.Views
             {
                 var messageContainer = new Border
                 {
-                    Background = message.IsUser ? new SolidColorBrush(Colors.LightBlue) : new SolidColorBrush(Colors.LightGray),
-                    CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(10),
-                    Margin = new Thickness(5),
-                    MaxWidth = 300,
+                    Background = message.IsUser
+                        ? new SolidColorBrush((Color)Application.Current.Resources["SystemAccentColorLight2"])
+                        : new SolidColorBrush((Color)Application.Current.Resources["SystemChromeMediumLowColor"]),
+                    CornerRadius = new CornerRadius(5),
+                    Padding = new Thickness(8),
+                    Margin = new Thickness(4),
+                    MaxWidth = 200,
                     HorizontalAlignment = message.IsUser ? HorizontalAlignment.Right : HorizontalAlignment.Left,
                     BorderThickness = new Thickness(0)
                 };
@@ -361,7 +395,7 @@ namespace XeryonMotionGUI.Views
                 {
                     Text = message.Content,
                     TextWrapping = TextWrapping.Wrap,
-                    Foreground = new SolidColorBrush(Colors.Black)
+                    Foreground = new SolidColorBrush((Color)Application.Current.Resources["SystemBaseHighColor"])
                 };
 
                 messageContainer.Child = textBlock;
@@ -369,8 +403,7 @@ namespace XeryonMotionGUI.Views
             }
 
             // Scroll to the bottom
-            var scrollViewer = ChatMessagesPanel.Parent as ScrollViewer;
-            scrollViewer?.ChangeView(null, scrollViewer?.ExtentHeight, null);
+            ChatScrollViewer?.ChangeView(null, ChatScrollViewer?.ExtentHeight, null, false);
         }
 
         private async void SendChatMessage_Click(object sender, RoutedEventArgs e)
