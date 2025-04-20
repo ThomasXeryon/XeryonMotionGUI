@@ -44,14 +44,7 @@ namespace XeryonMotionGUI.Views
         private const int SW_SHOWNORMAL = 1;
         private const int SW_MAXIMIZE = 3;
 
-        // CustomGPT credentials & session info
-        private const string ApiToken = "6374|6su0H5yxO4KduzZ7ZhjtcmIrULBAP5S7fPYoi3avcd2c718d";
-        private const string ProjectId = "67914";
-        private const string SessionId = "7740b4d1-d521-4a4f-a68a-edd8064c5ae4";
-        private const bool Stream = false;
-
         // Chat message history
-        private ObservableCollection<ChatMessage> ChatMessages { get; } = new ObservableCollection<ChatMessage>();
 
         public ShellPage(ShellViewModel viewModel)
         {
@@ -73,12 +66,7 @@ namespace XeryonMotionGUI.Views
 
             Loaded += OnLoaded;
 
-            // Bind chat messages to UI
-            ChatMessagesPanel.DataContext = ChatMessages;
-            ChatMessages.CollectionChanged += (s, e) => UpdateChatUI();
 
-            // Set initial chat visibility based on display mode
-            UpdateChatVisibility();
         }
 
         private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -131,20 +119,9 @@ namespace XeryonMotionGUI.Views
             };
 
             // Update chat visibility when display mode changes
-            UpdateChatVisibility();
         }
 
-        private void UpdateChatVisibility()
-        {
-            if (NavigationViewControl.DisplayMode == NavigationViewDisplayMode.Expanded)
-            {
-                ChatContainer.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                ChatContainer.Visibility = Visibility.Collapsed;
-            }
-        }
+
 
         private static KeyboardAccelerator BuildKeyboardAccelerator(VirtualKey key, VirtualKeyModifiers? modifiers = null)
         {
@@ -164,50 +141,6 @@ namespace XeryonMotionGUI.Views
             args.Handled = result;
         }
 
-        private void PopOutButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (NavigationFrame.Content is Page currentPage)
-            {
-                var pageType = currentPage.GetType();
-                var newWindow = new Window();
-                var navRootPage = new NavigationRootPage();
-
-                if (this.ActualTheme == ElementTheme.Dark)
-                {
-                    navRootPage.RequestedTheme = ElementTheme.Dark;
-                }
-                else
-                {
-                    navRootPage.RequestedTheme = ElementTheme.Light;
-                }
-
-                newWindow.Content = navRootPage;
-                newWindow.Activate();
-                navRootPage.Navigate(pageType, null);
-            }
-            else
-            {
-                ShowErrorDialog("The current content is not a valid page.");
-            }
-        }
-
-        private void ChatPopOutButton_Click(object sender, RoutedEventArgs e)
-        {
-            var newWindow = new Window();
-            var chatPopOutPage = new ChatPopOutPage(ChatMessages, SendMessageToCustomGpt);
-
-            if (this.ActualTheme == ElementTheme.Dark)
-            {
-                chatPopOutPage.RequestedTheme = ElementTheme.Dark;
-            }
-            else
-            {
-                chatPopOutPage.RequestedTheme = ElementTheme.Light;
-            }
-
-            newWindow.Content = chatPopOutPage;
-            newWindow.Activate();
-        }
 
         private async void ShowErrorDialog(string message)
         {
@@ -309,163 +242,8 @@ namespace XeryonMotionGUI.Views
             return context.ToString();
         }
 
-        // CustomGPT Integration
-        private async Task<string> SendMessageToCustomGpt(string prompt)
-        {
-            var baseUrl = "https://app.customgpt.ai/api/v1";
-            var url = $"{baseUrl}/projects/{ProjectId}/conversations/{SessionId}/messages?stream={Stream.ToString().ToLower()}";
 
-            using (var httpClient = new HttpClient())
-            {
-                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ApiToken);
-
-                // Prepend the system context to the user's prompt
-                string fullPrompt = GetSystemContext() + "User's message: " + prompt;
-
-                // Log the full prompt being sent to CustomGPT
-                System.Diagnostics.Debug.WriteLine($"CustomGPT Prompt Sent:\n{fullPrompt}");
-
-                var requestBody = new
-                {
-                    prompt = fullPrompt,
-                    custom_persona = (string)null,
-                    chatbot_model = "gpt-4-o",
-                    response_source = "openai_content"
-                };
-
-                string jsonBody = JsonConvert.SerializeObject(requestBody);
-                // Log the full request body for additional debugging
-                System.Diagnostics.Debug.WriteLine($"CustomGPT Request Body:\n{jsonBody}");
-
-                var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-
-                try
-                {
-                    HttpResponseMessage response = await httpClient.PostAsync(url, content);
-                    string responseBody = await response.Content.ReadAsStringAsync();
-
-                    // Log the status code and response for debugging
-                    System.Diagnostics.Debug.WriteLine($"CustomGPT Response Status: {response.StatusCode}");
-                    System.Diagnostics.Debug.WriteLine($"CustomGPT Response Body: {responseBody}");
-
-                    // Parse the response body
-                    dynamic json = JsonConvert.DeserializeObject(responseBody);
-
-                    if (json?.status == "success" && json?.data?.openai_response != null)
-                    {
-                        return json.data.openai_response.ToString();
-                    }
-                    else if (json?.message != null)
-                    {
-                        return $"[Error: {json.message}]";
-                    }
-                    else
-                    {
-                        return $"[Error: Invalid response format from CustomGPT - Status: {response.StatusCode}, Body: {responseBody}]";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error calling CustomGPT: {ex.Message}");
-                    return $"[Error: {ex.Message}]";
-                }
-            }
-        }
-
-        // Chat Functionality
-        private void UpdateChatUI()
-        {
-            ChatMessagesPanel.Children.Clear();
-            foreach (var message in ChatMessages)
-            {
-                var messageContainer = new Border
-                {
-                    Background = message.IsUser
-                        ? new SolidColorBrush((Color)Application.Current.Resources["SystemAccentColorLight2"])
-                        : new SolidColorBrush((Color)Application.Current.Resources["SystemChromeMediumLowColor"]),
-                    CornerRadius = new CornerRadius(5),
-                    Padding = new Thickness(8),
-                    Margin = new Thickness(4),
-                    MaxWidth = 200,
-                    HorizontalAlignment = message.IsUser ? HorizontalAlignment.Right : HorizontalAlignment.Left,
-                    BorderThickness = new Thickness(0)
-                };
-
-                var textBlock = new TextBlock
-                {
-                    Text = message.Content,
-                    TextWrapping = TextWrapping.Wrap,
-                    Foreground = new SolidColorBrush((Color)Application.Current.Resources["SystemBaseHighColor"])
-                };
-
-                messageContainer.Child = textBlock;
-                ChatMessagesPanel.Children.Add(messageContainer);
-            }
-
-            // Scroll to the bottom
-            ChatScrollViewer?.ChangeView(null, ChatScrollViewer?.ExtentHeight, null, false);
-        }
-
-        private async void SendChatMessage_Click(object sender, RoutedEventArgs e)
-        {
-            await SendMessage();
-        }
-
-        private async void ChatInputBox_KeyDown(object sender, KeyRoutedEventArgs e)
-        {
-            if (e.Key == VirtualKey.Enter)
-            {
-                await SendMessage();
-                e.Handled = true;
-            }
-        }
-
-        private async Task SendMessage()
-        {
-            string userInput = ChatInputBox.Text.Trim();
-            if (string.IsNullOrEmpty(userInput))
-                return;
-
-            // Add user's message to history
-            ChatMessages.Add(new ChatMessage { IsUser = true, Content = userInput });
-            ChatInputBox.Text = ""; // Clear input
-
-            // Show loading animation
-            LoadingRing.IsActive = true;
-            LoadingRing.Visibility = Visibility.Visible;
-
-            try
-            {
-                // Send to CustomGPT and get response
-                string gptResponse = await SendMessageToCustomGpt(userInput);
-                if (gptResponse.StartsWith("[Error:"))
-                {
-                    ChatMessages.Add(new ChatMessage { IsUser = false, Content = gptResponse });
-                }
-                else
-                {
-                    ChatMessages.Add(new ChatMessage { IsUser = false, Content = gptResponse });
-                }
-            }
-            finally
-            {
-                // Hide loading animation
-                LoadingRing.IsActive = false;
-                LoadingRing.Visibility = Visibility.Collapsed;
-            }
-        }
     }
 
-    // Simple class to represent a chat message
-    public class ChatMessage
-    {
-        public bool IsUser
-        {
-            get; set;
-        }
-        public string Content
-        {
-            get; set;
-        }
-    }
+
 }
