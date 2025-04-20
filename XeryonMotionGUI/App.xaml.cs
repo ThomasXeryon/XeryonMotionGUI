@@ -130,7 +130,7 @@ public partial class App : Application
 
         // Navigate to MainPage
         var navigationService = App.GetService<INavigationService>();
-        navigationService.NavigateTo(typeof(MainViewModel).FullName, args.Arguments);
+        navigationService.NavigateTo(typeof(HardwareViewModel).FullName, args.Arguments);
 
         // Activate the window (fullscreen will be handled in ShellPage)
         App.MainWindow.Activate();

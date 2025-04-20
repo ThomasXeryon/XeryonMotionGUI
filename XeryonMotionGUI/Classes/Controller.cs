@@ -464,26 +464,35 @@ namespace XeryonMotionGUI.Classes
         #region Data Handling
         private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
         {
-            if (Type == "CAN")
+            try
             {
-                return;
-            }
-            var sp = (SerialPort)sender;
-            string receivedData = sp.ReadExisting(); // Read all available bytes at once
-
-            if (!string.IsNullOrEmpty(receivedData))
-            {
-                // Get time as a double from stopwatch
-                double timeSeconds = _globalStopwatch.Elapsed.TotalSeconds;
-
-                // Process each line separately
-                string[] lines = receivedData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var line in lines)
+                if (Type == "CAN")
                 {
-                    ParseLine(line, timeSeconds);
+                    return;
+                }
+                var sp = (SerialPort)sender;
+                string receivedData = sp.ReadExisting(); // Read all available bytes at once
+
+                if (!string.IsNullOrEmpty(receivedData))
+                {
+                    // Get time as a double from stopwatch
+                    double timeSeconds = _globalStopwatch.Elapsed.TotalSeconds;
+
+                    // Process each line separately
+                    string[] lines = receivedData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines)
+                    {
+                        ParseLine(line, timeSeconds);
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it as needed
+                System.Diagnostics.Debug.WriteLine($"Error in DataReceivedHandler: {ex.Message}");
+            }
         }
+        #endregion
 
 
         private void ParseLine(string line, double timeStamp)
@@ -545,7 +554,6 @@ namespace XeryonMotionGUI.Classes
             }
         }
 
-        #endregion
 
         #region Parameter / Settings Methods
         public async Task InitializeAsync()

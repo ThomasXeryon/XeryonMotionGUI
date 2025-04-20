@@ -23,6 +23,7 @@ using OxyPlot.Axes;
 using OxyPlot.Series;
 using System.Windows.Input;
 using OxyPlot.Wpf;
+using System.Windows.Documents;
 
 namespace XeryonMotionGUI.Views
 {
@@ -66,6 +67,8 @@ namespace XeryonMotionGUI.Views
             //Tabs.control
         }
 
+
+
         private void MotionPage_Loaded(object sender, RoutedEventArgs e)
         {
             // Example: get the window that hosts this page
@@ -79,7 +82,113 @@ namespace XeryonMotionGUI.Views
             // win32WindowHelper.SetWindowMinMaxSize(new Win32WindowHelper.POINT { x = 500, y = 300 });
         }
 
-   
+        private MotionViewModel ViewModel => (MotionViewModel)DataContext;
+
+        private void OpenSettings_Click(object sender, RoutedEventArgs e)
+        {
+            // Create a new flyout
+            var flyout = new Flyout
+            {
+                Placement = FlyoutPlacementMode.Bottom
+            };
+
+            // Create the content for the flyout
+            var stackPanel = new StackPanel { Spacing = 20, Width = 400 };
+
+            // LOGGING group
+            var loggingGroup = new StackPanel();
+            loggingGroup.Children.Add(new TextBlock
+            {
+                Text = "Logging Settings",
+                FontSize = 16,
+                Margin = new Thickness(0, 0, 0, 5)
+            });
+
+            var loggingToggleStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Center
+            };
+            loggingToggleStack.Children.Add(new TextBlock
+            {
+                Text = "Logging Mode:",
+                Margin = new Thickness(0, 0, 5, 0),
+                VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Center
+            });
+
+            var loggingToggle = new ToggleSwitch
+            {
+                IsOn = ViewModel.SelectedAxis.AutoLogging,
+                OnContent = "Auto",
+                OffContent = "Manual"
+            };
+            loggingToggle.Toggled += (s, args) => {
+                ViewModel.SelectedAxis.AutoLogging = loggingToggle.IsOn;
+            };
+            loggingToggleStack.Children.Add(loggingToggle);
+
+            var manualLoggingStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(10, 0, 0, 0),
+                Visibility = ViewModel.SelectedAxis.AutoLogging ? Visibility.Collapsed : Visibility.Visible
+            };
+            manualLoggingStack.Children.Add(new Button
+            {
+                Content = "Start Logging",
+                Command = ViewModel.SelectedAxis.StartManualLoggingCommand,
+                Margin = new Thickness(0, 0, 5, 0)
+            });
+            manualLoggingStack.Children.Add(new Button
+            {
+                Content = "Stop Logging",
+                Command = ViewModel.SelectedAxis.StopManualLoggingCommand
+            });
+
+            loggingToggleStack.Children.Add(manualLoggingStack);
+            loggingGroup.Children.Add(loggingToggleStack);
+
+            // TIME SOURCE group
+            var timeSourceGroup = new StackPanel();
+            timeSourceGroup.Children.Add(new TextBlock
+            {
+                Text = "Time Source",
+                FontSize = 16,
+                Margin = new Thickness(0, 0, 0, 5)
+            });
+
+            var timeSourceStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 5, 0, 0)
+            };
+            timeSourceStack.Children.Add(new TextBlock
+            {
+                Text = "Use Controller Time:",
+                Margin = new Thickness(0, 0, 5, 0),
+                VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Center
+            });
+
+            var timeSourceToggle = new ToggleSwitch
+            {
+                IsOn = ViewModel.SelectedAxis.UseControllerTime,
+                OnContent = "Controller",
+                OffContent = "System"
+            };
+            timeSourceToggle.Toggled += (s, args) => {
+                ViewModel.SelectedAxis.UseControllerTime = timeSourceToggle.IsOn;
+            };
+            timeSourceStack.Children.Add(timeSourceToggle);
+            timeSourceGroup.Children.Add(timeSourceStack);
+
+            // Add all groups to the main stack panel
+            stackPanel.Children.Add(loggingGroup);
+            stackPanel.Children.Add(timeSourceGroup);
+
+            // Set the flyout content and show it
+            flyout.Content = stackPanel;
+            flyout.ShowAt((FrameworkElement)sender);
+        }
 
         /// <summary>
         /// Finds the TabView that currently owns the given TabViewItem, if any.

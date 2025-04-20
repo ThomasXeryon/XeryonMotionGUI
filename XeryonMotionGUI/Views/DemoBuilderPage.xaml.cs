@@ -674,7 +674,7 @@ namespace XeryonMotionGUI.Views
                     StartButton.IsEnabled = true;
                     StopButton.IsEnabled = false;
                 });
-                ShowFinalSummary(singleLongestMs);
+                //ShowFinalSummary(singleLongestMs);
             }
         }
 
