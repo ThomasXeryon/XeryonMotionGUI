@@ -160,7 +160,7 @@
                                                 <EntranceThemeTransition IsStaggeringEnabled="True" />
                                             </TransitionCollection>
                                         </StackPanel.ChildrenTransitions>
-                                        <TextBlock Text="Commercial Name:" FontWeight="Bold" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Name:" FontWeight="Bold" Margin="0,0,0,5"/>
                                         <TextBlock Text="{Binding Type}" Margin="0,0,0,5"/>
                                         <TextBlock Text="Type:" FontWeight="Bold" Margin="0,0,0,5"/>
                                         <TextBlock Text="{Binding Name}" Margin="0,0,0,5"/>
@@ -198,6 +198,10 @@
                                                                 <Run Text="{Binding AxisTitle}" />
                                                             </TextBlock>
                                                             <TextBlock FontSize="12">
+                                                                <Run Text="Name: " />
+                                                                <Run Text="{Binding FriendlyName}" />
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="12">
                                                                 <Run Text="Type: " />
                                                                 <Run Text="{Binding Type}" />
                                                             </TextBlock>
@@ -208,10 +212,6 @@
                                                             <TextBlock FontSize="12">
                                                                 <Run Text="Travel Range: " />
                                                                 <Run Text="{Binding Range, Converter={StaticResource DoubleFormatConverter}, ConverterParameter='F0'}" />
-                                                            </TextBlock>
-                                                            <TextBlock FontSize="12">
-                                                                <Run Text="Friendly Name: " />
-                                                                <Run Text="{Binding FriendlyName}" />
                                                             </TextBlock>
                                                             <TextBlock FontSize="12">
                                                                 <Run Text="Axis Letter: " />
