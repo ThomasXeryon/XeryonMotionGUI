@@ -14,7 +14,7 @@ namespace XeryonMotionGUI.Helpers
                 // Build the URI using the controller type.
                 // For example, if controllerType is "XD-OEM", this will point to:
                 // "ms-appx:///Assets/Images/Controllers/XD-OEM/default.png"
-                string uriString = $"ms-appx:///Assets/Images/Controllers/{controllerType}/default.png";
+                string uriString = $"ms-appx:///Assets/Images/Controllers/{controllerType}/Default.png";
                 try
                 {
                     return new BitmapImage(new Uri(uriString));

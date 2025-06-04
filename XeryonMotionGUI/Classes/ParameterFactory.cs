@@ -33,6 +33,7 @@ namespace XeryonMotionGUI.Classes
                 new Parameter(0, 10, 0.0001, 0, "Zone 1 Size:", "ZON1",
                               category: "Advanced tuning",
                               explanation: "Defines how large the first zone is.") ,
+                              
 
                 new Parameter(0, 10, 0.0001, 0, "Zone 2 Size:", "ZON2",
                               category: "Advanced tuning",
@@ -121,6 +122,9 @@ namespace XeryonMotionGUI.Classes
                               category: "Advanced tuning") ,
                 new Parameter(0, 1, 1, 0, "Phase Correction:", "PHAC",
                               category: "Advanced tuning") ,
+                new Parameter(0, 10, 0.0001, 0, "Minimal voltage:", "VMIN",
+                              category: "Advanced tuning",
+                              explanation: "If internal voltage drops below treshhold, it will generate a thermal protection error") ,
 /*                new Parameter(0, 1000000, 1, 0, "Trigger Pitch:", "TRGP",
                               category: "Triggering" ,
                               explanation: "Defines how large the first zone is.") ,
@@ -268,8 +272,8 @@ namespace XeryonMotionGUI.Classes
                 explanation: "Defines how large the first zone is.") ,*/
                 new Parameter(0, 1000000, 1, 0, "Step Size:", "STPS",
                               category: "GPIO") ,
-                /*new Parameter(0, 1, 1, 1, "Enable Encoder:", "ENON",
-                              category: "Time outs and error handling") ,*/
+                new Parameter(0, 1, 1, 1, "Enable Encoder:", "ENON",
+                              category: "Time outs and error handling") ,
                 new Parameter(0, 1, 1, 1, "Enable After Reboot:", "ENBR",
                               category: "Time outs and error handling") ,
                 new Parameter(0, 1, 1, 1, "Enable:", "ENBL",

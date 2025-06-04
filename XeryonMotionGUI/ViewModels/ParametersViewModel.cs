@@ -11,6 +11,12 @@ namespace XeryonMotionGUI.ViewModels
 {
     public partial class ParametersViewModel : ObservableObject
     {
+        private static readonly HashSet<string> _basicCommands = new(StringComparer.OrdinalIgnoreCase)
+{
+    "SSPD",  // Speed
+    "ACCE",  // Acceleration
+    "DECE"   // Deceleration
+};
         public ObservableCollection<Controller> RunningControllers => Controller.RunningControllers;
 
         // Expose a boolean to let the UI know if any controllers exist
@@ -96,9 +102,19 @@ namespace XeryonMotionGUI.ViewModels
                 OnPropertyChanged(nameof(Parameters));
             }
         }
+        private readonly SettingsViewModel _settings;
 
-        public ParametersViewModel()
+        public ParametersViewModel(SettingsViewModel settings)
         {
+            _settings = settings;
+            _settings.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(SettingsViewModel.IsExpertMode)
+                 or nameof(SettingsViewModel.IsNormalMode))
+                {
+                    UpdateGroupedParameters();
+                }
+            };
             SaveParametersCommand = new RelayCommand(SaveParameters);
             IncrementCommand = new RelayCommand<string>(IncrementParameter);
             DecrementCommand = new RelayCommand<string>(DecrementParameter);
@@ -143,34 +159,42 @@ namespace XeryonMotionGUI.ViewModels
 
         private void UpdateGroupedParameters()
         {
-            if (SelectedAxis?.Parameters != null)
-            {
-                // Example custom sorting order
-                var categoryOrder = new Dictionary<string, int>
-                {
-                    { "Advanced tuning", 2 },
-                    { "Motion", 1 },
-                    { "Time outs and error handling", 3 },
-                    { "GPIO", 4 },
-                    { "Triggering", 5 }
-                };
-
-                var groups = SelectedAxis.Parameters
-                    .GroupBy(p => p.Category)
-                    .OrderBy(g => categoryOrder.ContainsKey(g.Key) ? categoryOrder[g.Key] : int.MaxValue)
-                    .Select(g => new ParameterGroup
-                    {
-                        Category = g.Key,
-                        Parameters = new ObservableCollection<Parameter>(g)
-                    });
-
-                GroupedParameters = new ObservableCollection<ParameterGroup>(groups);
-            }
-            else
+            if (SelectedAxis?.Parameters == null)
             {
                 GroupedParameters = new ObservableCollection<ParameterGroup>();
+                return;
             }
+
+            // only include advanced-tuning parameters if we’re in Expert mode
+            var allowed = SelectedAxis.Parameters
+                .Where(p =>
+                    // in Expert mode: show everything
+                    _settings.IsExpertMode
+                    // in Normal mode: only show our “basic” list
+                    || _basicCommands.Contains(p.Command)
+                );
+
+            // now group exactly as before, but using the filtered sequence:
+            var categoryOrder = new Dictionary<string, int> {
+        { "Motion", 1 },
+        { "Advanced tuning", 2 },
+        { "Time outs and error handling", 3 },
+        { "GPIO", 4 },
+        { "Triggering", 5 },
+    };
+
+            var groups = allowed
+                .GroupBy(p => p.Category)
+                .OrderBy(g => categoryOrder.TryGetValue(g.Key, out var o) ? o : int.MaxValue)
+                .Select(g => new ParameterGroup
+                {
+                    Category = g.Key,
+                    Parameters = new ObservableCollection<Parameter>(g)
+                });
+
+            GroupedParameters = new ObservableCollection<ParameterGroup>(groups);
         }
+
 
         private void IncrementParameter(string parameterName)
         {

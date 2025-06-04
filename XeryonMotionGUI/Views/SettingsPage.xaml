@@ -72,27 +72,22 @@
                 </DropDownButton>
             </StackPanel>
 
-            <TextBlock x:Uid="Settings_Mode" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,10"/>
+            <TextBlock Text="Settings mode"
+                       Style="{ThemeResource SubtitleTextBlockStyle}"
+                       Margin="0,20,0,10"/>
 
-            <StackPanel Margin="{StaticResource XSmallTopMargin}" Visibility="Collapsed">
+            <StackPanel Margin="{StaticResource XSmallTopMargin}">
                 <RadioButton
                     Content="Normal Mode"
                     GroupName="AppMode"
                     FontSize="15"
-                    
-                    CommandParameter="Normal" />
+                    IsChecked="{x:Bind ViewModel.IsNormalMode, Mode=TwoWay}" />
+
                 <RadioButton
                     Content="Expert Mode"
                     GroupName="AppMode"
                     FontSize="15"
-                    
-                    CommandParameter="Expert" />
-                <RadioButton
-                    Content="Final Boss Mode"
-                    GroupName="AppMode"
-                    FontSize="15"
-                    
-                    CommandParameter="FinalBoss" />
+                    IsChecked="{x:Bind ViewModel.IsExpertMode, Mode=TwoWay}" />
             </StackPanel>
 
             <TextBlock x:Uid="Settings_About" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,10"/>

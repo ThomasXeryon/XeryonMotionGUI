@@ -13,8 +13,8 @@
 
   <Identity
     Name="6f6b614f-257d-47c4-8b3f-36f5fc45845c"
-    Publisher="CN=thomas"
-    Version="1.1.9.0" />
+    Publisher="CN=E=info@xeryon.com, Xeryon BV, O=Xeryon BV, STREET=Interleuvenlaan 21, L=Leuven, S=Vlaams-Brabant, C=BE, OID.1.3.6.1.4.1.311.60.2.1.3=BE, SERIALNUMBER=0534.390.123, OID.2.5.4.15=Private Organization"
+    Version="1.2.19.0" />
     
   <mp:PhoneIdentity PhoneProductId="6f6b614f-257d-47c4-8b3f-36f5fc45845c" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
     

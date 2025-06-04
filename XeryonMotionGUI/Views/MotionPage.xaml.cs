@@ -5,6 +5,9 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
+using Windows.UI.Xaml;   // for FocusManager
+using Microsoft.UI.Xaml.Input;  // for FindNextElementOptions
+
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives; // For RangeBaseValueChangedEventArgs
@@ -24,6 +27,9 @@ using OxyPlot.Series;
 using System.Windows.Input;
 using OxyPlot.Wpf;
 using System.Windows.Documents;
+using CommunityToolkit.WinUI;
+using FocusManager = Microsoft.UI.Xaml.Input.FocusManager;
+using FocusNavigationDirection = Microsoft.UI.Xaml.Input.FocusNavigationDirection;
 
 namespace XeryonMotionGUI.Views
 {
@@ -500,5 +506,20 @@ namespace XeryonMotionGUI.Views
                 navRootPage.Navigate(typeof(JoystickWindow), axes);
             }
         }
+    }
+}
+public static class VisualTreeHelperExtensions
+{
+    public static T FindAscendant<T>(this DependencyObject startingPoint)
+        where T : DependencyObject
+    {
+        var parent = startingPoint;
+        while (parent != null)
+        {
+            if (parent is T typed)
+                return typed;
+            parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(parent);
+        }
+        return null;
     }
 }

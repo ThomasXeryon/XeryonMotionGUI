@@ -1,106 +1,56 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Windows.Storage.Pickers;
 using Windows.Storage;
-using XeryonMotionGUI.Classes;
-using XeryonMotionGUI.ViewModels;
 using WinRT.Interop;
+using XeryonMotionGUI.ViewModels;
+using XeryonMotionGUI.Classes;
 
 namespace XeryonMotionGUI.Views
 {
     public sealed partial class ParametersPage : Page
     {
+        private readonly ParametersViewModel _vm;
+
         public ParametersPage()
         {
-            this.InitializeComponent();
-            this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
-            this.DataContext = new ParametersViewModel(); // Set DataContext here
+            InitializeComponent();
+            NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
 
+            _vm = App.GetService<ParametersViewModel>();
+            DataContext = _vm;
         }
 
         private async void OnFilePickerButtonClick(object sender, RoutedEventArgs e)
         {
-            if (sender is not Button senderButton)
+            if (sender is not MenuFlyoutItem menuItem)
                 return;
-            senderButton.IsEnabled = false;
-            try
-            {
-                var openPicker = new FileOpenPicker();
-                var window = App.MainWindow;
-                var hWnd = WindowNative.GetWindowHandle(window);
-                InitializeWithWindow.Initialize(openPicker, hWnd);
-                openPicker.ViewMode = PickerViewMode.Thumbnail;
-                openPicker.SuggestedStartLocation = PickerLocationId.PicturesLibrary;
-                openPicker.FileTypeFilter.Add(".txt");
-                var file = await openPicker.PickSingleFileAsync();
-                if (file != null && file.FileType == ".txt")
-                {
-                    string fileContent = await FileIO.ReadTextAsync(file);
-                    ShowTextEditPopup(fileContent, async (editedContent) =>
-                    {
-                        await FileIO.WriteTextAsync(file, editedContent);
-                        SendSettingsToDriver(editedContent);
-                    });
-                    await UpdateButtonWithIconAsync(senderButton, Symbol.Accept, 1000);
-                }
-                else
-                {
-                    await UpdateButtonWithIconAsync(senderButton, Symbol.Cancel, 1000);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error: {ex.Message}");
-                await UpdateButtonWithIconAsync(senderButton, Symbol.Cancel, 1000);
-            }
-        }
 
-        private async Task UpdateButtonWithIconAsync(Button button, Symbol newSymbol, int delayMs)
-        {
-            if (button.Content is not SymbolIcon icon)
-                return;
-            var originalIcon = icon.Symbol;
-            button.IsEnabled = false;
-            icon.Symbol = newSymbol;
-            await Task.Delay(delayMs);
-            icon.Symbol = originalIcon;
-            button.IsEnabled = true;
-        }
+            // grab the controller from the flyout item’s DataContext
+            var ctrl = (Controller)menuItem.DataContext;
+            _vm.SelectedController = ctrl;
 
-        private void ShowTextEditPopup(string content, Action<string> sendSettingsToDriver)
-        {
-            var popup = new ContentDialog
+            // now open the picker as before…
+            var openPicker = new FileOpenPicker();
+            InitializeWithWindow.Initialize(openPicker, WindowNative.GetWindowHandle(App.MainWindow));
+            openPicker.FileTypeFilter.Add(".txt");
+            openPicker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+
+            var file = await openPicker.PickSingleFileAsync();
+            if (file != null)
             {
-                Title = "Edit Settings File?",
-                PrimaryButtonText = "Save",
-                CloseButtonText = "Cancel",
-                DefaultButton = ContentDialogButton.Primary
-            };
-            var textBox = new TextBox
-            {
-                AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
-                Text = content,
-                Margin = new Thickness(0),
-                Height = 500,
-                Width = 400
-            };
-            popup.Content = new ScrollViewer
-            {
-                Content = textBox,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-            };
-            popup.XamlRoot = App.MainWindow.Content.XamlRoot;
-            popup.PrimaryButtonClick += (s, e) =>
-            {
-                string editedContent = textBox.Text;
-                sendSettingsToDriver(editedContent);
-            };
-            popup.ShowAsync();
+                var content = await FileIO.ReadTextAsync(file);
+                ShowTextEditPopup(content, edited =>
+                {
+                    FileIO.WriteTextAsync(file, edited).AsTask().Wait();
+                    ctrl.UploadSettings(edited);
+                });
+            }
         }
 
         private void SendSettingsToDriver(string settings)
@@ -112,17 +62,83 @@ namespace XeryonMotionGUI.Views
             }
         }
 
+        private void ShowTextEditPopup(string content, Action<string> sendSettingsToDriver)
+        {
+            var popup = new ContentDialog
+            {
+                Title = "Edit Settings File?",
+                PrimaryButtonText = "Save",
+                CloseButtonText = "Cancel",
+                
+                DefaultButton = ContentDialogButton.Primary
+            };
+            var textBox = new TextBox
+            {
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                Text = content,
+                Margin = new Thickness(0),
+                Height = 500,
+                IsReadOnly = true,
+                Width = 400
+            };
+            popup.Content = new ScrollViewer
+            {
+                Content = textBox,
+                
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+            popup.XamlRoot = App.MainWindow.Content.XamlRoot;
+            popup.PrimaryButtonClick += (s, e) =>
+            {
+                string editedContent = textBox.Text;
+                sendSettingsToDriver(editedContent);
+            };
+            popup.ShowAsync();
+        }
+
+
+
         private async void OnSaveButtonClick(object sender, RoutedEventArgs e)
         {
-            if (this.DataContext is not ParametersViewModel viewModel)
-                return;
-            var selectedController = viewModel.SelectedController;
-            if (sender is not Button button || !button.IsEnabled)
-                return;
-            if (button.Content is not SymbolIcon icon)
-                return;
-            await UpdateButtonWithIconAsync(button, Symbol.Accept, 500);
-            selectedController?.SaveSettings();
+            if (sender is not MenuFlyoutItem item) return;
+            var ctrl = (Controller)item.DataContext;
+            _vm.SelectedController = ctrl;
+
+            await Task.Run(() => ctrl.SaveSettings());
         }
+
+        private async void OnSaveAllButtonClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuFlyoutItem item) return;
+
+            var ctrl = (Controller)item.DataContext;
+            _vm.SelectedController = ctrl;
+
+            var sb = new StringBuilder();
+            foreach (var axis in ctrl.Axes)
+            {
+                sb.AppendLine($"# Axis: {axis.FriendlyName}");
+                foreach (var p in axis.Parameters)
+                {
+                    // use the Command (e.g. "ENBL") instead of Name, no spaces
+                    sb.AppendLine($"{p.Command}={p.Value}");
+                }
+                sb.AppendLine();
+            }
+
+            var savePicker = new FileSavePicker();
+            InitializeWithWindow.Initialize(savePicker, WindowNative.GetWindowHandle(App.MainWindow));
+            savePicker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            savePicker.FileTypeChoices.Add("Text file", new[] { ".txt" });
+            savePicker.SuggestedFileName = "ParametersExport";
+
+            var file = await savePicker.PickSaveFileAsync();
+            if (file != null)
+            {
+                await FileIO.WriteTextAsync(file, sb.ToString());
+            }
+        }
+
     }
 }

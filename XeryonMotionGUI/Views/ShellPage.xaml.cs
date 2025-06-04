@@ -50,7 +50,7 @@ namespace XeryonMotionGUI.Views
         {
             ViewModel = viewModel;
             // Initialize ParametersViewModel to access controllers, axes, and parameters
-            _parametersViewModel = new ParametersViewModel();
+            _parametersViewModel = App.GetService<ParametersViewModel>();
             InitializeComponent();
 
             ViewModel.NavigationService.Frame = NavigationFrame;

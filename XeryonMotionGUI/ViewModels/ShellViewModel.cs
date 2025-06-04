@@ -43,8 +43,8 @@ public partial class ShellViewModel : ObservableRecipient
     public ShellViewModel(INavigationService navigationService, INavigationViewService navigationViewService)
     {
         // Load saved background color or set default
-        LoadBackgroundColor();
-        System.Diagnostics.Debug.WriteLine($"Initial color: {ShellPageBackground.Color}");
+        //LoadBackgroundColor();
+        //System.Diagnostics.Debug.WriteLine($"Initial color: {ShellPageBackground.Color}");
         NavigationService = navigationService;
         NavigationService.Navigated += OnNavigated;
         NavigationViewService = navigationViewService;
@@ -84,7 +84,7 @@ public partial class ShellViewModel : ObservableRecipient
 
     private void LoadBackgroundColor()
     {
-        var localSettings = ApplicationData.Current.LocalSettings;
+        /*var localSettings = ApplicationData.Current.LocalSettings;
 
         if (localSettings.Values.TryGetValue(ShellPageBackgroundColorKey, out var savedColor))
         {
@@ -97,7 +97,7 @@ public partial class ShellViewModel : ObservableRecipient
         }
 
         // Default color if no saved value exists
-        ShellPageBackground = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x80, 0x02));
+        ShellPageBackground = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x80, 0x02));*/
     }
 
     private void SaveBackgroundColor(Windows.UI.Color color)
