@@ -66,7 +66,7 @@ public class ThemeSelectorService : IThemeSelectorService
         if (Enum.TryParse(themeName, out ElementTheme cacheTheme))
         {
             return cacheTheme;
-        }
+        }   
 
         return ElementTheme.Default;
     }

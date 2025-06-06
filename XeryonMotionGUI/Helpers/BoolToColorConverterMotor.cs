@@ -20,8 +20,9 @@ namespace XeryonMotionGUI.Helpers
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
         {
+            return 1;
             // We don't need to implement ConvertBack for this case
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
     }
 }
